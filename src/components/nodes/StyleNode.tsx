@@ -150,20 +150,20 @@ export function StyleNode({ id, data, isConnectable }: any) {
             {activeStyle === s.id && (
                 <div style={{ 
                   position: 'absolute', 
-                  top: -4, 
-                  right: -4, 
+                  top: 4, 
+                  right: 4, 
                   backgroundColor: 'var(--text-primary)', 
                   borderRadius: '50%',
-                  width: '24px',
-                  height: '24px',
+                  width: '20px',
+                  height: '20px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                   zIndex: 2,
-                  border: '2px solid var(--bg-node-base)'
+                  border: '1.5px solid var(--bg-node-base)'
                 }}>
-                  <Check color="var(--bg-node-base)" size={16} strokeWidth={4} />
+                  <Check color="var(--bg-node-base)" size={12} strokeWidth={4} />
                 </div>
             )}
           </div>
@@ -183,20 +183,20 @@ export function StyleNode({ id, data, isConnectable }: any) {
               {isActive && (
                 <div style={{ 
                   position: 'absolute', 
-                  top: -4, 
-                  right: -4, 
+                  top: 4, 
+                  right: 4, 
                   backgroundColor: 'var(--text-primary)', 
                   borderRadius: '50%',
-                  width: '24px',
-                  height: '24px',
+                  width: '20px',
+                  height: '20px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                   zIndex: 2,
-                  border: '2px solid var(--bg-node-base)'
+                  border: '1.5px solid var(--bg-node-base)'
                 }}>
-                  <Check color="var(--bg-node-base)" size={16} strokeWidth={4} />
+                  <Check color="var(--bg-node-base)" size={12} strokeWidth={4} />
                 </div>
               )}
             </div>
