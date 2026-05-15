@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { ReactFlow, Controls, Background, applyNodeChanges, applyEdgeChanges, addEdge, MarkerType } from '@xyflow/react';
+import { ReactFlow, Controls, Background, applyNodeChanges, applyEdgeChanges, addEdge, MarkerType, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { PromptNode } from '@/components/nodes/PromptNode';
@@ -11,7 +11,14 @@ import { ResolutionNode } from '@/components/nodes/ResolutionNode';
 import { OutputNode } from '@/components/nodes/OutputNode';
 import { CanvasNode } from '@/components/nodes/CanvasNode';
 
-const STYLE_SAMPLES: { id: string; label: string; icon: string }[] = [];
+const STYLE_SAMPLES = [
+  { id: 'minimalist', label: '미니멀리스트 라인 아트', icon: '🎨' },
+  { id: 'cyberpunk', label: '네온 사이버펑크', icon: '🌃' },
+  { id: 'watercolor', label: '수채화 스타일', icon: '💧' },
+  { id: 'pixel-art', label: '8비트 픽셀 아트', icon: '👾' },
+  { id: '3d-render', label: '3D 옥테인 렌더', icon: '🧊' },
+  { id: 'vintage-photo', label: '빈티지 필름 사진', icon: '📸' },
+];
 const STORAGE_KEY = "brandgen_state"; // canonical key
 
 const initialEdges = [
@@ -20,7 +27,7 @@ const initialEdges = [
     source: 'prompt-node', 
     sourceHandle: 'prompt-out',
     target: 'output-node', 
-    targetHandle: 'prompt-in', 
+    targetHandle: 'general-in', 
     style: { stroke: 'var(--port-prompt)', strokeWidth: 3 },
   },
   { 
@@ -28,7 +35,7 @@ const initialEdges = [
     source: 'style-node', 
     sourceHandle: 'style-out',
     target: 'output-node', 
-    targetHandle: 'style-in', 
+    targetHandle: 'general-in', 
     style: { stroke: 'var(--port-style)', strokeWidth: 3 },
   },
   { 
@@ -36,7 +43,7 @@ const initialEdges = [
     source: 'ratio-node', 
     sourceHandle: 'ratio-out',
     target: 'output-node', 
-    targetHandle: 'ratio-in', 
+    targetHandle: 'general-in', 
     style: { stroke: 'var(--port-ratio)', strokeWidth: 3 },
   },
   { 
@@ -44,12 +51,20 @@ const initialEdges = [
     source: 'resolution-node', 
     sourceHandle: 'resolution-out',
     target: 'output-node', 
-    targetHandle: 'resolution-in', 
+    targetHandle: 'general-in', 
     style: { stroke: 'var(--port-resolution)', strokeWidth: 3 },
   },
 ];
 
 export default function Home() {
+  return (
+    <ReactFlowProvider>
+      <FlowContent />
+    </ReactFlowProvider>
+  );
+}
+
+function FlowContent() {
   const [theme, setTheme] = useState<"light" | "dark">("dark"); // Default dark mode for pipeline UI
   const [prompt, setPrompt] = useState("");
   const [activeStyle, setActiveStyle] = useState<string | null>(null);
@@ -61,6 +76,51 @@ export default function Home() {
   const [error, setError] = useState(false);
   const [englishPrompt, setEnglishPrompt] = useState("");
   const [isTranslating, setIsTranslating] = useState(false);
+  const [nodes, setNodes] = useState<any[]>([
+    {
+      id: 'prompt-node',
+      type: 'promptNode',
+      position: { x: 50, y: 50 },
+      data: { prompt: "", onChange: setPrompt },
+    },
+    {
+      id: 'style-node',
+      type: 'styleNode',
+      position: { x: 50, y: 300 },
+      data: { 
+        activeStyle: null, 
+        setActiveStyle, 
+        customStyles: [], 
+        setCustomStyles, 
+        styleSamples: STYLE_SAMPLES 
+      },
+    },
+    {
+      id: 'ratio-node',
+      type: 'ratioNode',
+      position: { x: 50, y: 550 },
+      data: { ratio: "1:1", setRatio },
+    },
+    {
+      id: 'resolution-node',
+      type: 'resolutionNode',
+      position: { x: 50, y: 700 },
+      data: { resolution: "HD", setResolution },
+    },
+    {
+      id: 'output-node',
+      type: 'outputNode',
+      position: { x: 450, y: 150 },
+      data: { 
+        prompt: "", style: null, ratio: "1:1", resolution: "HD", 
+        englishPrompt: "", isTranslating: false, 
+        onGenerate: () => {}, 
+        canGenerate: false,
+        isGenerating: false 
+      },
+    }
+  ]);
+  const [edges, setEdges] = useState<any[]>(initialEdges);
 
   // Load from local storage
   useEffect(() => {
@@ -92,38 +152,71 @@ export default function Home() {
     } catch {}
   };
 
-  // Translate prompt whenever inputs change (debounced)
+  // Translate prompt whenever inputs or connections change (debounced)
   useEffect(() => {
+    const isPromptConnected = edges.some(e => e.target === 'output-node' && e.source === 'prompt-node');
+    const isStyleConnected = edges.some(e => e.target === 'output-node' && e.source === 'style-node');
+    const isRatioConnected = edges.some(e => e.target === 'output-node' && e.source === 'ratio-node');
+    const isResConnected = edges.some(e => e.target === 'output-node' && e.source === 'resolution-node');
+
+    if (!isPromptConnected && !isStyleConnected && !isRatioConnected && !isResConnected) {
+      setEnglishPrompt("");
+      return;
+    }
+
+    const controller = new AbortController();
     const timeoutId = setTimeout(async () => {
-      if (!prompt.trim() && !activeStyle) {
-        setEnglishPrompt("");
-        return;
-      }
       setIsTranslating(true);
       try {
+        const currentCustomStyle = activeStyle?.startsWith("custom-")
+          ? customStyles[parseInt(activeStyle.split("-")[1])]
+          : null;
+
         const res = await fetch("/api/translate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, style: activeStyle, ratio, resolution }),
+          body: JSON.stringify({ 
+            prompt: isPromptConnected ? prompt : "", 
+            style: isStyleConnected ? (currentCustomStyle?.startsWith("data:image") ? "an image reference style" : (currentCustomStyle || activeStyle)) : null, 
+            ratio: isRatioConnected ? ratio : null, 
+            resolution: isResConnected ? resolution : null 
+          }),
+          signal: controller.signal
         });
         const data = await res.json();
         if (data.englishPrompt) {
           setEnglishPrompt(data.englishPrompt);
         }
-      } catch (e) {
-        console.error(e);
+      } catch (e: any) {
+        if (e.name !== 'AbortError') {
+          console.error(e);
+        }
       } finally {
         setIsTranslating(false);
       }
     }, 1000); // 1s debounce
 
-    return () => clearTimeout(timeoutId);
-  }, [prompt, activeStyle, ratio, resolution]);
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [prompt, activeStyle, ratio, resolution, edges]);
 
-  const handleGenerate = async () => {
-    if ((!prompt.trim() && !activeStyle) || isGenerating) return;
+  const handleGenerate = useCallback(async () => {
+    const isPromptConnected = edges.some(e => e.target === 'output-node' && e.source === 'prompt-node');
+    const isStyleConnected = edges.some(e => e.target === 'output-node' && e.source === 'style-node');
+    const isRatioConnected = edges.some(e => e.target === 'output-node' && e.source === 'ratio-node');
+    const isResConnected = edges.some(e => e.target === 'output-node' && e.source === 'resolution-node');
+
+    const effectivePrompt = isPromptConnected ? prompt : "";
+    const effectiveStyle = isStyleConnected ? activeStyle : null;
+
+    if ((!effectivePrompt.trim() && !effectiveStyle) || isGenerating) return;
     setIsGenerating(true);
     setError(false);
+    
+    // ... rest of the function using effectivePrompt and effectiveStyle ...
+    // (I will keep the rest as is but use the variables)
     
     // Add Canvas Node dynamically if it doesn't exist
     setNodes(nds => {
@@ -164,8 +257,8 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt,
-          style: currentCustomStyle ? "custom" : activeStyle,
+          prompt: effectivePrompt,
+          style: currentCustomStyle ? "custom" : effectiveStyle,
           customStyle: currentCustomStyle,
           ratio,
           resolution,
@@ -193,7 +286,7 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [prompt, activeStyle, customStyles, ratio, resolution, isGenerating]);
 
   const nodeTypes = useMemo(() => ({
     promptNode: PromptNode,
@@ -204,28 +297,23 @@ export default function Home() {
     canvasNode: CanvasNode,
   }), []);
 
-  const [nodes, setNodes] = useState<any[]>([]);
-  const [edges, setEdges] = useState<any[]>(initialEdges);
 
   const onNodesChange = useCallback((changes: any) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
   const onEdgesChange = useCallback((changes: any) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
   const onConnect = useCallback((params: any) => {
     let targetHandle = params.targetHandle;
     
-    // Map drops on the general node area to specific ports
-    if (params.target === 'output-node' && targetHandle === 'general-in') {
-      if (params.source === 'prompt-node') targetHandle = 'prompt-in';
-      if (params.source === 'style-node') targetHandle = 'style-in';
-      if (params.source === 'ratio-node') targetHandle = 'ratio-in';
-      if (params.source === 'resolution-node') targetHandle = 'resolution-in';
+    // Always use general-in for the merged dot on OutputNode
+    if (params.target === 'output-node') {
+      targetHandle = 'general-in';
     }
 
-    // Apply color styling based on source node
-    let style = {};
-    if (params.source === 'prompt-node') style = { stroke: 'var(--port-prompt)', strokeWidth: 3 };
-    if (params.source === 'style-node') style = { stroke: 'var(--port-style)', strokeWidth: 3 };
-    if (params.source === 'ratio-node') style = { stroke: 'var(--port-ratio)', strokeWidth: 3 };
-    if (params.source === 'resolution-node') style = { stroke: 'var(--port-resolution)', strokeWidth: 3 };
+    // Apply color styling based on source handle
+    let style = { stroke: '#94a3b8', strokeWidth: 2 }; // Default
+    if (params.sourceHandle === 'prompt-out') style = { stroke: 'var(--port-prompt)', strokeWidth: 3 };
+    if (params.sourceHandle === 'style-out') style = { stroke: 'var(--port-style)', strokeWidth: 3 };
+    if (params.sourceHandle === 'ratio-out') style = { stroke: 'var(--port-ratio)', strokeWidth: 3 };
+    if (params.sourceHandle === 'resolution-out') style = { stroke: 'var(--port-resolution)', strokeWidth: 3 };
 
     setEdges((eds) => {
       // Remove any existing edge from the same source node to prevent duplicates
@@ -234,85 +322,94 @@ export default function Home() {
     });
   }, [setEdges]);
 
-  // Update nodes data when state changes
-  useEffect(() => {
-    setNodes([
-      {
-        id: 'prompt-node',
-        type: 'promptNode',
-        position: { x: 50, y: 50 },
-        data: { prompt, onChange: setPrompt },
-      },
-      {
-        id: 'style-node',
-        type: 'styleNode',
-        position: { x: 50, y: 300 },
-        data: { 
-          activeStyle, 
-          setActiveStyle, 
-          customStyles, 
-          setCustomStyles, 
-          styleSamples: STYLE_SAMPLES 
-        },
-      },
-      {
-        id: 'ratio-node',
-        type: 'ratioNode',
-        position: { x: 50, y: 550 },
-        data: { ratio, setRatio },
-      },
-      {
-        id: 'resolution-node',
-        type: 'resolutionNode',
-        position: { x: 50, y: 700 },
-        data: { resolution, setResolution },
-      },
-      {
-        id: 'output-node',
-        type: 'outputNode',
-        position: { x: 450, y: 150 },
-        data: { 
-          prompt, style: activeStyle, ratio, resolution, 
-          englishPrompt, isTranslating, 
-          onGenerate: handleGenerate, 
-          canGenerate: !!prompt.trim() || !!activeStyle,
-          isGenerating 
-        },
+  const finalNodes = useMemo(() => {
+    return nodes.map((node) => {
+      const baseData = node.data || {};
+      if (node.id === 'prompt-node') {
+        return { ...node, data: { ...baseData, prompt, onChange: setPrompt } };
       }
-    ]);
-    
-    // Update Canvas Node data if it exists
-    setNodes(nds => nds.map(node => {
+      if (node.id === 'style-node') {
+        return { ...node, data: { ...baseData, activeStyle, customStyles, setActiveStyle, setCustomStyles, styleSamples: STYLE_SAMPLES } };
+      }
+      if (node.id === 'ratio-node') {
+        return { ...node, data: { ...baseData, ratio, setRatio } };
+      }
+      if (node.id === 'resolution-node') {
+        return { ...node, data: { ...baseData, resolution, setResolution } };
+      }
+      if (node.id === 'output-node') {
+        const selectedSample = STYLE_SAMPLES.find(s => s.id === activeStyle);
+        const currentCustomStyle = activeStyle?.startsWith("custom-")
+          ? customStyles[parseInt(activeStyle.split("-")[1])]
+          : null;
+        
+        const resolvedStyle = selectedSample ? selectedSample.label : (currentCustomStyle || activeStyle);
+          
+        return { 
+          ...node, 
+          data: { 
+            ...baseData,
+            prompt, 
+            style: resolvedStyle, 
+            ratio, 
+            resolution, 
+            englishPrompt, isTranslating, 
+            onGenerate: handleGenerate, 
+            canGenerate: (edges.some(e => e.target === 'output-node' && e.source === 'prompt-node') && !!prompt.trim()) || 
+                         (edges.some(e => e.target === 'output-node' && e.source === 'style-node') && !!activeStyle),
+            isGenerating 
+          } 
+        };
+      }
       if (node.id === 'canvas-node') {
         return {
           ...node,
-          data: { ...node.data, imageUrl, error, isGenerating }
+          data: { ...baseData, imageUrl, error, isGenerating }
         };
       }
       return node;
-    }));
-  }, [prompt, activeStyle, customStyles, ratio, resolution, englishPrompt, isTranslating, isGenerating, imageUrl, error]);
+    });
+  }, [nodes, prompt, activeStyle, customStyles, ratio, resolution, englishPrompt, isTranslating, handleGenerate, isGenerating, imageUrl, error]);
 
   return (
     <main style={{ width: '100vw', height: '100vh', backgroundColor: 'var(--bg-canvas)' }}>
       <ReactFlow
-        nodes={nodes}
+        nodes={finalNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
-        defaultEdgeOptions={{ type: 'default', animated: false, style: { strokeWidth: 2 } }}
+        defaultEdgeOptions={{ type: 'default', animated: false, style: { strokeWidth: 3 } }}
+        connectionLineStyle={{ stroke: 'var(--text-tertiary)', strokeWidth: 3 }}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.5}
         colorMode={theme}
       >
         <Background color="var(--border-node)" gap={24} size={1} />
-        <Controls position="bottom-center" orientation="horizontal" />
       </ReactFlow>
 
-      {/* Header overlay */}
+      {/* 우상단 컨트롤 박스 (절대 위치로 간결하게 배치) */}
+      <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 4, display: 'flex', alignItems: 'center', padding: '4px', backgroundColor: 'var(--bg-node-base)', borderRadius: '20px', border: '1px solid var(--border-node)', boxShadow: 'var(--shadow-node)' }}>
+        <Controls 
+          showInteractive={false} 
+          position="top-right"
+          style={{ 
+            position: 'relative', 
+            top: 0, 
+            right: 0, 
+            margin: 0,
+            display: 'flex',
+            flexDirection: 'row',
+            backgroundColor: 'transparent',
+            border: 'none',
+            boxShadow: 'none'
+          }} 
+        />
+      </div>
+
+      {/* 좌상단 브랜드 박스 (기존 유지) */}
       <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 4, display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--bg-node-base)', borderRadius: '20px', border: '1px solid var(--border-node)', boxShadow: 'var(--shadow-node)' }}>
         <span style={{ fontSize: '17px', fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>BrandGen</span>
         <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '100px', backgroundColor: 'var(--text-primary)', color: 'var(--bg-canvas)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>베타</span>

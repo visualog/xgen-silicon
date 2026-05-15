@@ -1,6 +1,7 @@
 import { Handle, Position, useNodeConnections } from '@xyflow/react';
 import React, { useRef } from 'react';
-import { CircleCheck, Palette } from 'lucide-react';
+import { Check, CircleCheck, Palette, X } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
 
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
@@ -86,8 +87,14 @@ const portLabelStyle = {
   letterSpacing: '0.3px',
 };
 
-export function StyleNode({ data, isConnectable }: any) {
+export function StyleNode({ id, data, isConnectable }: any) {
+  const { setEdges } = useReactFlow();
+  const [isHovered, setIsHovered] = React.useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDisconnect = () => {
+    setEdges((eds) => eds.filter(e => !(e.source === id && e.sourceHandle === 'style-out')));
+  };
 
   const {
     activeStyle,
@@ -141,9 +148,23 @@ export function StyleNode({ data, isConnectable }: any) {
           >
             <span style={{ fontSize: "1.3rem" }}>{s.icon}</span>
             {activeStyle === s.id && (
-              <div style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'var(--bg-node-base)', borderRadius: '50%' }}>
-                <CircleCheck fill="var(--text-primary)" stroke="var(--bg-node-base)" size={16} />
-              </div>
+                <div style={{ 
+                  position: 'absolute', 
+                  top: -4, 
+                  right: -4, 
+                  backgroundColor: 'var(--text-primary)', 
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  zIndex: 2,
+                  border: '2px solid var(--bg-node-base)'
+                }}>
+                  <Check color="var(--bg-node-base)" size={16} strokeWidth={4} />
+                </div>
             )}
           </div>
         ))}
@@ -160,8 +181,22 @@ export function StyleNode({ data, isConnectable }: any) {
             >
               <img src={src} alt={`Style ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               {isActive && (
-                <div style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'var(--bg-node-base)', borderRadius: '50%' }}>
-                  <CircleCheck fill="var(--text-primary)" stroke="var(--bg-node-base)" size={16} />
+                <div style={{ 
+                  position: 'absolute', 
+                  top: -4, 
+                  right: -4, 
+                  backgroundColor: 'var(--text-primary)', 
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  zIndex: 2,
+                  border: '2px solid var(--bg-node-base)'
+                }}>
+                  <Check color="var(--bg-node-base)" size={16} strokeWidth={4} />
                 </div>
               )}
             </div>
@@ -178,15 +213,84 @@ export function StyleNode({ data, isConnectable }: any) {
         </div>
       </div>
 
-        <div style={portLabelContainerStyle}>
-          <div style={{ ...chipStyle, backgroundColor: isConnected ? 'color-mix(in srgb, var(--port-style) 15%, transparent)' : 'var(--bg-canvas)', borderColor: isConnected ? 'var(--port-style)' : 'var(--border-node)' }} className="nodrag">
-            <span style={{ ...portLabelStyle, color: isConnected ? 'var(--port-style)' : 'var(--text-secondary)' }}>스타일 출력</span>
+        <div 
+          style={portLabelContainerStyle}
+        >
+          <div 
+            style={{ 
+              ...chipStyle, 
+              backgroundColor: isConnected ? (isHovered ? 'color-mix(in srgb, var(--port-style) 25%, transparent)' : 'color-mix(in srgb, var(--port-style) 15%, transparent)') : (isHovered ? 'color-mix(in srgb, var(--port-style) 10%, var(--bg-canvas))' : 'var(--bg-canvas)'), 
+              borderColor: isConnected ? 'var(--port-style)' : (isHovered ? 'var(--port-style)' : 'var(--border-node)'),
+              cursor: isConnected ? 'pointer' : 'crosshair',
+              transition: 'all 0.2s ease',
+              position: 'relative'
+            }} 
+            className="nodrag"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={isConnected ? handleDisconnect : undefined}
+          >
+            <span style={{ 
+              ...portLabelStyle, 
+              color: isConnected ? 'var(--port-style)' : 'var(--text-secondary)',
+              pointerEvents: 'none',
+              zIndex: 1,
+              position: 'relative'
+            }}>
+              {isConnected && isHovered ? '연결 해제' : '스타일 출력'}
+            </span>
+            
+            {/* 핸들과 점을 위한 컨테이너 (공간 확보) */}
+            <div style={{ width: '12px', height: '12px', position: 'relative', zIndex: 1 }}>
+              <div style={{ 
+                width: '100%', 
+                height: '100%', 
+                borderRadius: '50%', 
+                background: isConnected && isHovered ? 'var(--bg-node-base)' : 'var(--port-style)', 
+                border: isConnected && isHovered ? `1px solid var(--port-style)` : `2px solid var(--bg-node-base)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
+              }}>
+                {isConnected && isHovered && <X size={8} color="var(--port-style)" strokeWidth={4} />}
+              </div>
+            </div>
+
             <Handle
               type="source"
               position={Position.Right}
               id="style-out"
               isConnectable={1}
-              style={{ background: 'var(--port-style)', width: '12px', height: '12px', border: `2px solid ${isConnected ? 'var(--bg-node-base)' : 'var(--bg-node-base)'}`, position: 'relative', right: 'auto', top: 'auto', transform: 'none' }}
+              style={{ 
+                ...(isConnected 
+                  ? {
+                      width: '12px', 
+                      height: '12px', 
+                      right: '6px', // chip padding-right와 맞춤
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      background: 'transparent',
+                      border: 'none',
+                    }
+                  : {
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      opacity: 0,
+                      zIndex: 10,
+                      cursor: 'crosshair',
+                      pointerEvents: 'auto',
+                      transform: 'none',
+                      right: 'auto',
+                      top: 'auto'
+                    }
+                ),
+              }} 
             />
           </div>
         </div>

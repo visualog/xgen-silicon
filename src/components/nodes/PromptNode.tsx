@@ -1,6 +1,7 @@
 import { Handle, Position, useNodeConnections } from '@xyflow/react';
 import React, { useCallback } from 'react';
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquareText, X } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
 
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
@@ -80,10 +81,17 @@ const portLabelStyle = {
   letterSpacing: '0.3px',
 };
 
-export function PromptNode({ data, isConnectable }: any) {
+export function PromptNode({ id, data, isConnectable }: any) {
+  const { setEdges } = useReactFlow();
+  const [isHovered, setIsHovered] = React.useState(false);
+
   const onChange = useCallback((value: string) => {
     data.onChange(value);
   }, [data]);
+
+  const handleDisconnect = useCallback(() => {
+    setEdges((eds) => eds.filter(e => !(e.source === id && e.sourceHandle === 'prompt-out')));
+  }, [id, setEdges]);
 
   const connections = useNodeConnections({ handleType: 'source', handleId: 'prompt-out' });
   const isConnected = connections.length > 0;
@@ -104,15 +112,84 @@ export function PromptNode({ data, isConnectable }: any) {
           className="nodrag"
         />
 
-        <div style={portLabelContainerStyle}>
-          <div style={{ ...chipStyle, backgroundColor: isConnected ? 'color-mix(in srgb, var(--port-prompt) 15%, transparent)' : 'var(--bg-canvas)', borderColor: isConnected ? 'var(--port-prompt)' : 'var(--border-node)' }} className="nodrag">
-            <span style={{ ...portLabelStyle, color: isConnected ? 'var(--port-prompt)' : 'var(--text-secondary)' }}>프롬프트 출력</span>
+        <div 
+          style={portLabelContainerStyle}
+        >
+          <div 
+            style={{ 
+              ...chipStyle, 
+              backgroundColor: isConnected ? (isHovered ? 'color-mix(in srgb, var(--port-prompt) 25%, transparent)' : 'color-mix(in srgb, var(--port-prompt) 15%, transparent)') : (isHovered ? 'color-mix(in srgb, var(--port-prompt) 10%, var(--bg-canvas))' : 'var(--bg-canvas)'), 
+              borderColor: isConnected ? 'var(--port-prompt)' : (isHovered ? 'var(--port-prompt)' : 'var(--border-node)'),
+              cursor: isConnected ? 'pointer' : 'crosshair',
+              transition: 'all 0.2s ease',
+              position: 'relative'
+            }} 
+            className="nodrag"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={isConnected ? handleDisconnect : undefined}
+          >
+            <span style={{ 
+              ...portLabelStyle, 
+              color: isConnected ? 'var(--port-prompt)' : 'var(--text-secondary)',
+              pointerEvents: 'none',
+              zIndex: 1,
+              position: 'relative'
+            }}>
+              {isConnected && isHovered ? '연결 해제' : '설명 출력'}
+            </span>
+            
+            {/* 핸들과 점을 위한 컨테이너 (공간 확보) */}
+            <div style={{ width: '12px', height: '12px', position: 'relative', zIndex: 1 }}>
+              <div style={{ 
+                width: '100%', 
+                height: '100%', 
+                borderRadius: '50%', 
+                background: isConnected && isHovered ? 'var(--bg-node-base)' : 'var(--port-prompt)', 
+                border: isConnected && isHovered ? `1px solid var(--port-prompt)` : `2px solid var(--bg-node-base)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
+              }}>
+                {isConnected && isHovered && <X size={8} color="var(--port-prompt)" strokeWidth={4} />}
+              </div>
+            </div>
+
             <Handle
               type="source"
               position={Position.Right}
               id="prompt-out"
               isConnectable={1}
-              style={{ background: 'var(--port-prompt)', width: '12px', height: '12px', border: `2px solid ${isConnected ? 'var(--bg-node-base)' : 'var(--bg-node-base)'}`, position: 'relative', right: 'auto', top: 'auto', transform: 'none' }}
+              style={{ 
+                ...(isConnected 
+                  ? {
+                      width: '12px', 
+                      height: '12px', 
+                      right: '6px', // chip padding-right와 맞춤
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      background: 'transparent',
+                      border: 'none',
+                    }
+                  : {
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      opacity: 0,
+                      zIndex: 10,
+                      cursor: 'crosshair',
+                      pointerEvents: 'auto',
+                      transform: 'none',
+                      right: 'auto',
+                      top: 'auto'
+                    }
+                ),
+              }} 
             />
           </div>
         </div>
