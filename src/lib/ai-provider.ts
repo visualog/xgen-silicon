@@ -2,6 +2,8 @@
 // Gemini CLI 백엔드 방식 — 영상의 Codex CLI 접근법과 동일
 // child_process.spawn으로 gemini CLI를 비대화형(headless) 모드로 실행
 import { spawn } from "child_process";
+import fs from "fs";
+
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -190,4 +192,46 @@ Return ONLY a valid JSON object with this exact structure, no other text:
     if (ratio === "3:4")  return { width: Math.round(base * (3 / 4)), height: base };
     return { width: base, height: base };
   }
+
+  /**
+   * Gemini CLI의 Nano Banana(/generate)를 통해 이미지 생성
+   * 생성 성공 시 base64 data URL을 반환, 실패 시 null 반환
+   */
+  static async generateWithNanoBanana(prompt: string): Promise<string | null> {
+    try {
+      console.log("🍌 [Nano Banana] 이미지 생성 시작...");
+      // 따옴표 및 줄바꿈 이스케이프 처리
+      const escapedPrompt = prompt.replace(/"/g, '\\"').replace(/\n/g, " ");
+      const cliPrompt = `/generate "${escapedPrompt}" --no-preview`;
+      
+      console.log(`🍌 [Nano Banana] CLI 실행 프롬프트: ${cliPrompt}`);
+      const rawResponse = await runGeminiCLI(cliPrompt, 90000); // 90초 타임아웃
+      
+      console.log("🍌 [Nano Banana] CLI 응답 수신 완료!");
+      
+      // 파일 경로 추출 (nanobanana-output 폴더 내의 png, jpg, jpeg 파일 검색)
+      const fileRegex = /([^\s\n\r\t•"']+\/nanobanana-output\/[^\s\n\r\t•"']+\.(?:png|jpg|jpeg))/gi;
+      const matches = rawResponse.match(fileRegex);
+      
+      if (matches && matches.length > 0) {
+        const filePath = matches[0].trim();
+        console.log(`🍌 [Nano Banana] 생성된 이미지 파일 감지됨: ${filePath}`);
+        
+        if (fs.existsSync(filePath)) {
+          const fileBuffer = fs.readFileSync(filePath);
+          const base64 = fileBuffer.toString("base64");
+          return `data:image/png;base64,${base64}`;
+        } else {
+          console.warn(`🍌 [Nano Banana] 파일이 경로에 존재하지 않습니다: ${filePath}`);
+        }
+      } else {
+        console.warn("🍌 [Nano Banana] 응답에서 생성된 이미지 파일 경로를 찾지 못했습니다.", rawResponse);
+      }
+      return null;
+    } catch (error) {
+      console.error("🍌 [Nano Banana] 생성 실패:", error);
+      return null;
+    }
+  }
 }
+
