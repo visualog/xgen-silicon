@@ -167,7 +167,7 @@ export function OutputNode({ data, isConnectable }: any) {
               type="target"
               position={Position.Left}
               id="general-in"
-              isConnectable={1}
+              isConnectable={true}
               style={{ 
                 width: '100%', 
                 height: '100%', 

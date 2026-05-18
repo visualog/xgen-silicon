@@ -175,7 +175,7 @@ export function ResolutionNode({ id, data, isConnectable }: any) {
               type="source"
               position={Position.Right}
               id="resolution-out"
-              isConnectable={1}
+              isConnectable={true}
               style={{ 
                 ...(isConnected 
                   ? {

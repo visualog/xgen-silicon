@@ -160,7 +160,7 @@ export function PromptNode({ id, data, isConnectable }: any) {
               type="source"
               position={Position.Right}
               id="prompt-out"
-              isConnectable={1}
+              isConnectable={true}
               style={{ 
                 ...(isConnected 
                   ? {

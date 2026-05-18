@@ -261,7 +261,7 @@ export function StyleNode({ id, data, isConnectable }: any) {
               type="source"
               position={Position.Right}
               id="style-out"
-              isConnectable={1}
+              isConnectable={true}
               style={{ 
                 ...(isConnected 
                   ? {

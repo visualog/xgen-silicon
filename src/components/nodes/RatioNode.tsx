@@ -166,7 +166,7 @@ export function RatioNode({ id, data, isConnectable }: any) {
               type="source"
               position={Position.Right}
               id="ratio-out"
-              isConnectable={1}
+              isConnectable={true}
               style={{ 
                 ...(isConnected 
                   ? {
