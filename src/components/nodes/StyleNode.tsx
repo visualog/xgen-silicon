@@ -1,7 +1,10 @@
+"use client";
 import { Handle, Position, useNodeConnections } from '@xyflow/react';
-import React, { useRef } from 'react';
-import { Check, CircleCheck, Palette, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Palette, X, Plus, Trash2 } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
+import { StyleAddModal } from '@/components/StyleAddModal';
+import type { StyleEntry } from '@/components/StyleAddModal';
 
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
@@ -12,17 +15,18 @@ const nodeStyle = {
   width: '280px',
   display: 'flex',
   flexDirection: 'column' as const,
-  overflow: 'hidden',
   boxShadow: 'var(--shadow-node)',
+  overflow: 'visible' as const,
 };
 
 const headerStyle = {
   backgroundColor: 'var(--bg-node-header)',
   padding: '8px 12px',
-  borderBottom: 'none',
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
+  borderTopLeftRadius: '12px',
+  borderTopRightRadius: '12px',
 };
 
 const titleStyle = {
@@ -37,36 +41,7 @@ const bodyStyle = {
   padding: '12px',
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: '12px',
-};
-
-const gridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, 1fr)',
   gap: '8px',
-};
-
-const itemStyle = (isActive: boolean) => ({
-  aspectRatio: '1',
-  backgroundColor: 'var(--bg-canvas)',
-  border: isActive ? '2px solid var(--text-primary)' : '1.5px solid var(--border-node)',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  overflow: 'hidden',
-  position: 'relative' as const,
-  minWidth: 0,
-});
-
-const portLabelContainerStyle = {
-  display: 'flex',
-  justifyContent: 'flex-end',
-  alignItems: 'center',
-  paddingTop: '8px',
-  marginTop: '4px',
-  borderTop: 'none',
 };
 
 const chipStyle = {
@@ -79,222 +54,233 @@ const chipStyle = {
   gap: '6px',
 };
 
-const portLabelStyle = {
-  fontSize: '10px',
-  fontWeight: 700,
-  color: 'var(--text-secondary)',
-  textTransform: 'uppercase' as const,
-  letterSpacing: '0.3px',
-};
-
-export function StyleNode({ id, data, isConnectable }: any) {
+export function StyleNode({ id, data }: any) {
   const { setEdges } = useReactFlow();
-  const [isHovered, setIsHovered] = React.useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-  const handleDisconnect = () => {
-    setEdges((eds) => eds.filter(e => !(e.source === id && e.sourceHandle === 'style-out')));
-  };
-
-  const {
-    activeStyle,
-    setActiveStyle,
-    customStyles = [],
-    setCustomStyles,
-    styleSamples = []
-  } = data;
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const b64 = reader.result as string;
-      setCustomStyles((prev: string[]) => {
-        const next = [...prev, b64];
-        setActiveStyle(`custom-${next.length - 1}`);
-        return next;
-      });
-    };
-    reader.readAsDataURL(file);
-  };
+  const { styles = [], activeStyleId, setStyles, setActiveStyleId } = data;
 
   const connections = useNodeConnections({ handleType: 'source', handleId: 'style-out' });
   const isConnected = connections.length > 0;
 
+  const handleDisconnect = () => {
+    setEdges(eds => eds.filter(e => !(e.source === id && e.sourceHandle === 'style-out')));
+  };
+
+  const handleAdd = (entry: StyleEntry) => {
+    setStyles((prev: StyleEntry[]) => [...prev, entry]);
+    setActiveStyleId(entry.id);
+  };
+
+  const handleDelete = (e: React.MouseEvent, styleId: string) => {
+    e.stopPropagation();
+    setStyles((prev: StyleEntry[]) => prev.filter((s: StyleEntry) => s.id !== styleId));
+    if (activeStyleId === styleId) setActiveStyleId(null);
+  };
+
+  const handleSelect = (styleId: string) => {
+    setActiveStyleId(activeStyleId === styleId ? null : styleId);
+  };
+
+  const activeStyle = styles.find((s: StyleEntry) => s.id === activeStyleId);
+
   return (
-    <div style={nodeStyle}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleFileChange}
-      />
-      <div style={headerStyle}>
-        <Palette size={16} color="var(--text-secondary)" />
-        <span style={titleStyle}>스타일 참조</span>
-      </div>
-      
-      <div style={bodyStyle}>
-        <div style={gridStyle} className="nodrag">
-        {/* Built-in samples */}
-        {styleSamples.map((s: any) => (
-          <div
-            key={s.id}
-            style={itemStyle(activeStyle === s.id)}
-            onClick={() => setActiveStyle(activeStyle === s.id ? null : s.id)}
-          >
-            <span style={{ fontSize: "1.3rem" }}>{s.icon}</span>
-            {activeStyle === s.id && (
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 4, 
-                  right: 4, 
-                  backgroundColor: 'var(--text-primary)', 
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  zIndex: 2,
-                  border: '1.5px solid var(--bg-node-base)'
-                }}>
-                  <Check color="var(--bg-node-base)" size={12} strokeWidth={4} />
-                </div>
-            )}
-          </div>
-        ))}
+    <>
+      {showModal && (
+        <StyleAddModal
+          onAdd={handleAdd}
+          onClose={() => setShowModal(false)}
+        />
+      )}
 
-        {/* Uploaded custom styles */}
-        {customStyles.map((src: string, i: number) => {
-          const styleId = `custom-${i}`;
-          const isActive = activeStyle === styleId;
-          return (
-            <div
-              key={styleId}
-              style={itemStyle(isActive)}
-              onClick={() => setActiveStyle(isActive ? null : styleId)}
-            >
-              <img src={src} alt={`Style ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              {isActive && (
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 4, 
-                  right: 4, 
-                  backgroundColor: 'var(--text-primary)', 
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  zIndex: 2,
-                  border: '1.5px solid var(--bg-node-base)'
-                }}>
-                  <Check color="var(--bg-node-base)" size={12} strokeWidth={4} />
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Upload button */}
-        <div
-          style={itemStyle(false)}
-          onClick={() => fileInputRef.current?.click()}
-          title="스타일 이미지 업로드"
-        >
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' }}>+ 추가</span>
-        </div>
-      </div>
-
-        <div 
-          style={portLabelContainerStyle}
-        >
-          <div 
-            style={{ 
-              ...chipStyle, 
-              backgroundColor: isConnected ? (isHovered ? 'color-mix(in srgb, var(--port-style) 25%, transparent)' : 'color-mix(in srgb, var(--port-style) 15%, transparent)') : (isHovered ? 'color-mix(in srgb, var(--port-style) 10%, var(--bg-canvas))' : 'var(--bg-canvas)'), 
-              borderColor: isConnected ? 'var(--port-style)' : (isHovered ? 'var(--port-style)' : 'var(--border-node)'),
-              cursor: isConnected ? 'pointer' : 'crosshair',
-              transition: 'all 0.2s ease',
-              position: 'relative'
-            }} 
-            className="nodrag"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onClick={isConnected ? handleDisconnect : undefined}
-          >
-            <span style={{ 
-              ...portLabelStyle, 
-              color: isConnected ? 'var(--port-style)' : 'var(--text-secondary)',
-              pointerEvents: 'none',
-              zIndex: 1,
-              position: 'relative'
+      <div style={nodeStyle}>
+        {/* 헤더 */}
+        <div style={headerStyle}>
+          <Palette size={16} color="var(--text-secondary)" />
+          <span style={titleStyle}>스타일 참조</span>
+          {activeStyle && (
+            <span style={{
+              marginLeft: 'auto', fontSize: '10px', fontWeight: 700,
+              color: 'var(--port-style)',
+              backgroundColor: 'color-mix(in srgb, var(--port-style) 12%, transparent)',
+              padding: '2px 8px', borderRadius: '100px',
             }}>
-              {isConnected && isHovered ? '연결 해제' : '스타일 출력'}
+              선택됨
             </span>
-            
-            {/* 핸들과 점을 위한 컨테이너 (공간 확보) */}
-            <div style={{ width: '12px', height: '12px', position: 'relative', zIndex: 1 }}>
-              <div style={{ 
-                width: '100%', 
-                height: '100%', 
-                borderRadius: '50%', 
-                background: isConnected && isHovered ? 'var(--bg-node-base)' : 'var(--port-style)', 
-                border: isConnected && isHovered ? `1px solid var(--port-style)` : `2px solid var(--bg-node-base)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s ease'
-              }}>
-                {isConnected && isHovered && <X size={8} color="var(--port-style)" strokeWidth={4} />}
-              </div>
-            </div>
+          )}
+        </div>
 
-            <Handle
-              type="source"
-              position={Position.Right}
-              id="style-out"
-              isConnectable={true}
-              style={{ 
-                ...(isConnected 
-                  ? {
-                      width: '12px', 
-                      height: '12px', 
-                      right: '6px', // chip padding-right와 맞춤
-                      top: '50%', 
-                      transform: 'translateY(-50%)',
-                      pointerEvents: 'none',
-                      background: 'transparent',
-                      border: 'none',
-                    }
-                  : {
-                      position: 'absolute',
-                      inset: 0,
-                      width: '100%',
-                      height: '100%',
-                      background: 'transparent',
-                      border: 'none',
-                      opacity: 0,
-                      zIndex: 10,
-                      cursor: 'crosshair',
-                      pointerEvents: 'auto',
-                      transform: 'none',
-                      right: 'auto',
-                      top: 'auto'
-                    }
-                ),
-              }} 
-            />
+        <div style={bodyStyle}>
+          {/* 스타일 카드 목록 */}
+          {styles.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '6px' }} className="nodrag">
+              {styles.map((s: StyleEntry) => {
+                const isActive = s.id === activeStyleId;
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => handleSelect(s.id)}
+                    style={{
+                      display: 'flex',
+                      gap: '10px',
+                      alignItems: 'flex-start',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: `1.5px solid ${isActive ? 'var(--port-style)' : 'var(--border-node)'}`,
+                      backgroundColor: isActive
+                        ? 'color-mix(in srgb, var(--port-style) 8%, transparent)'
+                        : 'var(--bg-canvas)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      position: 'relative' as const,
+                    }}
+                  >
+                    {/* 썸네일 */}
+                    <div style={{
+                      width: '48px', height: '48px', borderRadius: '6px',
+                      overflow: 'hidden', flexShrink: 0,
+                      backgroundColor: 'var(--bg-node-header)',
+                    }}>
+                      <img
+                        src={s.imageUrl}
+                        alt={s.label}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+
+                    {/* 프롬프트 텍스트 */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{
+                        fontSize: '10px', lineHeight: '1.5',
+                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        margin: 0,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical' as const,
+                        overflow: 'hidden',
+                      }}>
+                        {s.prompt || '스타일 프롬프트 없음'}
+                      </p>
+                    </div>
+
+                    {/* 삭제 버튼 */}
+                    <button
+                      onClick={(e) => handleDelete(e, s.id)}
+                      style={{
+                        position: 'absolute' as const, top: '6px', right: '6px',
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        border: 'none', backgroundColor: 'transparent',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', opacity: 0.5,
+                        transition: 'opacity 0.15s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}
+                      title="스타일 삭제"
+                    >
+                      <Trash2 size={11} color="var(--text-secondary)" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 빈 상태 */}
+          {styles.length === 0 && (
+            <div style={{
+              padding: '20px 12px', textAlign: 'center' as const,
+              color: 'var(--text-muted)', fontSize: '11px',
+            }}>
+              <Palette size={24} color="var(--border-node)" style={{ marginBottom: '8px' }} />
+              <p style={{ margin: 0 }}>추가 버튼으로 참조할<br />스타일 이미지를 등록하세요</p>
+            </div>
+          )}
+
+          {/* 추가 버튼 */}
+          <button
+            className="nodrag"
+            onClick={() => setShowModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              width: '100%', padding: '8px',
+              borderRadius: '8px',
+              border: '1.5px dashed var(--border-node)',
+              backgroundColor: 'transparent',
+              color: 'var(--text-secondary)',
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'var(--port-style)';
+              e.currentTarget.style.color = 'var(--port-style)';
+              e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--port-style) 8%, transparent)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border-node)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <Plus size={14} /> 추가
+          </button>
+
+          {/* 출력 핸들 */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+            <div
+              style={{
+                ...chipStyle,
+                backgroundColor: isConnected
+                  ? (isHovered ? 'color-mix(in srgb, var(--port-style) 25%, transparent)' : 'color-mix(in srgb, var(--port-style) 15%, transparent)')
+                  : (isHovered ? 'color-mix(in srgb, var(--port-style) 10%, var(--bg-canvas))' : 'var(--bg-canvas)'),
+                borderColor: isConnected ? 'var(--port-style)' : (isHovered ? 'var(--port-style)' : 'var(--border-node)'),
+                cursor: isConnected ? 'pointer' : 'crosshair',
+                transition: 'all 0.2s ease',
+                position: 'relative' as const,
+              }}
+              className="nodrag"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onClick={isConnected ? handleDisconnect : undefined}
+            >
+              <span style={{
+                fontSize: '10px', fontWeight: 700,
+                color: isConnected ? 'var(--port-style)' : 'var(--text-secondary)',
+                textTransform: 'uppercase' as const, letterSpacing: '0.3px',
+                pointerEvents: 'none', zIndex: 1, position: 'relative' as const,
+              }}>
+                {isConnected && isHovered ? '연결 해제' : '스타일 출력'}
+              </span>
+
+              <div style={{ width: '12px', height: '12px', position: 'relative' as const, zIndex: 1 }}>
+                <div style={{
+                  width: '100%', height: '100%', borderRadius: '50%',
+                  background: isConnected && isHovered ? 'var(--bg-node-base)' : 'var(--port-style)',
+                  border: isConnected && isHovered ? '1px solid var(--port-style)' : '2px solid var(--bg-node-base)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                }}>
+                  {isConnected && isHovered && <X size={8} color="var(--port-style)" strokeWidth={4} />}
+                </div>
+              </div>
+
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="style-out"
+                isConnectable={true}
+                style={{
+                  ...(isConnected
+                    ? { width: '12px', height: '12px', right: '6px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', background: 'transparent', border: 'none' }
+                    : { position: 'absolute', inset: 0, width: '100%', height: '100%', background: 'transparent', border: 'none', opacity: 0, zIndex: 10, cursor: 'crosshair', pointerEvents: 'auto', transform: 'none', right: 'auto', top: 'auto' }
+                  ),
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

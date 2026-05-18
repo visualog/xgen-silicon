@@ -11,14 +11,8 @@ import { ResolutionNode } from '@/components/nodes/ResolutionNode';
 import { OutputNode } from '@/components/nodes/OutputNode';
 import { CanvasNode } from '@/components/nodes/CanvasNode';
 
-const STYLE_SAMPLES = [
-  { id: 'minimalist', label: '미니멀리스트 라인 아트', icon: '🎨' },
-  { id: 'cyberpunk', label: '네온 사이버펑크', icon: '🌃' },
-  { id: 'watercolor', label: '수채화 스타일', icon: '💧' },
-  { id: 'pixel-art', label: '8비트 픽셀 아트', icon: '👾' },
-  { id: '3d-render', label: '3D 옥테인 렌더', icon: '🧊' },
-  { id: 'vintage-photo', label: '빈티지 필름 사진', icon: '📸' },
-];
+import type { StyleEntry } from '@/components/StyleAddModal';
+
 const STORAGE_KEY = "brandgen_state"; // canonical key
 
 const initialEdges = [
@@ -67,8 +61,8 @@ export default function Home() {
 function FlowContent() {
   const [theme, setTheme] = useState<"light" | "dark">("dark"); // Default dark mode for pipeline UI
   const [prompt, setPrompt] = useState("");
-  const [activeStyle, setActiveStyle] = useState<string | null>(null);
-  const [customStyles, setCustomStyles] = useState<string[]>([]);
+  const [styles, setStyles] = useState<StyleEntry[]>([]);
+  const [activeStyleId, setActiveStyleId] = useState<string | null>(null);
   const [ratio, setRatio] = useState("1:1");
   const [resolution, setResolution] = useState("HD");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -88,11 +82,10 @@ function FlowContent() {
       type: 'styleNode',
       position: { x: 50, y: 300 },
       data: { 
-        activeStyle: null, 
-        setActiveStyle, 
-        customStyles: [], 
-        setCustomStyles, 
-        styleSamples: STYLE_SAMPLES 
+        styles: [], 
+        activeStyleId: null,
+        setStyles, 
+        setActiveStyleId,
       },
     },
     {
@@ -128,9 +121,7 @@ function FlowContent() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
-      if (saved.customStyles) setCustomStyles(saved.customStyles);
       if (saved.lastImageUrl) setImageUrl(saved.lastImageUrl);
-      if (saved.activeStyle) setActiveStyle(saved.activeStyle);
       if (saved.ratio) setRatio(saved.ratio);
       if (saved.resolution) setResolution(saved.resolution);
       if (saved.theme) setTheme(saved.theme);
@@ -168,16 +159,13 @@ function FlowContent() {
     const timeoutId = setTimeout(async () => {
       setIsTranslating(true);
       try {
-        const currentCustomStyle = activeStyle?.startsWith("custom-")
-          ? customStyles[parseInt(activeStyle.split("-")[1])]
-          : null;
-
+        const activeStyle = styles.find(s => s.id === activeStyleId);  
         const res = await fetch("/api/translate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             prompt: isPromptConnected ? prompt : "", 
-            style: isStyleConnected ? (currentCustomStyle?.startsWith("data:image") ? "an image reference style" : (currentCustomStyle || activeStyle)) : null, 
+            style: isStyleConnected ? (activeStyle?.prompt || null) : null, 
             ratio: isRatioConnected ? ratio : null, 
             resolution: isResConnected ? resolution : null 
           }),
@@ -200,7 +188,7 @@ function FlowContent() {
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [prompt, activeStyle, ratio, resolution, edges]);
+  }, [prompt, activeStyleId, styles, ratio, resolution, edges]);
 
   const handleGenerate = useCallback(async () => {
     const isPromptConnected = edges.some(e => e.target === 'output-node' && e.source === 'prompt-node');
@@ -209,9 +197,9 @@ function FlowContent() {
     const isResConnected = edges.some(e => e.target === 'output-node' && e.source === 'resolution-node');
 
     const effectivePrompt = isPromptConnected ? prompt : "";
-    const effectiveStyle = isStyleConnected ? activeStyle : null;
+    const activeStyle = isStyleConnected ? styles.find(s => s.id === activeStyleId) : null;
 
-    if ((!effectivePrompt.trim() && !effectiveStyle) || isGenerating) return;
+    if ((!effectivePrompt.trim() && !activeStyle) || isGenerating) return;
     setIsGenerating(true);
     setError(false);
     
@@ -249,17 +237,12 @@ function FlowContent() {
     });
 
     try {
-      const currentCustomStyle = activeStyle?.startsWith("custom-")
-        ? customStyles[parseInt(activeStyle.split("-")[1])]
-        : null;
-
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: effectivePrompt,
-          style: currentCustomStyle ? "custom" : effectiveStyle,
-          customStyle: currentCustomStyle,
+          style: activeStyle?.prompt || null,
           ratio,
           resolution,
         }),
@@ -286,7 +269,7 @@ function FlowContent() {
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, activeStyle, customStyles, ratio, resolution, isGenerating]);
+  }, [prompt, activeStyleId, styles, ratio, resolution, isGenerating, edges]);
 
   const nodeTypes = useMemo(() => ({
     promptNode: PromptNode,
@@ -329,7 +312,7 @@ function FlowContent() {
         return { ...node, data: { ...baseData, prompt, onChange: setPrompt } };
       }
       if (node.id === 'style-node') {
-        return { ...node, data: { ...baseData, activeStyle, customStyles, setActiveStyle, setCustomStyles, styleSamples: STYLE_SAMPLES } };
+        return { ...node, data: { ...baseData, styles, activeStyleId, setStyles, setActiveStyleId } };
       }
       if (node.id === 'ratio-node') {
         return { ...node, data: { ...baseData, ratio, setRatio } };
@@ -338,25 +321,17 @@ function FlowContent() {
         return { ...node, data: { ...baseData, resolution, setResolution } };
       }
       if (node.id === 'output-node') {
-        const selectedSample = STYLE_SAMPLES.find(s => s.id === activeStyle);
-        const currentCustomStyle = activeStyle?.startsWith("custom-")
-          ? customStyles[parseInt(activeStyle.split("-")[1])]
-          : null;
-        
-        const resolvedStyle = selectedSample ? selectedSample.label : (currentCustomStyle || activeStyle);
-          
         return { 
           ...node, 
           data: { 
             ...baseData,
             prompt, 
-            style: resolvedStyle, 
             ratio, 
             resolution, 
             englishPrompt, isTranslating, 
             onGenerate: handleGenerate, 
             canGenerate: (edges.some(e => e.target === 'output-node' && e.source === 'prompt-node') && !!prompt.trim()) || 
-                         (edges.some(e => e.target === 'output-node' && e.source === 'style-node') && !!activeStyle),
+                         (edges.some(e => e.target === 'output-node' && e.source === 'style-node') && !!activeStyleId),
             isGenerating 
           } 
         };
@@ -369,7 +344,7 @@ function FlowContent() {
       }
       return node;
     });
-  }, [nodes, prompt, activeStyle, customStyles, ratio, resolution, englishPrompt, isTranslating, handleGenerate, isGenerating, imageUrl, error]);
+  }, [nodes, prompt, activeStyleId, styles, ratio, resolution, englishPrompt, isTranslating, handleGenerate, isGenerating, imageUrl, error, edges]);
 
   return (
     <main style={{ width: '100vw', height: '100vh', backgroundColor: 'var(--bg-canvas)' }}>
