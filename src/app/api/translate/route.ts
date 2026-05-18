@@ -37,10 +37,10 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Translate error:", error);
 
-    // Gemini API 키 미설정 시 명확한 메시지
-    if (error.message?.includes("GEMINI_API_KEY")) {
+    // Gemini CLI 미설치 시 명확한 메시지
+    if (error.message?.includes("Gemini CLI")) {
       return NextResponse.json(
-        { error: "Gemini API 키가 설정되지 않았습니다. .env.local 파일을 확인하세요." },
+        { error: "Gemini CLI가 설치되어 있지 않거나 실행할 수 없습니다. 터미널에서 'gemini --version'을 확인하세요." },
         { status: 500 }
       );
     }
