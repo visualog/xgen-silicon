@@ -43,10 +43,10 @@ FORBIDDEN: photorealistic, 3D render, neon colors, high contrast, text, watermar
  * stderr는 분리하여 warnings/노이즈 필터링
  * stdout의 JSON에서 response 필드만 추출
  */
-async function runGeminiCLI(prompt: string, timeoutMs = 30000): Promise<string> {
+async function runGeminiCLI(prompt: string, timeoutMs = 60000): Promise<string> {
   return new Promise((resolve, reject) => {
     const proc = spawn(
-      "gemini",
+      "/usr/local/bin/gemini", // 절대 경로 사용 (Next.js 서버 PATH에 의존 안 함)
       [
         "--prompt", prompt,
         "--output-format", "json",  // 구조화 JSON 출력 (영상의 --output-schema 역할)

@@ -1,6 +1,6 @@
-import { Handle, Position, useEdges, useReactFlow } from '@xyflow/react';
-import React, { useState } from 'react';
-import { Wand2, Play, X, Loader2, Sparkles } from 'lucide-react';
+import { Handle, Position, useEdges, useReactFlow, useConnection } from '@xyflow/react';
+import React from 'react';
+import { Wand2, Play, Loader2, Sparkles } from 'lucide-react';
 
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
@@ -40,10 +40,11 @@ const bodyStyle = {
 };
 
 export function OutputNode({ data }: any) {
-  const { setEdges } = useReactFlow();
-  const { englishPrompt, isTranslating, onGenerate, canGenerate, isGenerating } = data;
+  const connection = useConnection();
+  const isDragging = connection.inProgress; // 다른 노드에서 연결선을 드래그 중
 
-  const [isHovered, setIsHovered] = useState(false);
+
+  const { englishPrompt, isTranslating, onGenerate, canGenerate, isGenerating } = data;
 
   const edges = useEdges();
   const id = "output-node";
@@ -53,6 +54,7 @@ export function OutputNode({ data }: any) {
   const isRatioConnected   = edges.some(e => e.target === id && e.source === 'ratio-node');
   const isResConnected     = edges.some(e => e.target === id && e.source === 'resolution-node');
   const isAnyConnected     = isPromptConnected || isStyleConnected || isRatioConnected || isResConnected;
+  const isCanvasConnected  = edges.some(e => e.source === id);
 
   const getMixedColor = () => {
     const colors = [];
@@ -69,11 +71,11 @@ export function OutputNode({ data }: any) {
     return mixed;
   };
 
-  const handleDisconnectAll = () => {
-    setEdges(eds => eds.filter(e => e.target !== id));
-  };
+  // 입력 dot 표시 조건: 연결됐거나, 드래그 중일 때
+  const showInputDot = isAnyConnected || isDragging;
+  // 출력 dot 표시 조건: 캔버스 노드가 연결됐을 때만
+  const showOutputDot = isCanvasConnected;
 
-  // 연결된 파라미터 태그 목록
   const connectedTags = [
     isPromptConnected && { label: '설명', color: 'var(--port-prompt)' },
     isStyleConnected  && { label: '스타일', color: 'var(--port-style)' },
@@ -85,19 +87,20 @@ export function OutputNode({ data }: any) {
 
   return (
     <div style={nodeStyle}>
-      {/* 오른쪽 출력 핸들 */}
+      {/* 오른쪽 출력 핸들 — 항상 렌더링 (Edge 라우팅에 필요), 시각적 dot은 조건부 */}
       <Handle
         type="source"
         position={Position.Right}
         id="output-out"
         isConnectable={false}
         style={{
-          background: 'var(--text-primary)',
+          background: showOutputDot ? 'var(--text-primary)' : 'transparent',
           border: 'none',
           width: '12px',
           height: '12px',
           right: '-6px',
           top: '50%',
+          transition: 'background 0.2s ease',
         }}
       />
 
@@ -114,32 +117,27 @@ export function OutputNode({ data }: any) {
       </div>
 
       <div style={bodyStyle}>
-        {/* 왼쪽 통합 입력점 */}
-        <div
-          style={{ position: 'absolute', left: '-12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onClick={isAnyConnected ? handleDisconnectAll : undefined}
-        >
-          <div
-            style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: '50%',
-              background: isAnyConnected ? (isHovered ? 'var(--bg-node-base)' : getMixedColor()) : 'var(--bg-canvas)',
-              border: isAnyConnected ? `4px solid ${isHovered ? 'var(--text-primary)' : 'var(--bg-node-base)'}` : '2px dashed var(--border-node)',
-              boxShadow: isAnyConnected ? 'var(--shadow-node)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: isAnyConnected ? 'pointer' : 'crosshair',
-              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-              position: 'relative',
-            }}
-          >
-            {isAnyConnected && isHovered ? (
-              <X size={14} color="var(--text-primary)" strokeWidth={3} />
-            ) : (
+        {/* 왼쪽 통합 입력점 — 연결됐거나 드래그 중일 때만 표시 */}
+        {showInputDot && (
+          <div style={{ position: 'absolute', left: '-12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
+            <div
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: isAnyConnected ? getMixedColor() : 'var(--bg-canvas)',
+                border: isAnyConnected
+                  ? '4px solid var(--bg-node-base)'
+                  : '2px dashed var(--border-node)',
+                boxShadow: isAnyConnected ? 'var(--shadow-node)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'crosshair',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+              }}
+            >
               <Handle
                 type="target"
                 position={Position.Left}
@@ -159,12 +157,30 @@ export function OutputNode({ data }: any) {
                   top: 'auto',
                 }}
               />
-            )}
-            {!isAnyConnected && (
-              <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--border-node)' }} />
-            )}
+              {!isAnyConnected && (
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+              )}
+            </div>
           </div>
-        </div>
+        )}
+        {/* 드래그 중 아닐 때도 Handle은 존재해야 연결 가능 — 투명하게 유지 */}
+        {!showInputDot && (
+          <Handle
+            type="target"
+            position={Position.Left}
+            id="general-in"
+            isConnectable={true}
+            style={{
+              width: '24px',
+              height: '24px',
+              background: 'transparent',
+              border: 'none',
+              opacity: 0,
+              left: '-12px',
+              cursor: 'crosshair',
+            }}
+          />
+        )}
 
         {/* 연결된 파라미터 태그 */}
         {connectedTags.length > 0 && (

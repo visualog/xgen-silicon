@@ -245,6 +245,8 @@ function FlowContent() {
           style: activeStyle?.prompt || null,
           ratio,
           resolution,
+          // 이미 translate API에서 생성된 영문 프롬프트 재사용 → Gemini CLI 이중 호출 방지
+          prebuiltPrompt: englishPrompt || null,
         }),
       });
       const data = await res.json();
@@ -269,7 +271,7 @@ function FlowContent() {
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, activeStyleId, styles, ratio, resolution, isGenerating, edges]);
+  }, [prompt, activeStyleId, styles, ratio, resolution, isGenerating, edges, englishPrompt]);
 
   const nodeTypes = useMemo(() => ({
     promptNode: PromptNode,

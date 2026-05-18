@@ -1,5 +1,5 @@
 // src/app/api/generate/route.ts
-// Gemini 구조화 출력 기반 이미지 생성 파이프라인
+// 이미지 생성 파이프라인 — translate에서 이미 생성된 프롬프트 재사용
 import { NextRequest, NextResponse } from "next/server";
 import { BrandGenAI } from "@/lib/ai-provider";
 
@@ -8,37 +8,51 @@ export async function POST(req: NextRequest) {
     const {
       prompt,
       style,
-      customStyle,
       ratio = "1:1",
       resolution = "HD",
+      // translate API에서 이미 생성된 영문 프롬프트가 있으면 재사용 (Gemini CLI 이중 호출 방지)
+      prebuiltPrompt,
     } = await req.json();
 
-    if (!prompt && !style) {
+    if (!prompt && !style && !prebuiltPrompt) {
       return NextResponse.json({ error: "프롬프트 또는 스타일이 필요합니다." }, { status: 400 });
     }
 
-    // Step 1: Gemini로 구조화 프롬프트 빌드 (영상의 에이전트 백엔드 역할)
-    console.log("🤖 Gemini로 프롬프트 빌드 중...");
-    const buildResult = await BrandGenAI.buildPrompt({
-      userInput: prompt || style || "",
-      style: customStyle ? "an image reference style provided by user" : style,
-      ratio,
-      resolution,
-    });
-    console.log("✅ 구조화 프롬프트:", buildResult);
-
-    // Step 2: 픽셀 크기 계산 (4K/8K는 2048로 캡핑)
     const { width, height } = BrandGenAI.getPixelSize(resolution, ratio);
     console.log(`📐 이미지 크기: ${width}x${height} (${resolution}, ${ratio})`);
 
-    // Step 3: Pollinations.ai URL 생성
-    const imageUrl = BrandGenAI.buildImageUrl(buildResult, { width, height });
-    console.log("🎨 이미지 생성 URL:", imageUrl);
+    let imageUrl: string;
 
-    // Step 4: 이미지 프록시 (CORS 우회)
+    if (prebuiltPrompt) {
+      // translate 결과 재사용 — Gemini CLI 추가 호출 없음
+      console.log("✅ 기존 프롬프트 재사용:", prebuiltPrompt.slice(0, 80) + "...");
+      const fullPrompt = [
+        "premium hand-drawn branding illustration, Plus X style, slightly irregular human-like lines, soft muted pastel color palette, gentle light source from upper left, subtle analog textures, generous negative space, minimalist corporate editorial aesthetic",
+        prebuiltPrompt,
+      ].join(", ").replace(/\n/g, " ").trim();
+
+      const encoded = encodeURIComponent(fullPrompt);
+      const seed = Math.floor(Math.random() * 1000000);
+      imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+    } else {
+      // 프롬프트 없는 경우에만 Gemini CLI 호출
+      console.log("🤖 Gemini로 프롬프트 빌드 중...");
+      const buildResult = await BrandGenAI.buildPrompt({
+        userInput: prompt || style || "",
+        style,
+        ratio,
+        resolution,
+      });
+      console.log("✅ 구조화 프롬프트:", buildResult);
+      imageUrl = BrandGenAI.buildImageUrl(buildResult, { width, height });
+    }
+
+    console.log("🎨 이미지 생성 URL:", imageUrl.slice(0, 100) + "...");
+
+    // Pollinations.ai에서 이미지 가져오기
     console.log("⏳ Pollinations.ai에서 이미지 가져오는 중...");
     const response = await fetch(imageUrl, {
-      signal: AbortSignal.timeout(90000), // 90초 타임아웃
+      signal: AbortSignal.timeout(90000),
     });
 
     if (!response.ok) {
@@ -53,25 +67,13 @@ export async function POST(req: NextRequest) {
     const dataUrl = `data:image/png;base64,${base64}`;
 
     console.log("✅ 이미지 생성 완료!");
-    return NextResponse.json({
-      url: dataUrl,
-      // 사용된 프롬프트 정보도 반환 (투명성)
-      meta: {
-        enhancedPrompt: buildResult.enhancedPrompt,
-        styleKeywords: buildResult.styleKeywords,
-        resolution: `${width}x${height}`,
-      },
-    });
+    return NextResponse.json({ url: dataUrl });
   } catch (error: any) {
     console.error("Generation error:", error);
-
     const errorMessage =
       error.name === "TimeoutError"
         ? "이미지 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
-        : error.message?.includes("GEMINI_API_KEY")
-        ? "Gemini API 키가 설정되지 않았습니다. .env.local 파일을 확인하세요."
         : error.message;
-
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
