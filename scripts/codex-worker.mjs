@@ -469,6 +469,81 @@ No JSON. No bullets. No explanation.
   return raw.replace(/\*\*/g, "").replace(/\*/g, "").replace(/\n+/g, " ").trim();
 }
 
+async function translatePromptToKorean(englishPrompt) {
+  if (!englishPrompt?.trim()) return "";
+
+  const instruction = `
+Translate the following image-generation prompt into natural Korean.
+
+RULES:
+- Keep the meaning exact.
+- Preserve prompt semantics, subject details, composition, style, constraints, and technical qualifiers.
+- Output plain Korean prose only.
+- No markdown. No bullets. No explanation.
+
+PROMPT:
+${englishPrompt}
+`.trim();
+
+  const raw = await runCodexExec(instruction, { timeoutMs: 45000 });
+  return raw.replace(/\*\*/g, "").replace(/\*/g, "").replace(/\n+/g, " ").trim();
+}
+
+async function generateDisplayTitle({ prompt, englishPrompt, koreanPrompt }) {
+  const source = [koreanPrompt, prompt, englishPrompt].find((value) => typeof value === "string" && value.trim())?.trim();
+  if (!source) return "새 브랜드 이미지";
+
+  const instruction = `
+Create one short Korean display title for an image card based on the source prompt below.
+
+RULES:
+- 2 to 6 Korean words.
+- Natural and polished, like a gallery title.
+- Focus on subject/action, not technical prompt wording.
+- No quotes. No markdown. No explanation.
+- Keep it under 24 characters when possible.
+
+SOURCE:
+${source}
+`.trim();
+
+  const raw = await runCodexExec(instruction, { timeoutMs: 45000 });
+  const cleaned = raw.replace(/\*\*/g, "").replace(/\*/g, "").replace(/\n+/g, " ").trim();
+  return cleaned || "새 브랜드 이미지";
+}
+
+async function generateMetadataForPrompt(englishPrompt) {
+  const source = typeof englishPrompt === "string" ? englishPrompt.trim() : "";
+  if (!source) {
+    return { koreanPrompt: "", title: "새 브랜드 이미지" };
+  }
+
+  const instruction = `
+Create metadata for an image-generation prompt and return ONLY valid JSON with this exact structure:
+{
+  "koreanPrompt": "...",
+  "title": "..."
+}
+
+RULES:
+- koreanPrompt must be natural Korean and preserve the full meaning of the source prompt.
+- title must be 2 to 6 Korean words, polished and gallery-like.
+- Keep title focused on the subject/action, not prompt mechanics.
+- No markdown. No explanation.
+
+SOURCE:
+${source}
+`.trim();
+
+  const raw = await runCodexExec(instruction, { timeoutMs: 45000 });
+  const cleaned = stripCodeFences(raw);
+  const parsed = JSON.parse(cleaned);
+  return {
+    koreanPrompt: typeof parsed.koreanPrompt === "string" ? parsed.koreanPrompt.replace(/\s+/g, " ").trim() : "",
+    title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.replace(/\s+/g, " ").trim() : "새 브랜드 이미지",
+  };
+}
+
 async function generateImageWithCodex({ prompt, style, ratio = "1:1", resolution = "HD", composition, background, constraints, mood, palette, cameraAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt }) {
   const { width, height } = getPixelSize(resolution, ratio);
   let promptBody = prebuiltPrompt?.trim() || "";
@@ -500,6 +575,14 @@ async function generateImageWithCodex({ prompt, style, ratio = "1:1", resolution
   const fullPrompt = buildImagePrompt(promptBody, {
     preserveStyleReference: Boolean(style),
   });
+  let metadata = { koreanPrompt: "", title: "새 브랜드 이미지" };
+  try {
+    metadata = await generateMetadataForPrompt(promptBody);
+  } catch (error) {
+    logDebug("generateImageWithCodex:metadataFallback", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
   logDebug("generateImageWithCodex:prompt", {
     ratio,
     resolution,
@@ -536,6 +619,9 @@ REQUIREMENTS:
     url: filePathToDataUrl(filePath),
     threadId,
     filePath,
+    englishPrompt: promptBody,
+    koreanPrompt: metadata.koreanPrompt,
+    title: metadata.title,
   };
 }
 
@@ -604,7 +690,28 @@ async function handleTranslate(payload) {
     if (resolution) parts.push(`${resolution} resolution`);
   }
 
-  return { englishPrompt: parts.join(". ").trim() };
+  const englishPrompt = parts.join(". ").trim();
+  return { englishPrompt };
+}
+
+async function handleTranslateKorean(payload) {
+  const englishPrompt = typeof payload?.englishPrompt === "string" ? payload.englishPrompt.trim() : "";
+  if (!englishPrompt) {
+    return { koreanPrompt: "" };
+  }
+
+  const koreanPrompt = await translatePromptToKorean(englishPrompt);
+  return { koreanPrompt };
+}
+
+async function handleGenerateTitle(payload) {
+  const title = await generateDisplayTitle({
+    prompt: typeof payload?.prompt === "string" ? payload.prompt : "",
+    englishPrompt: typeof payload?.englishPrompt === "string" ? payload.englishPrompt : "",
+    koreanPrompt: typeof payload?.koreanPrompt === "string" ? payload.koreanPrompt : "",
+  });
+
+  return { title };
 }
 
 async function handleAnalyzeStyle(payload) {
@@ -645,6 +752,8 @@ const server = http.createServer(async (req, res) => {
     logDebug("request:start", { url: req.url, method: req.method });
     const result = await enqueue(async () => {
       if (req.url === "/translate") return handleTranslate(payload);
+      if (req.url === "/translate-korean") return handleTranslateKorean(payload);
+      if (req.url === "/generate-title") return handleGenerateTitle(payload);
       if (req.url === "/analyze-style") return handleAnalyzeStyle(payload);
       if (req.url === "/generate") return handleGenerate(payload);
       throw new Error("Not Found");

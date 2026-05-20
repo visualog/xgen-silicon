@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { animate } from 'animejs';
-import { Image as ImageIcon, Download } from 'lucide-react';
+import { Image as ImageIcon, Download, Loader2 } from 'lucide-react';
 
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
@@ -58,7 +58,7 @@ const canvasCardStyle = {
 const imageStyle = {
   width: '100%',
   height: '100%',
-  objectFit: 'cover' as const,
+  objectFit: 'contain' as const,
   transition: 'opacity 0.4s ease',
 };
 
@@ -83,9 +83,34 @@ const placeholderIconStyle = {
   color: 'var(--text-muted)',
 };
 
-export function CanvasNode({ data }: any) {
+function toAspectRatioValue(ratio: string | undefined) {
+  if (!ratio || !ratio.includes(':')) return '1 / 1';
+  const [width, height] = ratio.split(':').map((value) => value.trim());
+  return `${width} / ${height}`;
+}
+
+type CanvasNodeData = {
+  imageUrl?: string | null;
+  isGenerating?: boolean;
+  error?: boolean;
+  ratio?: string;
+  generateElapsedLabel?: string | null;
+  lastGenerateDurationLabel?: string | null;
+  onPreviewImage?: (imageUrl: string) => void;
+};
+
+export function CanvasNode({ data }: { data: CanvasNodeData }) {
   const nodeRef = useRef<HTMLDivElement>(null);
-  const { imageUrl, isGenerating, error } = data;
+  const {
+    imageUrl,
+    isGenerating = false,
+    error = false,
+    ratio = '1:1',
+    generateElapsedLabel = null,
+    lastGenerateDurationLabel = null,
+    onPreviewImage,
+  } = data;
+  const aspectRatio = toAspectRatioValue(ratio);
 
   useEffect(() => {
     if (nodeRef.current) {
@@ -110,6 +135,11 @@ export function CanvasNode({ data }: any) {
     document.body.removeChild(a);
   };
 
+  const handlePreview = () => {
+    if (!imageUrl || !onPreviewImage) return;
+    onPreviewImage(imageUrl);
+  };
+
   return (
     <div ref={nodeRef} style={nodeStyle}>
       <Handle
@@ -129,13 +159,25 @@ export function CanvasNode({ data }: any) {
       <div style={headerStyle}>
         <ImageIcon size={16} color="var(--text-secondary)" />
         <span style={titleStyle}>캔버스</span>
+        {(isGenerating || lastGenerateDurationLabel) && (
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {isGenerating ? <Loader2 size={12} color="var(--text-secondary)" style={{ animation: 'spin 1s linear infinite' }} /> : null}
+            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+              {isGenerating
+                ? `생성 중 ${generateElapsedLabel ?? '0초'}`
+                : `완료 ${lastGenerateDurationLabel}`}
+            </span>
+          </div>
+        )}
       </div>
 
       <div style={bodyStyle}>
-        <div style={canvasCardStyle}>
+        <div style={{ ...canvasCardStyle, aspectRatio }}>
           {isGenerating && (
             <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-node-base)', opacity: 0.8, backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>생성 중…</span>
+              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                생성 중… {generateElapsedLabel ?? '0초'}
+              </span>
             </div>
           )}
 
@@ -146,7 +188,22 @@ export function CanvasNode({ data }: any) {
           )}
 
           {imageUrl && !error ? (
-            <img src={imageUrl} alt="Result" style={{ ...imageStyle, opacity: isGenerating ? 0.2 : 1 }} />
+            <button
+              type="button"
+              onClick={handlePreview}
+              title="이미지 크게 보기"
+              className="nodrag"
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                padding: 0,
+                background: 'transparent',
+                cursor: 'zoom-in',
+              }}
+            >
+              <img src={imageUrl} alt="Result" style={{ ...imageStyle, opacity: isGenerating ? 0.2 : 1 }} />
+            </button>
           ) : !isGenerating && !error ? (
             <div style={placeholderStyle}>
               <div style={placeholderIconStyle}>✦</div>
@@ -158,7 +215,29 @@ export function CanvasNode({ data }: any) {
         </div>
 
         {imageUrl && !isGenerating && !error && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px', gap: '8px' }}>
+            <button
+              onClick={handlePreview}
+              title="원본 크기로 보기"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'var(--bg-node-base)',
+                color: 'var(--text-primary)',
+                flex: 1,
+                height: '42px',
+                borderRadius: '100px',
+                border: '1px solid var(--border-node)',
+                cursor: 'pointer',
+                transition: 'all 0.18s ease',
+                gap: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+              }}
+            >
+              크게 보기
+            </button>
             <button
               onClick={handleDownload}
               title="다운로드"
@@ -168,7 +247,7 @@ export function CanvasNode({ data }: any) {
                 justifyContent: 'center',
                 backgroundColor: 'var(--bg-node-base)',
                 color: 'var(--text-primary)',
-                width: '100%',
+                flex: 1,
                 height: '42px',
                 borderRadius: '100px',
                 border: '1px solid var(--border-node)',

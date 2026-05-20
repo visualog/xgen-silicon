@@ -1,6 +1,6 @@
 "use client";
 // src/components/StyleAddModal.tsx
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Upload, Link, X, Sparkles, Loader2, ImageIcon, Check } from "lucide-react";
 
 export interface StyleEntry {
@@ -15,6 +15,14 @@ interface Props {
   onClose: () => void;
 }
 
+function formatDurationLabel(totalSeconds: number | null) {
+  if (totalSeconds === null) return null;
+  if (totalSeconds < 60) return `${totalSeconds}초`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return seconds === 0 ? `${minutes}분` : `${minutes}분 ${seconds}초`;
+}
+
 export function StyleAddModal({ onAdd, onClose }: Props) {
   const [imageUrl, setImageUrl] = useState<string>("");
   const [imageBase64, setImageBase64] = useState<string>("");
@@ -24,7 +32,10 @@ export function StyleAddModal({ onAdd, onClose }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string>("");
+  const [analyzeElapsedSeconds, setAnalyzeElapsedSeconds] = useState(0);
+  const [lastAnalyzeDurationSeconds, setLastAnalyzeDurationSeconds] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const analyzeStartedAtRef = useRef<number | null>(null);
 
   // 파일 → base64 변환
   const loadFile = (file: File) => {
@@ -108,6 +119,31 @@ export function StyleAddModal({ onAdd, onClose }: Props) {
       setIsAnalyzing(false);
     }
   };
+
+  useEffect(() => {
+    if (!isAnalyzing) {
+      if (analyzeStartedAtRef.current !== null) {
+        const elapsed = Math.max(1, Math.round((Date.now() - analyzeStartedAtRef.current) / 1000));
+        setLastAnalyzeDurationSeconds(elapsed);
+        setAnalyzeElapsedSeconds(0);
+        analyzeStartedAtRef.current = null;
+      }
+      return;
+    }
+
+    analyzeStartedAtRef.current = Date.now();
+    setAnalyzeElapsedSeconds(0);
+    const intervalId = window.setInterval(() => {
+      if (analyzeStartedAtRef.current === null) return;
+      setAnalyzeElapsedSeconds(
+        Math.max(0, Math.floor((Date.now() - analyzeStartedAtRef.current) / 1000)),
+      );
+    }, 250);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isAnalyzing]);
 
   // 스타일 추가
   const handleAdd = () => {
@@ -294,7 +330,7 @@ export function StyleAddModal({ onAdd, onClose }: Props) {
                 }}
               >
                 {isAnalyzing
-                  ? <><Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> 분석 중...</>
+                  ? <><Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> 분석 중... {formatDurationLabel(analyzeElapsedSeconds) ?? "0초"}</>
                   : <><Sparkles size={11} /> Codex 자동 분석</>
                 }
               </button>
@@ -316,6 +352,13 @@ export function StyleAddModal({ onAdd, onClose }: Props) {
                 fontFamily: "inherit",
               }}
             />
+            {(isAnalyzing || lastAnalyzeDurationSeconds) && (
+              <p style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "6px" }}>
+                {isAnalyzing
+                  ? `Codex가 스타일을 분석 중입니다 · ${formatDurationLabel(analyzeElapsedSeconds) ?? "0초"}`
+                  : `마지막 분석 완료 · ${formatDurationLabel(lastAnalyzeDurationSeconds)}`}
+              </p>
+            )}
             {analyzeError && (
               <p style={{ fontSize: "11px", color: "#ef4444", marginTop: "4px" }}>{analyzeError}</p>
             )}

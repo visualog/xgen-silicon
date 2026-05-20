@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
       url: result.url,
       threadId: result.threadId,
       filePath: result.filePath,
+      title: result.title,
+      englishPrompt: result.englishPrompt,
+      koreanPrompt: result.koreanPrompt,
     });
   } catch (error: unknown) {
     console.error("Generation error:", error);

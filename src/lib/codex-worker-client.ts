@@ -46,14 +46,25 @@ export interface WorkerTranslateResponse {
   englishPrompt: string;
 }
 
+export interface WorkerTranslateKoreanResponse {
+  koreanPrompt: string;
+}
+
 export interface WorkerAnalyzeStyleResponse {
   suggestedPrompt: string;
+}
+
+export interface WorkerGenerateTitleResponse {
+  title: string;
 }
 
 export interface WorkerGenerateResponse {
   url: string;
   threadId: string;
   filePath: string;
+  title: string;
+  englishPrompt: string;
+  koreanPrompt: string;
 }
 
 export function translateViaWorker(payload: {
@@ -73,6 +84,20 @@ export function translateViaWorker(payload: {
   detailLevel?: string | null;
 }) {
   return postToWorker<WorkerTranslateResponse>("/translate", payload, 90000);
+}
+
+export function translateKoreanViaWorker(payload: {
+  englishPrompt: string;
+}) {
+  return postToWorker<WorkerTranslateKoreanResponse>("/translate-korean", payload, 45000);
+}
+
+export function generateTitleViaWorker(payload: {
+  prompt?: string;
+  englishPrompt?: string;
+  koreanPrompt?: string;
+}) {
+  return postToWorker<WorkerGenerateTitleResponse>("/generate-title", payload, 45000);
 }
 
 export function analyzeStyleViaWorker(payload: {

@@ -42,9 +42,13 @@ const bodyStyle = {
 type OutputNodeData = {
   englishPrompt?: string;
   isTranslating?: boolean;
+  translateElapsedLabel?: string | null;
+  lastTranslateDurationLabel?: string | null;
   onGenerate?: () => void;
   canGenerate?: boolean;
   isGenerating?: boolean;
+  generateElapsedLabel?: string | null;
+  lastGenerateDurationLabel?: string | null;
 };
 
 export function OutputNode({ data }: { data: OutputNodeData }) {
@@ -54,9 +58,13 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
   const {
     englishPrompt = "",
     isTranslating = false,
+    translateElapsedLabel = null,
+    lastTranslateDurationLabel = null,
     onGenerate,
     canGenerate = false,
     isGenerating = false,
+    generateElapsedLabel = null,
+    lastGenerateDurationLabel = null,
   } = data;
 
   const edges = useEdges();
@@ -172,7 +180,9 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
         {isTranslating && (
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Loader2 size={12} color="var(--text-secondary)" style={{ animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Codex 생성 중</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+              Codex 생성 중 {translateElapsedLabel ? `· ${translateElapsedLabel}` : ''}
+            </span>
           </div>
         )}
       </div>
@@ -230,6 +240,35 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
           </div>
         )}
 
+        {(isTranslating || lastTranslateDurationLabel || lastGenerateDurationLabel) && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--bg-canvas)',
+              border: '1px solid var(--border-node)',
+            }}
+          >
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              {isTranslating
+                ? `프롬프트 생성 ${translateElapsedLabel ?? '0초'}`
+                : lastTranslateDurationLabel
+                  ? `프롬프트 생성 완료 · ${lastTranslateDurationLabel}`
+                  : '프롬프트 생성 대기'}
+            </span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              {isGenerating
+                ? `이미지 생성 ${generateElapsedLabel ?? '0초'}`
+                : lastGenerateDurationLabel
+                  ? `이미지 생성 완료 · ${lastGenerateDurationLabel}`
+                  : '이미지 생성 대기'}
+            </span>
+          </div>
+        )}
+
         {/* 생성된 프롬프트 영역 */}
         <div
           style={{
@@ -256,7 +295,9 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
           {isAnyConnected && isTranslating && !englishPrompt && (
             <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '196px', gap: '8px' }}>
               <Loader2 size={20} color="var(--text-secondary)" style={{ animation: 'spin 1s linear infinite' }} />
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Codex가 프롬프트 생성 중...</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Codex가 프롬프트 생성 중... {translateElapsedLabel ?? '0초'}
+              </span>
             </div>
           )}
 
@@ -308,7 +349,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
           }}
         >
           {isGenerating
-            ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> 생성 중...</>
+            ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> 생성 중... {generateElapsedLabel ?? '0초'}</>
             : <><Play size={16} fill="currentColor" /> 이미지 생성</>
           }
         </button>
