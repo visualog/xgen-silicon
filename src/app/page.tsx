@@ -27,6 +27,7 @@ import {
   LayoutGrid,
   Plus,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 
 import { PromptNode } from "@/components/nodes/PromptNode";
@@ -1347,6 +1348,13 @@ function FlowContent() {
     setPreviewImageUrl(nextPreviewImageUrl);
   }, []);
 
+  const deleteGeneratedResult = useCallback((resultId: string) => {
+    setGeneratedResults((prev) => prev.filter((result) => result.id !== resultId));
+    if (activeResultId === resultId) {
+      setActiveResultId(null);
+    }
+  }, [activeResultId]);
+
   const activeOptionalNodes = useMemo(
     () =>
       Object.fromEntries(
@@ -1810,10 +1818,17 @@ function FlowContent() {
           ) : (
             <div className="gallery-masonry">
               {generatedResults.map((result) => (
-                <button
-                  type="button"
+                <div
                   key={result.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openResultInEditor(result)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openResultInEditor(result);
+                    }
+                  }}
                   className="gallery-card"
                   style={{
                     textAlign: "left",
@@ -1831,6 +1846,19 @@ function FlowContent() {
                         className="gallery-card-image"
                       />
                     ) : null}
+                    <button
+                      type="button"
+                      className="gallery-card-delete"
+                      title="이미지 삭제"
+                      aria-label={`${getDisplayTitle(result)} 삭제`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (!window.confirm("이 이미지를 라이브러리에서 삭제할까요?")) return;
+                        deleteGeneratedResult(result.id);
+                      }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
                     <div className="gallery-card-overlay">
                       <div className="gallery-card-copy">
                         <div className="gallery-card-title">{getDisplayTitle(result)}</div>
@@ -1853,7 +1881,7 @@ function FlowContent() {
                       </div>
                     </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
