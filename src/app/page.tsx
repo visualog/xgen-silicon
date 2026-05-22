@@ -51,6 +51,7 @@ import { CanvasNode } from "@/components/nodes/CanvasNode";
 import type { StyleEntry } from "@/components/StyleAddModal";
 
 const STORAGE_KEY = "brandgen_state";
+const APP_VERSION = "v0.1.0";
 
 const OPTIONAL_NODE_CONFIG = {
   composition: {
@@ -1737,6 +1738,7 @@ function FlowContent() {
               <div>
                 <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.8 }}>BrandGen</span>
               </div>
+              <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 999, backgroundColor: "var(--bg-node-base)", border: "1px solid var(--border-node)", color: "var(--text-secondary)", letterSpacing: 0.2 }}>{APP_VERSION}</span>
               <button
                 onClick={toggleTheme}
                 title="Toggle Theme"
@@ -1907,7 +1909,7 @@ function FlowContent() {
           <ArrowLeft size={16} />
         </button>
         <span style={{ fontSize: "17px", fontWeight: 700, letterSpacing: "-0.5px", color: "var(--text-primary)" }}>BrandGen</span>
-        <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "100px", backgroundColor: "var(--text-primary)", color: "var(--bg-canvas)", textTransform: "uppercase", letterSpacing: "0.8px" }}>베타</span>
+        <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 7px", borderRadius: "100px", backgroundColor: "var(--bg-canvas)", border: "1px solid var(--border-node)", color: "var(--text-secondary)", letterSpacing: "0.3px" }}>{APP_VERSION}</span>
         <div style={{ width: "1px", height: "16px", backgroundColor: "var(--border-node)", margin: "0 4px" }} />
         <button
           onClick={toggleTheme}
