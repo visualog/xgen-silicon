@@ -63,6 +63,11 @@ export interface WorkerConsistencyResponse {
   object: string;
   style: string;
   composition: string;
+  elements?: {
+    name: string;
+    category: string;
+    description: string;
+  }[];
   rules: string[];
 }
 
@@ -73,6 +78,13 @@ export interface WorkerGenerateResponse {
   title: string;
   englishPrompt: string;
   koreanPrompt: string;
+}
+
+export interface WorkerElementSheetResponse {
+  url: string;
+  threadId: string;
+  filePath: string;
+  prompt: string;
 }
 
 export function translateViaWorker(payload: {
@@ -146,6 +158,20 @@ export function generateViaWorker(payload: {
   propsPrompt?: string | null;
   detailLevel?: string | null;
   prebuiltPrompt?: string | null;
+  elementSheetImages?: string[];
 }) {
   return postToWorker<WorkerGenerateResponse>("/generate", payload, 300000);
+}
+
+export function generateElementSheetViaWorker(payload: {
+  element: {
+    name: string;
+    category: string;
+    description: string;
+  };
+  sourceImage?: string | null;
+  sourcePrompt?: string;
+  style?: string;
+}) {
+  return postToWorker<WorkerElementSheetResponse>("/generate-element-sheet", payload, 300000);
 }

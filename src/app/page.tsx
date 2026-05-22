@@ -206,15 +206,27 @@ type ConsistencyElements = {
   object: string;
   style: string;
   composition: string;
+  elements?: ElementBoardItem[];
   rules: string[];
 };
-type ElementBoard = ConsistencyElements & {
-  objectViews: {
-    front: string;
-    left: string;
-    right: string;
-    back: string;
-  };
+type ElementSheetStatus = "idle" | "generating" | "ready" | "failed";
+type ElementBoardItem = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  sheetStatus?: ElementSheetStatus;
+  sheetImageUrl?: string;
+  sheetPrompt?: string;
+  sheetGeneratedAt?: string;
+};
+type ElementBoard = {
+  character: string;
+  object: string;
+  style: string;
+  composition: string;
+  elements: ElementBoardItem[];
+  rules: string[];
 };
 type ConsistencyStatus = "pending" | "ready" | "failed";
 
@@ -372,49 +384,92 @@ function emptyElementBoard(): ElementBoard {
     object: "",
     style: "",
     composition: "",
+    elements: [],
     rules: [],
-    objectViews: {
-      front: "",
-      left: "",
-      right: "",
-      back: "",
-    },
+  };
+}
+
+function normalizeElementBoardItem(item: Partial<ElementBoardItem>, index: number): ElementBoardItem | null {
+  const name = typeof item.name === "string" ? item.name.trim() : "";
+  const description = typeof item.description === "string" ? item.description.trim() : "";
+  if (!name || !description) return null;
+
+  return {
+    id: typeof item.id === "string" && item.id.trim() ? item.id : `element-${Date.now()}-${index}`,
+    name,
+    category: typeof item.category === "string" && item.category.trim() ? item.category.trim() : "object",
+    description,
+    sheetStatus: item.sheetStatus,
+    sheetImageUrl: typeof item.sheetImageUrl === "string" ? item.sheetImageUrl : undefined,
+    sheetPrompt: typeof item.sheetPrompt === "string" ? item.sheetPrompt : undefined,
+    sheetGeneratedAt: typeof item.sheetGeneratedAt === "string" ? item.sheetGeneratedAt : undefined,
   };
 }
 
 function normalizeElementBoard(board?: Partial<ElementBoard> | null): ElementBoard {
-  const objectViews = board?.objectViews ?? emptyElementBoard().objectViews;
+  const elements = Array.isArray(board?.elements)
+    ? board.elements
+        .map((item, index) => normalizeElementBoardItem(item, index))
+        .filter((item): item is ElementBoardItem => Boolean(item))
+    : [];
+
   return {
     character: typeof board?.character === "string" ? board.character : "",
     object: typeof board?.object === "string" ? board.object : "",
     style: typeof board?.style === "string" ? board.style : "",
     composition: typeof board?.composition === "string" ? board.composition : "",
+    elements,
     rules: Array.isArray(board?.rules) ? board.rules.filter((rule): rule is string => typeof rule === "string") : [],
-    objectViews: {
-      front: typeof objectViews.front === "string" ? objectViews.front : "",
-      left: typeof objectViews.left === "string" ? objectViews.left : "",
-      right: typeof objectViews.right === "string" ? objectViews.right : "",
-      back: typeof objectViews.back === "string" ? objectViews.back : "",
-    },
   };
 }
 
+function fallbackElementsFromConsistency(consistency: ConsistencyElements): ElementBoardItem[] {
+  const elements: Array<ElementBoardItem | null> = [
+    consistency.character.trim()
+      ? {
+          id: `element-character-${Date.now()}`,
+          name: "Main character",
+          category: "character",
+          description: consistency.character.trim(),
+          sheetStatus: "idle" as const,
+        }
+      : null,
+    consistency.object.trim()
+      ? {
+          id: `element-object-${Date.now()}`,
+          name: "Primary object",
+          category: "object",
+          description: consistency.object.trim(),
+          sheetStatus: "idle" as const,
+        }
+      : null,
+  ];
+  return elements.filter((item): item is ElementBoardItem => Boolean(item));
+}
+
 function createElementBoardFromConsistency(consistency: ConsistencyElements, objectAngle: string): ElementBoard {
-  const objectBase = consistency.object.trim();
   const compositionBase = consistency.composition.trim();
-  const directionBase = objectBase || "same object identity, proportions, silhouette, colors, and key details";
+  const extractedElements = Array.isArray(consistency.elements)
+    ? consistency.elements
+        .map((element, index) =>
+          normalizeElementBoardItem(
+            {
+              ...element,
+              id: element.id || `element-${Date.now()}-${index}`,
+              sheetStatus: "idle",
+            },
+            index,
+          ),
+        )
+        .filter((item): item is ElementBoardItem => Boolean(item))
+    : [];
 
   return {
     ...normalizeElementBoard(consistency),
-    objectViews: {
-      front: `Front view: ${directionBase}. Keep front-facing proportions and recognizable details.`,
-      left: `Left-side view: ${directionBase}. Rotate the object itself to reveal the left silhouette and side-specific details.`,
-      right: `Right-side view: ${directionBase}. Rotate the object itself to reveal the right silhouette and side-specific details.`,
-      back: `Back view: ${directionBase}. Show rear-facing structure while preserving the same object identity.`,
-    },
+    elements: extractedElements.length ? extractedElements : fallbackElementsFromConsistency(consistency),
     rules: [
       ...consistency.rules,
-      "Treat the element board as a fixed identity sheet, not a loose style suggestion.",
+      "Use generated element sheets as visual identity references when available.",
       objectAngle.trim() ? objectAngle.trim() : "Respect requested object orientation with visible perspective cues.",
       compositionBase ? `Preserve composition anchor: ${compositionBase}` : "",
     ].filter(Boolean),
@@ -617,6 +672,7 @@ function emptyConsistency(): ConsistencyElements {
     object: "",
     style: "",
     composition: "",
+    elements: [],
     rules: [],
   };
 }
@@ -661,20 +717,23 @@ function appendConsistencyReferences(
 
 function formatElementBoardPrompt(board: ElementBoard) {
   const normalized = normalizeElementBoard(board);
+  const elementPrompts = normalized.elements.map((element) => {
+    const sheetReference = element.sheetImageUrl
+      ? "visual turnaround sheet is available and must be treated as the primary identity reference"
+      : "turnaround sheet not generated yet; use text identity only";
+    return `${element.name} (${element.category}): ${element.description}. ${sheetReference}`;
+  });
   const parts = [
     normalized.character.trim() ? `character identity: ${normalized.character.trim()}` : "",
     normalized.object.trim() ? `object identity: ${normalized.object.trim()}` : "",
     normalized.style.trim() ? `style identity: ${normalized.style.trim()}` : "",
     normalized.composition.trim() ? `composition anchor: ${normalized.composition.trim()}` : "",
-    normalized.objectViews.front.trim() ? `front definition: ${normalized.objectViews.front.trim()}` : "",
-    normalized.objectViews.left.trim() ? `left-side definition: ${normalized.objectViews.left.trim()}` : "",
-    normalized.objectViews.right.trim() ? `right-side definition: ${normalized.objectViews.right.trim()}` : "",
-    normalized.objectViews.back.trim() ? `back definition: ${normalized.objectViews.back.trim()}` : "",
+    elementPrompts.length ? `classified elements: ${elementPrompts.join(" | ")}` : "",
     normalized.rules.length ? `consistency rules: ${normalized.rules.join("; ")}` : "",
   ].filter(Boolean);
 
   if (parts.length === 0) return "";
-  return `ELEMENT BOARD CONSISTENCY LOCK: ${parts.join(". ")}. Preserve these classified elements across generations; only change attributes explicitly requested by connected nodes.`;
+  return `ELEMENT BOARD CONSISTENCY LOCK: ${parts.join(". ")}. Preserve these classified elements across generations; when an element sheet exists, match that sheet's front, left, right, and back identity rather than inventing a new design.`;
 }
 
 function appendElementBoardPrompt(englishPrompt: string, board: ElementBoard | null | undefined) {
@@ -1058,6 +1117,15 @@ function FlowContent() {
       )
     : "";
   const visibleKoreanPrompt = hasAnyConnection ? koreanPrompt : "";
+  const connectedElementSheetImages = useMemo(
+    () =>
+      connectedState.elementBoard
+        ? elementBoard.elements
+            .map((element) => element.sheetImageUrl)
+            .filter((sheetImageUrl): sheetImageUrl is string => Boolean(sheetImageUrl?.trim()))
+        : [],
+    [connectedState.elementBoard, elementBoard.elements],
+  );
 
   const requestKoreanPromptInBackground = useCallback(
     async (resultId: string, nextEnglishPrompt: string) => {
@@ -1139,6 +1207,11 @@ function FlowContent() {
           object: typeof data.object === "string" ? data.object.trim() : "",
           style: typeof data.style === "string" ? data.style.trim() : "",
           composition: typeof data.composition === "string" ? data.composition.trim() : "",
+          elements: Array.isArray(data.elements)
+            ? data.elements
+                .map((element, index) => normalizeElementBoardItem({ ...element, sheetStatus: "idle" }, index))
+                .filter((element): element is ElementBoardItem => Boolean(element))
+            : [],
           rules: Array.isArray(data.rules) ? data.rules.filter((rule): rule is string => typeof rule === "string") : [],
         };
 
@@ -1350,6 +1423,7 @@ function FlowContent() {
           propsPrompt: connectedState.props ? propsPrompt : null,
           detailLevel: connectedState.detail ? detailLevel : null,
           prebuiltPrompt: visibleEnglishPrompt || null,
+          elementSheetImages: connectedElementSheetImages,
         }),
       });
 
@@ -1405,6 +1479,7 @@ function FlowContent() {
     captureCurrentSnapshot,
     composition,
     connectedState,
+    connectedElementSheetImages,
     constraints,
     detailLevel,
     gesture,
@@ -1464,6 +1539,64 @@ function FlowContent() {
       setActiveResultId(null);
     }
   }, [activeResultId]);
+
+  const generateElementSheet = useCallback(
+    async (elementId: string) => {
+      const element = elementBoard.elements.find((item) => item.id === elementId);
+      if (!element || element.sheetStatus === "generating") return;
+
+      setElementBoard((prev) => ({
+        ...prev,
+        elements: prev.elements.map((item) =>
+          item.id === elementId ? { ...item, sheetStatus: "generating" } : item,
+        ),
+      }));
+
+      try {
+        const activeStylePrompt = styles.find((styleEntry) => styleEntry.id === activeStyleId)?.prompt || "";
+        const res = await fetch("/api/generate-element-sheet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            element: {
+              name: element.name,
+              category: element.category,
+              description: element.description,
+            },
+            sourceImage: imageUrl,
+            sourcePrompt: visibleEnglishPrompt || englishPrompt || prompt,
+            style: activeStylePrompt || elementBoard.style,
+          }),
+        });
+        const data = (await res.json()) as { url?: string; prompt?: string; error?: string };
+        if (!res.ok || !data.url) throw new Error(data.error || "앨리먼트 전개도 생성 실패");
+
+        setElementBoard((prev) => ({
+          ...prev,
+          elements: prev.elements.map((item) =>
+            item.id === elementId
+              ? {
+                  ...item,
+                  sheetStatus: "ready",
+                  sheetImageUrl: data.url,
+                  sheetPrompt: data.prompt,
+                  sheetGeneratedAt: new Date().toISOString(),
+                }
+              : item,
+          ),
+        }));
+      } catch (error) {
+        console.error(error);
+        setElementBoard((prev) => ({
+          ...prev,
+          elements: prev.elements.map((item) =>
+            item.id === elementId ? { ...item, sheetStatus: "failed" } : item,
+          ),
+        }));
+      }
+    },
+    [activeStyleId, elementBoard, englishPrompt, imageUrl, prompt, styles, visibleEnglishPrompt],
+  );
 
   const activeOptionalNodes = useMemo(
     () =>
@@ -1586,6 +1719,7 @@ function FlowContent() {
             ...baseData,
             board: elementBoard,
             setBoard: setElementBoard,
+            onGenerateSheet: generateElementSheet,
             onRemove: () => removeOptionalNode("elementBoard"),
           },
         };
@@ -1679,6 +1813,7 @@ function FlowContent() {
     objectReferences,
     activeObjectReferenceId,
     elementBoard,
+    generateElementSheet,
     ratio,
     resolution,
     composition,

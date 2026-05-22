@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       propsPrompt,
       detailLevel,
       prebuiltPrompt,
+      elementSheetImages,
     } = await req.json();
 
     if (!prompt && !style && !prebuiltPrompt) {
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
       propsPrompt,
       detailLevel,
       prebuiltPrompt,
+      elementSheetImages,
     });
 
     console.log("✅ 이미지 생성 완료!");

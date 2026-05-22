@@ -260,11 +260,13 @@ function runCodexExec(prompt, { timeoutMs = 60000, imagePaths = [] } = {}) {
   });
 }
 
-function runCodexExecForImageGeneration(prompt, timeoutMs = 240000) {
+function runCodexExecForImageGeneration(prompt, timeoutMs = 240000, imagePaths = []) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
+    const imageArgs = imagePaths.flatMap((imagePath) => ["-i", imagePath]);
     logDebug("runCodexExecForImageGeneration:start", {
       timeoutMs,
+      imageCount: imagePaths.length,
       promptPreview: prompt.slice(0, 200),
     });
     const proc = spawn(
@@ -278,6 +280,7 @@ function runCodexExecForImageGeneration(prompt, timeoutMs = 240000) {
         CODEX_WORKDIR,
         "--sandbox",
         "read-only",
+        ...imageArgs,
         "--",
         prompt,
       ],
@@ -567,6 +570,13 @@ Return ONLY a valid JSON object with this exact structure:
   "object": "stable object/product/prop identity details that should stay consistent, or empty string if no object",
   "style": "stable visual style, rendering, linework, color, texture, and mood details",
   "composition": "stable framing, scale, spacing, camera/object angle, and layout details",
+  "elements": [
+    {
+      "name": "short visible element name",
+      "category": "character|object|prop|clothing|background|style",
+      "description": "reusable identity description for this exact visible element"
+    }
+  ],
   "rules": ["short rule that preserves consistency", "short rule that avoids unwanted drift"]
 }
 
@@ -575,6 +585,8 @@ Rules:
 - Focus on reusable, concrete visual details only.
 - Write character and object values as strict identity locks, not style suggestions.
 - Include exact visible traits: silhouette, proportions, colors, outfit/material placement, accessories, and distinctive details.
+- Extract 3-8 concrete visible elements. Include separable props and outfit/accessory elements when they are visually important.
+- Element descriptions must be suitable for generating a standalone turnaround reference sheet.
 - Include one anti-drift rule for what must not change in future generations.
 - Do not invent details that are not visible.
 - Keep each field concise but specific, usually 1-2 dense sentences per field.
@@ -593,6 +605,17 @@ Rules:
     object: typeof parsed.object === "string" ? parsed.object.replace(/\s+/g, " ").trim() : "",
     style: typeof parsed.style === "string" ? parsed.style.replace(/\s+/g, " ").trim() : "",
     composition: typeof parsed.composition === "string" ? parsed.composition.replace(/\s+/g, " ").trim() : "",
+    elements: Array.isArray(parsed.elements)
+      ? parsed.elements
+          .filter((element) => element && typeof element === "object")
+          .map((element) => ({
+            name: typeof element.name === "string" ? element.name.replace(/\s+/g, " ").trim() : "",
+            category: typeof element.category === "string" ? element.category.replace(/\s+/g, " ").trim() : "object",
+            description: typeof element.description === "string" ? element.description.replace(/\s+/g, " ").trim() : "",
+          }))
+          .filter((element) => element.name && element.description)
+          .slice(0, 8)
+      : [],
     rules: Array.isArray(parsed.rules)
       ? parsed.rules.filter((rule) => typeof rule === "string").map((rule) => rule.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 6)
       : [],
@@ -674,9 +697,10 @@ ${source}
   };
 }
 
-async function generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio = "1:1", resolution = "HD", composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt }) {
+async function generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio = "1:1", resolution = "HD", composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages = [] }) {
   const { width, height } = getPixelSize(resolution, ratio);
   let promptBody = prebuiltPrompt?.trim() || "";
+  const sheetTmpFiles = [];
 
   if (
     promptBody &&
@@ -755,25 +779,114 @@ REQUIREMENTS:
 - return the generated image as the normal Codex image-generation result
 `.trim();
 
-  const { threadId } = await runCodexExecForImageGeneration(instruction, 240000);
-  const filePath = findLatestGeneratedImage(threadId);
-  logDebug("generateImageWithCodex:fileLookup", {
-    threadId,
-    generatedDir: path.join(os.homedir(), ".codex", "generated_images", threadId),
-    filePath,
-  });
-  if (!filePath) {
-    throw new Error("생성된 이미지 파일을 ~/.codex/generated_images 에서 찾지 못했습니다.");
+  try {
+    for (const [index, imageInput] of (Array.isArray(elementSheetImages) ? elementSheetImages : []).entries()) {
+      if (typeof imageInput !== "string" || !imageInput.trim()) continue;
+      const imageData = await imageInputToBuffer(imageInput);
+      const ext = imageExtensionFromMimeType(imageData.mimeType || "image/png");
+      const tmpFile = path.join(os.tmpdir(), `brandgen-element-reference-${Date.now()}-${index}.${ext}`);
+      fs.writeFileSync(tmpFile, imageData.buffer);
+      sheetTmpFiles.push(tmpFile);
+    }
+
+    const { threadId } = await runCodexExecForImageGeneration(instruction, 240000, sheetTmpFiles);
+    const filePath = findLatestGeneratedImage(threadId);
+    logDebug("generateImageWithCodex:fileLookup", {
+      threadId,
+      generatedDir: path.join(os.homedir(), ".codex", "generated_images", threadId),
+      filePath,
+      elementSheetCount: sheetTmpFiles.length,
+    });
+    if (!filePath) {
+      throw new Error("생성된 이미지 파일을 ~/.codex/generated_images 에서 찾지 못했습니다.");
+    }
+
+    return {
+      url: filePathToDataUrl(filePath),
+      threadId,
+      filePath,
+      englishPrompt: promptBody,
+      koreanPrompt: metadata.koreanPrompt,
+      title: metadata.title,
+    };
+  } finally {
+    for (const tmpFile of sheetTmpFiles) {
+      try { fs.unlinkSync(tmpFile); } catch {}
+    }
+  }
+}
+
+async function generateElementSheetWithCodex({ element, sourceImage, sourcePrompt = "", style = "" }) {
+  const elementName = typeof element?.name === "string" ? element.name.trim() : "";
+  const elementCategory = typeof element?.category === "string" ? element.category.trim() : "object";
+  const elementDescription = typeof element?.description === "string" ? element.description.trim() : "";
+  if (!elementName || !elementDescription) {
+    throw new Error("전개도를 만들 앨리먼트 이름과 설명이 필요합니다.");
   }
 
-  return {
-    url: filePathToDataUrl(filePath),
-    threadId,
-    filePath,
-    englishPrompt: promptBody,
-    koreanPrompt: metadata.koreanPrompt,
-    title: metadata.title,
-  };
+  let tmpFile = null;
+  let imagePaths = [];
+  try {
+    if (sourceImage) {
+      const imageData = await imageInputToBuffer(sourceImage);
+      const ext = imageExtensionFromMimeType(imageData.mimeType || "image/jpeg");
+      tmpFile = path.join(os.tmpdir(), `brandgen-element-sheet-${Date.now()}.${ext}`);
+      fs.writeFileSync(tmpFile, imageData.buffer);
+      imagePaths = [tmpFile];
+    }
+
+    const promptBody = `
+Create a clean turnaround reference sheet for one extracted image element.
+
+Element name: ${elementName}
+Element category: ${elementCategory}
+Element identity description: ${elementDescription}
+Source prompt context: ${sourcePrompt || "not provided"}
+Style context: ${style || "match the source image style"}
+
+Sheet requirements:
+- Generate a single 4-panel reference sheet on a pure white background.
+- Panels must be arranged left to right and visually separated by generous whitespace.
+- Panel order: front view, left-side view, right-side view, back view.
+- Show only this one element, isolated from the original scene.
+- Preserve exact identity: silhouette, proportions, color placement, materials, linework, texture, distinctive markings, and accessories.
+- Rotate the element itself for each panel. Do not just move the camera.
+- Keep scale consistent across all four panels.
+- No labels, text, captions, logos, watermarks, or UI.
+- Use the attached source image only as identity reference when available.
+`.trim();
+
+    const instruction = `
+Generate one image from this prompt.
+
+IMAGE PROMPT:
+${buildImagePrompt(promptBody, { preserveStyleReference: true })}
+
+REQUIREMENTS:
+- aspect ratio: 4:3
+- target size: 1400x1050
+- reference sheet only, no scene
+- no text, watermark, or logo
+- return the generated image as the normal Codex image-generation result
+`.trim();
+
+    const { threadId } = await runCodexExecForImageGeneration(instruction, 240000, imagePaths);
+    const filePath = findLatestGeneratedImage(threadId);
+    if (!filePath) {
+      throw new Error("생성된 전개도 이미지를 ~/.codex/generated_images 에서 찾지 못했습니다.");
+    }
+
+    return {
+      url: filePathToDataUrl(filePath),
+      threadId,
+      filePath,
+      prompt: promptBody,
+    };
+  } finally {
+    if (tmpFile) {
+      try { fs.unlinkSync(tmpFile); } catch {}
+    }
+  }
 }
 
 function readJsonBody(req) {
@@ -904,11 +1017,16 @@ async function handleAnalyzeConsistency(payload) {
 }
 
 async function handleGenerate(payload) {
-  const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt } = payload;
+  const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages } = payload;
   if (!prompt && !style && !prebuiltPrompt) {
     throw new Error("프롬프트 또는 스타일이 필요합니다.");
   }
-  return generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt });
+  return generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages });
+}
+
+async function handleGenerateElementSheet(payload) {
+  const { element, sourceImage, sourcePrompt, style } = payload;
+  return generateElementSheetWithCodex({ element, sourceImage, sourcePrompt, style });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -927,6 +1045,7 @@ const server = http.createServer(async (req, res) => {
       if (req.url === "/analyze-style") return handleAnalyzeStyle(payload);
       if (req.url === "/analyze-consistency") return handleAnalyzeConsistency(payload);
       if (req.url === "/generate") return handleGenerate(payload);
+      if (req.url === "/generate-element-sheet") return handleGenerateElementSheet(payload);
       throw new Error("Not Found");
     });
 
