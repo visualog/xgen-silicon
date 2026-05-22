@@ -33,6 +33,7 @@ import {
 import { PromptNode } from "@/components/nodes/PromptNode";
 import { StyleNode } from "@/components/nodes/StyleNode";
 import { ReferenceNode } from "@/components/nodes/ReferenceNode";
+import { ElementBoardNode } from "@/components/nodes/ElementBoardNode";
 import { RatioNode } from "@/components/nodes/RatioNode";
 import { ResolutionNode } from "@/components/nodes/ResolutionNode";
 import { CompositionNode } from "@/components/nodes/CompositionNode";
@@ -84,6 +85,16 @@ const OPTIONAL_NODE_CONFIG = {
     sourceHandle: "object-reference-out",
     edgeId: "e-object-reference-output",
     color: "var(--port-object-reference)",
+  },
+  elementBoard: {
+    id: "element-board-node",
+    type: "elementBoardNode",
+    label: "앨리먼트 보드",
+    description: "생성 이미지에서 추출한 캐릭터, 오브젝트, 스타일, 방향 정의를 구조화해 일관성을 고정합니다.",
+    position: { x: 800, y: 850 },
+    sourceHandle: "element-board-out",
+    edgeId: "e-element-board-output",
+    color: "var(--port-element-board)",
   },
   background: {
     id: "background-node",
@@ -197,6 +208,14 @@ type ConsistencyElements = {
   composition: string;
   rules: string[];
 };
+type ElementBoard = ConsistencyElements & {
+  objectViews: {
+    front: string;
+    left: string;
+    right: string;
+    back: string;
+  };
+};
 type ConsistencyStatus = "pending" | "ready" | "failed";
 
 type EditorSnapshot = {
@@ -207,6 +226,7 @@ type EditorSnapshot = {
   activeCharacterReferenceId: string | null;
   objectReferences: StyleEntry[];
   activeObjectReferenceId: string | null;
+  elementBoard: ElementBoard;
   ratio: string;
   resolution: string;
   composition: string;
@@ -250,6 +270,7 @@ const NODE_SIZE_BY_TYPE: Record<string, { width: number; height: number }> = {
   promptNode: { width: 320, height: 240 },
   styleNode: { width: 320, height: 250 },
   referenceNode: { width: 280, height: 260 },
+  elementBoardNode: { width: 320, height: 360 },
   ratioNode: { width: 220, height: 140 },
   resolutionNode: { width: 220, height: 140 },
   objectAngleNode: { width: 260, height: 290 },
@@ -345,6 +366,61 @@ function findOptionalNodePosition(nodes: FlowNode[], nodeType: string, fallback:
   return bestPosition;
 }
 
+function emptyElementBoard(): ElementBoard {
+  return {
+    character: "",
+    object: "",
+    style: "",
+    composition: "",
+    rules: [],
+    objectViews: {
+      front: "",
+      left: "",
+      right: "",
+      back: "",
+    },
+  };
+}
+
+function normalizeElementBoard(board?: Partial<ElementBoard> | null): ElementBoard {
+  const objectViews = board?.objectViews ?? emptyElementBoard().objectViews;
+  return {
+    character: typeof board?.character === "string" ? board.character : "",
+    object: typeof board?.object === "string" ? board.object : "",
+    style: typeof board?.style === "string" ? board.style : "",
+    composition: typeof board?.composition === "string" ? board.composition : "",
+    rules: Array.isArray(board?.rules) ? board.rules.filter((rule): rule is string => typeof rule === "string") : [],
+    objectViews: {
+      front: typeof objectViews.front === "string" ? objectViews.front : "",
+      left: typeof objectViews.left === "string" ? objectViews.left : "",
+      right: typeof objectViews.right === "string" ? objectViews.right : "",
+      back: typeof objectViews.back === "string" ? objectViews.back : "",
+    },
+  };
+}
+
+function createElementBoardFromConsistency(consistency: ConsistencyElements, objectAngle: string): ElementBoard {
+  const objectBase = consistency.object.trim();
+  const compositionBase = consistency.composition.trim();
+  const directionBase = objectBase || "same object identity, proportions, silhouette, colors, and key details";
+
+  return {
+    ...normalizeElementBoard(consistency),
+    objectViews: {
+      front: `Front view: ${directionBase}. Keep front-facing proportions and recognizable details.`,
+      left: `Left-side view: ${directionBase}. Rotate the object itself to reveal the left silhouette and side-specific details.`,
+      right: `Right-side view: ${directionBase}. Rotate the object itself to reveal the right silhouette and side-specific details.`,
+      back: `Back view: ${directionBase}. Show rear-facing structure while preserving the same object identity.`,
+    },
+    rules: [
+      ...consistency.rules,
+      "Treat the element board as a fixed identity sheet, not a loose style suggestion.",
+      objectAngle.trim() ? objectAngle.trim() : "Respect requested object orientation with visible perspective cues.",
+      compositionBase ? `Preserve composition anchor: ${compositionBase}` : "",
+    ].filter(Boolean),
+  };
+}
+
 const DEFAULT_SNAPSHOT: EditorSnapshot = {
   prompt: "",
   styles: [],
@@ -353,6 +429,7 @@ const DEFAULT_SNAPSHOT: EditorSnapshot = {
   activeCharacterReferenceId: null,
   objectReferences: [],
   activeObjectReferenceId: null,
+  elementBoard: emptyElementBoard(),
   ratio: "1:1",
   resolution: "HD",
   composition: "full-body composition with visible limbs and clear silhouette",
@@ -582,6 +659,32 @@ function appendConsistencyReferences(
   return parts.join(", ");
 }
 
+function formatElementBoardPrompt(board: ElementBoard) {
+  const normalized = normalizeElementBoard(board);
+  const parts = [
+    normalized.character.trim() ? `character identity: ${normalized.character.trim()}` : "",
+    normalized.object.trim() ? `object identity: ${normalized.object.trim()}` : "",
+    normalized.style.trim() ? `style identity: ${normalized.style.trim()}` : "",
+    normalized.composition.trim() ? `composition anchor: ${normalized.composition.trim()}` : "",
+    normalized.objectViews.front.trim() ? `front definition: ${normalized.objectViews.front.trim()}` : "",
+    normalized.objectViews.left.trim() ? `left-side definition: ${normalized.objectViews.left.trim()}` : "",
+    normalized.objectViews.right.trim() ? `right-side definition: ${normalized.objectViews.right.trim()}` : "",
+    normalized.objectViews.back.trim() ? `back definition: ${normalized.objectViews.back.trim()}` : "",
+    normalized.rules.length ? `consistency rules: ${normalized.rules.join("; ")}` : "",
+  ].filter(Boolean);
+
+  if (parts.length === 0) return "";
+  return `ELEMENT BOARD CONSISTENCY LOCK: ${parts.join(". ")}. Preserve these classified elements across generations; only change attributes explicitly requested by connected nodes.`;
+}
+
+function appendElementBoardPrompt(englishPrompt: string, board: ElementBoard | null | undefined) {
+  if (!board) return englishPrompt;
+  const elementBoardPrompt = formatElementBoardPrompt(board);
+  if (!elementBoardPrompt) return englishPrompt;
+  if (englishPrompt.includes("ELEMENT BOARD CONSISTENCY LOCK")) return englishPrompt;
+  return [englishPrompt.trim(), elementBoardPrompt].filter(Boolean).join(", ");
+}
+
 function mergeGeneratedResults(
   localResults: GeneratedResult[] = [],
   fileResults: GeneratedResult[] = [],
@@ -665,6 +768,7 @@ function FlowContent() {
   const [activeCharacterReferenceId, setActiveCharacterReferenceId] = useState<string | null>(DEFAULT_SNAPSHOT.activeCharacterReferenceId);
   const [objectReferences, setObjectReferences] = useState<StyleEntry[]>(DEFAULT_SNAPSHOT.objectReferences);
   const [activeObjectReferenceId, setActiveObjectReferenceId] = useState<string | null>(DEFAULT_SNAPSHOT.activeObjectReferenceId);
+  const [elementBoard, setElementBoard] = useState<ElementBoard>(DEFAULT_SNAPSHOT.elementBoard);
   const [ratio, setRatio] = useState(DEFAULT_SNAPSHOT.ratio);
   const [resolution, setResolution] = useState(DEFAULT_SNAPSHOT.resolution);
   const [composition, setComposition] = useState(DEFAULT_SNAPSHOT.composition);
@@ -711,6 +815,7 @@ function FlowContent() {
     setActiveCharacterReferenceId(snapshot.activeCharacterReferenceId ?? null);
     setObjectReferences(snapshot.objectReferences ?? []);
     setActiveObjectReferenceId(snapshot.activeObjectReferenceId ?? null);
+    setElementBoard(normalizeElementBoard(snapshot.elementBoard));
     setRatio(snapshot.ratio);
     setResolution(snapshot.resolution);
     setComposition(snapshot.composition);
@@ -757,6 +862,7 @@ function FlowContent() {
         activeCharacterReferenceId,
         objectReferences,
         activeObjectReferenceId,
+        elementBoard,
         ratio,
         resolution,
         composition,
@@ -786,6 +892,7 @@ function FlowContent() {
       activeCharacterReferenceId,
       objectReferences,
       activeObjectReferenceId,
+      elementBoard,
       ratio,
       resolution,
       composition,
@@ -941,10 +1048,13 @@ function FlowContent() {
     [objectReferences, activeObjectReferenceId],
   );
   const visibleEnglishPrompt = hasAnyConnection
-    ? appendConsistencyReferences(
-        appendObjectAnglePrompt(englishPrompt, connectedState.objectAngle ? objectAngle : null),
-        connectedState.characterReference ? activeCharacterReferencePrompt : null,
-        connectedState.objectReference ? activeObjectReferencePrompt : null,
+    ? appendElementBoardPrompt(
+        appendConsistencyReferences(
+          appendObjectAnglePrompt(englishPrompt, connectedState.objectAngle ? objectAngle : null),
+          connectedState.characterReference ? activeCharacterReferencePrompt : null,
+          connectedState.objectReference ? activeObjectReferencePrompt : null,
+        ),
+        connectedState.elementBoard ? elementBoard : null,
       )
     : "";
   const visibleKoreanPrompt = hasAnyConnection ? koreanPrompt : "";
@@ -1371,6 +1481,7 @@ function FlowContent() {
       promptNode: PromptNode,
       styleNode: StyleNode,
       referenceNode: ReferenceNode,
+      elementBoardNode: ElementBoardNode,
       ratioNode: RatioNode,
       resolutionNode: ResolutionNode,
       compositionNode: CompositionNode,
@@ -1468,6 +1579,17 @@ function FlowContent() {
           },
         };
       }
+      if (node.id === "element-board-node") {
+        return {
+          ...node,
+          data: {
+            ...baseData,
+            board: elementBoard,
+            setBoard: setElementBoard,
+            onRemove: () => removeOptionalNode("elementBoard"),
+          },
+        };
+      }
       if (node.id === "ratio-node") {
         return { ...node, data: { ...baseData, ratio, setRatio } };
       }
@@ -1556,6 +1678,7 @@ function FlowContent() {
     activeCharacterReferenceId,
     objectReferences,
     activeObjectReferenceId,
+    elementBoard,
     ratio,
     resolution,
     composition,
@@ -1731,11 +1854,18 @@ function FlowContent() {
     [activePreviewConsistency, addOptionalNode, previewImageUrl],
   );
 
+  const applyConsistencyAsElementBoard = useCallback(() => {
+    if (!activePreviewResult?.consistency) return;
+    setElementBoard(createElementBoardFromConsistency(activePreviewResult.consistency, objectAngle));
+    addOptionalNode("elementBoard");
+  }, [activePreviewResult, addOptionalNode, objectAngle]);
+
   const applyAllConsistency = useCallback(() => {
     applyConsistencyAsReference("character");
     applyConsistencyAsReference("object");
     applyConsistencyAsReference("style");
-  }, [applyConsistencyAsReference]);
+    applyConsistencyAsElementBoard();
+  }, [applyConsistencyAsElementBoard, applyConsistencyAsReference]);
 
   if (viewMode === "gallery") {
     return (
@@ -2221,6 +2351,7 @@ function FlowContent() {
                         <button type="button" onClick={() => applyConsistencyAsReference("character")} disabled={!activePreviewConsistency.character.trim()} style={{ height: 32, borderRadius: 999, border: "1px solid var(--border-node)", backgroundColor: "var(--bg-node-base)", color: activePreviewConsistency.character.trim() ? "var(--text-primary)" : "var(--text-muted)", fontSize: 11, fontWeight: 800, cursor: activePreviewConsistency.character.trim() ? "pointer" : "default" }}>캐릭터로 사용</button>
                         <button type="button" onClick={() => applyConsistencyAsReference("object")} disabled={!activePreviewConsistency.object.trim()} style={{ height: 32, borderRadius: 999, border: "1px solid var(--border-node)", backgroundColor: "var(--bg-node-base)", color: activePreviewConsistency.object.trim() ? "var(--text-primary)" : "var(--text-muted)", fontSize: 11, fontWeight: 800, cursor: activePreviewConsistency.object.trim() ? "pointer" : "default" }}>오브젝트로 사용</button>
                         <button type="button" onClick={() => applyConsistencyAsReference("style")} disabled={!activePreviewConsistency.style.trim()} style={{ height: 32, borderRadius: 999, border: "1px solid var(--border-node)", backgroundColor: "var(--bg-node-base)", color: activePreviewConsistency.style.trim() ? "var(--text-primary)" : "var(--text-muted)", fontSize: 11, fontWeight: 800, cursor: activePreviewConsistency.style.trim() ? "pointer" : "default" }}>스타일로 사용</button>
+                        <button type="button" onClick={applyConsistencyAsElementBoard} style={{ height: 32, borderRadius: 999, border: "1px solid color-mix(in srgb, var(--port-element-board) 50%, var(--border-node))", backgroundColor: "color-mix(in srgb, var(--port-element-board) 12%, transparent)", color: "var(--text-primary)", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>보드로 사용</button>
                         <button type="button" onClick={applyAllConsistency} style={{ height: 32, borderRadius: 999, border: "1px solid color-mix(in srgb, var(--port-prompt) 50%, var(--border-node))", backgroundColor: "color-mix(in srgb, var(--port-prompt) 12%, transparent)", color: "var(--text-primary)", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>전체 적용</button>
                       </div>
                     </>
