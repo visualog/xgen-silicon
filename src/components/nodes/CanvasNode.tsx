@@ -1,33 +1,34 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { animate } from 'animejs';
 import { Image as ImageIcon, Download, Loader2 } from 'lucide-react';
 
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
-  borderRadius: '12px',
+  borderRadius: 'var(--ui-radius-xl)',
   border: 'none',
-  width: '320px',
+  width: 'var(--size-node-canvas)',
   display: 'flex',
   flexDirection: 'column' as const,
-  boxShadow: 'var(--shadow-node)',
+  boxShadow: 'var(--ui-shadow-node)',
+  position: 'relative' as const,
+  overflow: 'visible' as const,
 };
 
 const headerStyle = {
   backgroundColor: 'var(--bg-node-header)',
-  padding: '8px 12px',
+  padding: 'var(--ui-space-8) var(--ui-space-12)',
   borderBottom: 'none',
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: 'var(--ui-space-8)',
   borderTopLeftRadius: '12px',
   borderTopRightRadius: '12px',
 };
 
 const titleStyle = {
-  fontSize: '12px',
+  fontSize: 'var(--ui-type-xs-2-size)',
   fontWeight: 600 as const,
   color: 'var(--text-secondary)',
   textTransform: 'uppercase' as const,
@@ -35,15 +36,15 @@ const titleStyle = {
 };
 
 const bodyStyle = {
-  padding: '12px',
+  padding: 'var(--ui-space-12)',
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: '12px',
+  gap: 'var(--ui-space-12)',
 };
 
 const canvasCardStyle = {
   backgroundColor: 'var(--bg-canvas)',
-  borderRadius: '12px',
+  borderRadius: 'var(--ui-radius-xl)',
   border: '1px solid var(--border-node)',
   display: 'flex',
   flexDirection: 'column' as const,
@@ -66,20 +67,20 @@ const placeholderStyle = {
   display: 'flex',
   flexDirection: 'column' as const,
   alignItems: 'center',
-  gap: '12px',
+  gap: 'var(--ui-space-12)',
   userSelect: 'none' as const,
 };
 
 const placeholderIconStyle = {
-  width: '56px',
-  height: '56px',
+  width: 'var(--size-empty-icon)',
+  height: 'var(--size-empty-icon)',
   backgroundColor: 'var(--bg-node-base)',
-  borderRadius: '16px',
+  borderRadius: 'var(--ui-radius-2xl)',
   border: '1px solid var(--border-node)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: '24px',
+  fontSize: 'calc(var(--ui-type-xl-size) * 1.2)',
   color: 'var(--text-muted)',
 };
 
@@ -94,36 +95,24 @@ type CanvasNodeData = {
   isGenerating?: boolean;
   error?: boolean;
   ratio?: string;
+  title?: string;
   generateElapsedLabel?: string | null;
   lastGenerateDurationLabel?: string | null;
   onPreviewImage?: (imageUrl: string) => void;
 };
 
 export function CanvasNode({ data }: { data: CanvasNodeData }) {
-  const nodeRef = useRef<HTMLDivElement>(null);
   const {
     imageUrl,
     isGenerating = false,
     error = false,
     ratio = '1:1',
+    title = '캔버스',
     generateElapsedLabel = null,
     lastGenerateDurationLabel = null,
     onPreviewImage,
   } = data;
   const aspectRatio = toAspectRatioValue(ratio);
-
-  useEffect(() => {
-    if (nodeRef.current) {
-      // User requested animejs with cubic-bezier/inout easing
-      animate(nodeRef.current, {
-        opacity: [0, 1],
-        scale: [0.8, 1],
-        translateY: [20, 0],
-        duration: 800,
-        easing: 'inOutCubic',
-      });
-    }
-  }, []);
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -141,28 +130,76 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
   };
 
   return (
-    <div ref={nodeRef} style={nodeStyle}>
+    <div style={nodeStyle}>
       <Handle
         type="target"
         position={Position.Left}
         id="canvas-in"
         isConnectable={false}
         style={{
-          background: 'var(--text-primary)',
+          background: 'transparent',
           border: 'none',
-          width: '12px',
-          height: '12px',
-          left: '-6px',
-          top: '50%',
+          width: 'var(--size-port-dot)',
+          height: 'var(--size-port-dot)',
+          left: 0,
+          top: 'calc(50% - var(--size-port-dot) / 2)',
+          transform: 'none',
         }}
       />
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: 'calc(var(--size-port-dot) / -2)',
+          top: 'calc(50% - var(--size-port-dot) / 2)',
+          width: 'var(--size-port-dot)',
+          height: 'var(--size-port-dot)',
+          borderRadius: '50%',
+          background: 'var(--text-primary)',
+          border: '2px solid var(--bg-node-base)',
+          zIndex: 2,
+          pointerEvents: 'none',
+        }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="canvas-out"
+        isConnectable={true}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          width: 'var(--size-port-dot)',
+          height: 'var(--size-port-dot)',
+          right: 0,
+          top: 'calc(50% - var(--size-port-dot) / 2)',
+          transform: 'none',
+        }}
+      />
+      {imageUrl ? (
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            right: 'calc(var(--size-port-dot) / -2)',
+            top: 'calc(50% - var(--size-port-dot) / 2)',
+            width: 'var(--size-port-dot)',
+            height: 'var(--size-port-dot)',
+            borderRadius: '50%',
+            background: 'var(--text-primary)',
+            border: '2px solid var(--bg-node-base)',
+            zIndex: 2,
+            pointerEvents: 'none',
+          }}
+        />
+      ) : null}
       <div style={headerStyle}>
         <ImageIcon size={16} color="var(--text-secondary)" />
-        <span style={titleStyle}>캔버스</span>
+        <span style={titleStyle}>{title}</span>
         {(isGenerating || lastGenerateDurationLabel) && (
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'calc(var(--ui-space-unit) * 1.5)' }}>
             {isGenerating ? <Loader2 size={12} color="var(--text-secondary)" style={{ animation: 'spin 1s linear infinite' }} /> : null}
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: 'var(--ui-type-xs-size)', color: 'var(--text-secondary)' }}>
               {isGenerating
                 ? `생성 중 ${generateElapsedLabel ?? '0초'}`
                 : `완료 ${lastGenerateDurationLabel}`}
@@ -175,7 +212,7 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
         <div style={{ ...canvasCardStyle, aspectRatio }}>
           {isGenerating && (
             <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-node-base)', opacity: 0.8, backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
+              <span style={{ fontSize: 'var(--ui-type-sm-size)', fontWeight: 500, color: 'var(--text-primary)' }}>
                 생성 중… {generateElapsedLabel ?? '0초'}
               </span>
             </div>
@@ -183,7 +220,7 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
 
           {error && !isGenerating && (
             <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-node-base)', opacity: 0.9, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-              <span style={{ fontSize: '13px', color: '#ef4444' }}>생성 실패</span>
+              <span style={{ fontSize: 'var(--ui-type-sm-size)', color: 'var(--port-constraint)' }}>생성 실패</span>
             </div>
           )}
 
@@ -207,7 +244,7 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
           ) : !isGenerating && !error ? (
             <div style={placeholderStyle}>
               <div style={placeholderIconStyle}>✦</div>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', textAlign: 'center', lineHeight: '1.7' }}>
+              <p style={{ fontSize: 'var(--ui-type-sm-6-size)', color: 'var(--text-muted)', textAlign: 'center', lineHeight: '1.7' }}>
                 결과물이<br />여기에 표시됩니다
               </p>
             </div>
@@ -215,7 +252,7 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
         </div>
 
         {imageUrl && !isGenerating && !error && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px', gap: 'var(--ui-space-8)' }}>
             <button
               onClick={handlePreview}
               title="원본 크기로 보기"
@@ -226,13 +263,13 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
                 backgroundColor: 'var(--bg-node-base)',
                 color: 'var(--text-primary)',
                 flex: 1,
-                height: '42px',
-                borderRadius: '100px',
+                height: 'var(--size-control-input-lg)',
+                borderRadius: 'var(--ui-radius-pill)',
                 border: '1px solid var(--border-node)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease',
-                gap: '8px',
-                fontSize: '14px',
+                gap: 'var(--ui-space-8)',
+                fontSize: 'var(--ui-type-sm-6-size)',
                 fontWeight: 600,
               }}
             >
@@ -248,13 +285,13 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
                 backgroundColor: 'var(--bg-node-base)',
                 color: 'var(--text-primary)',
                 flex: 1,
-                height: '42px',
-                borderRadius: '100px',
+                height: 'var(--size-control-input-lg)',
+                borderRadius: 'var(--ui-radius-pill)',
                 border: '1px solid var(--border-node)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease',
-                gap: '8px',
-                fontSize: '14px',
+                gap: 'var(--ui-space-8)',
+                fontSize: 'var(--ui-type-sm-6-size)',
                 fontWeight: 600,
               }}
             >

@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 export type GalleryStorePayload = {
@@ -8,7 +9,17 @@ export type GalleryStorePayload = {
   updatedAt?: string;
 };
 
-const DATA_DIR = process.env.BRANDGEN_DATA_DIR || path.join(process.cwd(), ".brandgen");
+function getDefaultDataDir() {
+  if (process.platform === "darwin") {
+    return path.join(os.homedir(), "Library", "Application Support", "BrandGen", "data");
+  }
+  if (process.platform === "win32") {
+    return path.join(process.env.APPDATA || os.homedir(), "BrandGen", "data");
+  }
+  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"), "BrandGen", "data");
+}
+
+const DATA_DIR = process.env.BRANDGEN_DATA_DIR || getDefaultDataDir();
 const STORE_PATH = path.join(DATA_DIR, "gallery.json");
 
 export async function readGalleryStore(): Promise<GalleryStorePayload> {

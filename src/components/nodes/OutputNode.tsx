@@ -1,31 +1,33 @@
 import { Handle, Position, useEdges, useConnection, useReactFlow } from '@xyflow/react';
 import React from 'react';
-import { Wand2, Play, Loader2, Sparkles } from 'lucide-react';
+import { Check, Copy, RefreshCw, Wand2, Play, Loader2, Sparkles } from 'lucide-react';
 
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
-  borderRadius: '12px',
+  borderRadius: 'var(--ui-radius-xl)',
   border: 'none',
-  width: '380px',
+  width: 'var(--size-node-output)',
   display: 'flex',
   flexDirection: 'column' as const,
-  boxShadow: 'var(--shadow-node)',
+  boxShadow: 'var(--ui-shadow-node)',
+  position: 'relative' as const,
+  overflow: 'visible' as const,
 };
 
 const headerStyle = {
   backgroundColor: 'var(--bg-node-header)',
-  padding: '8px 12px',
+  padding: 'var(--ui-space-8) var(--ui-space-12)',
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: 'var(--ui-space-8)',
   borderTopLeftRadius: '12px',
   borderTopRightRadius: '12px',
 };
 
 const titleStyle = {
-  fontSize: '12px',
+  fontSize: 'var(--ui-type-xs-2-size)',
   fontWeight: 600 as const,
   color: 'var(--text-secondary)',
   textTransform: 'uppercase' as const,
@@ -33,14 +35,17 @@ const titleStyle = {
 };
 
 const bodyStyle = {
-  padding: '12px',
+  padding: 'var(--ui-space-12)',
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: '10px',
+  gap: 'var(--ui-space-10)',
 };
 
 type OutputNodeData = {
   englishPrompt?: string;
+  koreanPrompt?: string;
+  setKoreanPrompt?: (value: string) => void;
+  onRegenerateEnglishPrompt?: () => void;
   isTranslating?: boolean;
   translateElapsedLabel?: string | null;
   lastTranslateDurationLabel?: string | null;
@@ -54,18 +59,22 @@ type OutputNodeData = {
 export function OutputNode({ data }: { data: OutputNodeData }) {
   const connection = useConnection();
   const { getNode, setCenter } = useReactFlow();
+  const [showExecutionPrompt, setShowExecutionPrompt] = React.useState(false);
+  const [isExecutionPromptCopied, setIsExecutionPromptCopied] = React.useState(false);
+  const koreanPromptTextareaRef = React.useRef<HTMLTextAreaElement>(null);
   const isDragging = connection.inProgress; // 다른 노드에서 연결선을 드래그 중
 
   const {
     englishPrompt = "",
+    koreanPrompt = "",
+    setKoreanPrompt,
+    onRegenerateEnglishPrompt,
     isTranslating = false,
     translateElapsedLabel = null,
-    lastTranslateDurationLabel = null,
     onGenerate,
     canGenerate = false,
     isGenerating = false,
     generateElapsedLabel = null,
-    lastGenerateDurationLabel = null,
   } = data;
 
   const edges = useEdges();
@@ -75,8 +84,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
   const isStyleConnected   = edges.some(e => e.target === id && e.source === 'style-node');
   const isCharacterReferenceConnected = edges.some(e => e.target === id && e.source === 'character-reference-node');
   const isObjectReferenceConnected = edges.some(e => e.target === id && e.source === 'object-reference-node');
-  const isRatioConnected   = edges.some(e => e.target === id && e.source === 'ratio-node');
-  const isResConnected     = edges.some(e => e.target === id && e.source === 'resolution-node');
+  const isOutputSettingsConnected = edges.some(e => e.target === id && e.source === 'output-settings-node');
   const isCompositionConnected = edges.some(e => e.target === id && e.source === 'composition-node');
   const isBackgroundConnected = edges.some(e => e.target === id && e.source === 'background-node');
   const isConstraintConnected = edges.some(e => e.target === id && e.source === 'constraint-node');
@@ -88,7 +96,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
   const isGestureConnected = edges.some(e => e.target === id && e.source === 'gesture-node');
   const isPropsConnected = edges.some(e => e.target === id && e.source === 'props-node');
   const isDetailConnected = edges.some(e => e.target === id && e.source === 'detail-node');
-  const isAnyConnected     = isPromptConnected || isStyleConnected || isCharacterReferenceConnected || isObjectReferenceConnected || isRatioConnected || isResConnected || isCompositionConnected || isBackgroundConnected || isConstraintConnected || isMoodConnected || isPaletteConnected || isCameraAngleConnected || isObjectAngleConnected || isLightingConnected || isGestureConnected || isPropsConnected || isDetailConnected;
+  const isAnyConnected     = isPromptConnected || isStyleConnected || isCharacterReferenceConnected || isObjectReferenceConnected || isOutputSettingsConnected || isCompositionConnected || isBackgroundConnected || isConstraintConnected || isMoodConnected || isPaletteConnected || isCameraAngleConnected || isObjectAngleConnected || isLightingConnected || isGestureConnected || isPropsConnected || isDetailConnected;
   const isCanvasConnected  = edges.some(e => e.source === id);
 
   const getMixedColor = () => {
@@ -97,8 +105,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
     if (isStyleConnected)  colors.push('var(--port-style)');
     if (isCharacterReferenceConnected) colors.push('var(--port-character-reference)');
     if (isObjectReferenceConnected) colors.push('var(--port-object-reference)');
-    if (isRatioConnected)  colors.push('var(--port-ratio)');
-    if (isResConnected)    colors.push('var(--port-resolution)');
+    if (isOutputSettingsConnected) colors.push('var(--port-resolution)');
     if (isCompositionConnected) colors.push('var(--port-composition)');
     if (isBackgroundConnected) colors.push('var(--port-background)');
     if (isConstraintConnected) colors.push('var(--port-constraint)');
@@ -129,8 +136,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
     isStyleConnected  && { label: '스타일', color: 'var(--port-style)', nodeId: 'style-node' },
     isCharacterReferenceConnected && { label: '캐릭터', color: 'var(--port-character-reference)', nodeId: 'character-reference-node' },
     isObjectReferenceConnected && { label: '오브젝트', color: 'var(--port-object-reference)', nodeId: 'object-reference-node' },
-    isRatioConnected  && { label: '비율', color: 'var(--port-ratio)', nodeId: 'ratio-node' },
-    isResConnected    && { label: '해상도', color: 'var(--port-resolution)', nodeId: 'resolution-node' },
+    isOutputSettingsConnected && { label: '출력 설정', color: 'var(--port-resolution)', nodeId: 'output-settings-node' },
     isCompositionConnected && { label: '구도', color: 'var(--port-composition)', nodeId: 'composition-node' },
     isBackgroundConnected && { label: '배경', color: 'var(--port-background)', nodeId: 'background-node' },
     isConstraintConnected && { label: '제한', color: 'var(--port-constraint)', nodeId: 'constraint-node' },
@@ -156,7 +162,31 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
     );
   };
 
-  const hasPrompt = isAnyConnected && !!englishPrompt;
+  const hasDisplayPrompt = isAnyConnected && !!koreanPrompt;
+  const hasExecutionPrompt = isAnyConnected && !!englishPrompt;
+
+  React.useEffect(() => {
+    const textarea = koreanPromptTextareaRef.current;
+    if (!textarea || showExecutionPrompt) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight + 2}px`;
+  }, [koreanPrompt, showExecutionPrompt]);
+
+  React.useEffect(() => {
+    if (!isExecutionPromptCopied) return;
+    const timeoutId = window.setTimeout(() => setIsExecutionPromptCopied(false), 1400);
+    return () => window.clearTimeout(timeoutId);
+  }, [isExecutionPromptCopied]);
+
+  const copyExecutionPrompt = async () => {
+    if (!englishPrompt.trim()) return;
+    try {
+      await navigator.clipboard.writeText(englishPrompt);
+      setIsExecutionPromptCopied(true);
+    } catch {
+      setIsExecutionPromptCopied(false);
+    }
+  };
 
   return (
     <div style={nodeStyle}>
@@ -166,14 +196,14 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
         id="general-in"
         isConnectable={true}
         style={{
-          width: '24px',
-          height: '24px',
+          width: 'var(--size-port-dot)',
+          height: 'var(--size-port-dot)',
           background: 'transparent',
           border: 'none',
           opacity: 0,
-          left: '-12px',
-          top: '50%',
-          transform: 'translateY(-50%)',
+          left: 'calc(var(--size-port-dot) / -2)',
+          top: 'calc(50% - var(--size-port-dot) / 2)',
+          transform: 'none',
           cursor: 'crosshair',
         }}
       />
@@ -185,24 +215,42 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
         id="output-out"
         isConnectable={false}
         style={{
-          background: showOutputDot ? 'var(--text-primary)' : 'transparent',
+          background: 'transparent',
           border: 'none',
-          width: '12px',
-          height: '12px',
-          right: '-6px',
-          top: '50%',
+          width: 'var(--size-port-dot)',
+          height: 'var(--size-port-dot)',
+          right: 'calc(var(--size-port-dot) / -2)',
+          top: 'calc(50% - var(--size-port-dot) / 2)',
+          transform: 'none',
           transition: 'background 0.2s ease',
         }}
       />
+      {showOutputDot ? (
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            right: 'calc(var(--size-port-dot) / -2)',
+            top: 'calc(50% - var(--size-port-dot) / 2)',
+            width: 'var(--size-port-dot)',
+            height: 'var(--size-port-dot)',
+            borderRadius: '50%',
+            background: 'var(--text-primary)',
+            border: '2px solid var(--bg-node-base)',
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}
+        />
+      ) : null}
 
       {/* 헤더 */}
       <div style={headerStyle}>
         <Wand2 size={16} color="var(--text-secondary)" />
         <span style={titleStyle}>프롬프트</span>
         {isTranslating && (
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--ui-space-4)' }}>
             <Loader2 size={12} color="var(--text-secondary)" style={{ animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: 'var(--ui-type-xs-size)', color: 'var(--text-secondary)' }}>
               Codex 생성 중 {translateElapsedLabel ? `· ${translateElapsedLabel}` : ''}
             </span>
           </div>
@@ -212,17 +260,17 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
       <div style={bodyStyle}>
         {/* 왼쪽 통합 입력점 장식 — 실제 Handle은 위에서 항상 고정 렌더링 */}
         {showInputDot && (
-          <div style={{ position: 'absolute', left: '-12px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
+          <div style={{ position: 'absolute', left: 'calc(var(--size-port-dot) / -2)', top: 'calc(50% - var(--size-port-dot) / 2)', zIndex: 10 }}>
             <div
               style={{
-                width: '24px',
-                height: '24px',
+                width: 'var(--size-port-dot)',
+                height: 'var(--size-port-dot)',
                 borderRadius: '50%',
                 background: isAnyConnected ? getMixedColor() : 'var(--bg-canvas)',
                 border: isAnyConnected
-                  ? '4px solid var(--bg-node-base)'
+                  ? '2px solid var(--bg-node-base)'
                   : '2px dashed var(--border-node)',
-                boxShadow: isAnyConnected ? 'var(--shadow-node)' : 'none',
+                boxShadow: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -232,7 +280,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
               }}
             >
               {!isAnyConnected && (
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+                <div style={{ width: 'var(--size-status-dot)', height: 'var(--size-status-dot)', borderRadius: '50%', background: 'var(--text-muted)' }} />
               )}
             </div>
           </div>
@@ -240,7 +288,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
 
         {/* 연결된 파라미터 태그 */}
         {connectedTags.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '4px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 'var(--ui-space-4)' }}>
             {connectedTags.map(tag => (
               <button
                 key={tag.label}
@@ -252,10 +300,10 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
                 }}
                 title={`${tag.label} 노드로 이동`}
                 style={{
-                  fontSize: '10px',
+                  fontSize: 'var(--ui-type-xs-size)',
                   fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '100px',
+                  padding: 'calc(var(--ui-space-unit) * 0.5) var(--ui-space-8)',
+                  borderRadius: 'var(--ui-radius-pill)',
                   backgroundColor: `color-mix(in srgb, ${tag.color} 15%, transparent)`,
                   color: tag.color,
                   border: `1px solid color-mix(in srgb, ${tag.color} 40%, transparent)`,
@@ -271,88 +319,178 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
           </div>
         )}
 
-        {(isTranslating || lastTranslateDurationLabel || lastGenerateDurationLabel) && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-              padding: '10px 12px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--bg-canvas)',
-              border: '1px solid var(--border-node)',
-            }}
-          >
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {isTranslating
-                ? `프롬프트 생성 ${translateElapsedLabel ?? '0초'}`
-                : lastTranslateDurationLabel
-                  ? `프롬프트 생성 완료 · ${lastTranslateDurationLabel}`
-                  : '프롬프트 생성 대기'}
-            </span>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {isGenerating
-                ? `이미지 생성 ${generateElapsedLabel ?? '0초'}`
-                : lastGenerateDurationLabel
-                  ? `이미지 생성 완료 · ${lastGenerateDurationLabel}`
-                  : '이미지 생성 대기'}
-            </span>
-          </div>
-        )}
-
         {/* 생성된 프롬프트 영역 */}
         <div
           style={{
             backgroundColor: 'var(--bg-canvas)',
-            borderRadius: '8px',
-            border: `1px solid ${hasPrompt ? `color-mix(in srgb, ${getMixedColor()} 50%, var(--border-node))` : 'var(--border-node)'}`,
-            padding: '12px',
-            minHeight: '220px',
+            borderRadius: 'var(--ui-space-8)',
+            border: `1px solid ${hasDisplayPrompt || hasExecutionPrompt ? `color-mix(in srgb, ${getMixedColor()} 50%, var(--border-node))` : 'var(--border-node)'}`,
+            padding: 'var(--ui-space-12)',
+            minHeight: !isAnyConnected || (isTranslating && !koreanPrompt && !englishPrompt) || showExecutionPrompt ? '220px' : 'auto',
             position: 'relative',
             transition: 'border-color 0.3s ease',
           }}
         >
           {/* 빈 상태 */}
           {!isAnyConnected && (
-            <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '196px', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: 'var(--size-preview-height)', gap: 'var(--ui-space-8)' }}>
               <Sparkles size={20} color="var(--text-muted)" />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' as const }}>
+              <span style={{ fontSize: 'calc(var(--ui-type-xs-size) * 1.1)', color: 'var(--text-muted)', textAlign: 'center' as const }}>
                 노드를 연결하면<br />AI 프롬프트가 생성됩니다
               </span>
             </div>
           )}
 
           {/* 생성 중 */}
-          {isAnyConnected && isTranslating && !englishPrompt && (
-            <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: '196px', gap: '8px' }}>
+          {isAnyConnected && isTranslating && !koreanPrompt && !englishPrompt && (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', height: 'var(--size-preview-height)', gap: 'var(--ui-space-8)' }}>
               <Loader2 size={20} color="var(--text-secondary)" style={{ animation: 'spin 1s linear infinite' }} />
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: 'calc(var(--ui-type-xs-size) * 1.1)', color: 'var(--text-secondary)' }}>
                 Codex가 프롬프트 생성 중... {translateElapsedLabel ?? '0초'}
               </span>
             </div>
           )}
 
-          {/* 생성된 영문 프롬프트 */}
-          {isAnyConnected && englishPrompt && (
-            <p
+          {/* 한국어 표시 브리프 */}
+          {isAnyConnected && (koreanPrompt || englishPrompt) && (
+            <div
               style={{
-                fontSize: '11px',
-                lineHeight: '1.7',
-                color: 'var(--text-primary)',
-                margin: 0,
-                fontFamily: 'monospace',
-                wordBreak: 'break-word' as const,
-                userSelect: 'text' as const,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--ui-space-10)',
               }}
             >
-              {englishPrompt}
-            </p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--ui-space-10)' }}>
+                <span style={{ fontSize: 'calc(var(--ui-type-xs-size) * 1.1)', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                  프롬프트
+                </span>
+                {englishPrompt ? (
+                  <button
+                    type="button"
+                    className="nodrag"
+                    onClick={() => setShowExecutionPrompt((prev) => !prev)}
+                    aria-label={showExecutionPrompt ? '영문 프롬프트 숨기기' : '영문 프롬프트 표시'}
+                    title={showExecutionPrompt ? '영문 프롬프트 숨기기' : '영문 프롬프트 표시'}
+                    style={{
+                      height: "var(--size-control-md)",
+                      padding: '0 var(--ui-space-10)',
+                      borderRadius: "var(--ui-radius-pill)",
+                      border: '1px solid var(--border-node)',
+                      backgroundColor: showExecutionPrompt ? 'var(--bg-node-base)' : 'transparent',
+                      color: 'var(--text-secondary)',
+                      fontSize: "calc(var(--ui-type-xs-size) * 1.1)",
+                      fontWeight: 850,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {showExecutionPrompt ? '한글' : '영문'}
+                  </button>
+                ) : null}
+              </div>
+              {!showExecutionPrompt ? (
+                <textarea
+                  ref={koreanPromptTextareaRef}
+                  className="nodrag nowheel"
+                  value={koreanPrompt || ''}
+                  onChange={(event) => setKoreanPrompt?.(event.target.value)}
+                  placeholder="한국어 생성 브리프를 직접 다듬으세요."
+                  style={{
+                    width: '100%',
+                    minHeight: 'var(--size-output-text-min-height)',
+                    boxSizing: 'border-box',
+                    resize: 'none',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-node)',
+                    borderRadius: 'var(--ui-space-10)',
+                    backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 42%, transparent)',
+                    padding: 'var(--ui-space-10)',
+                    fontSize: 'var(--ui-type-xs-2-size)',
+                    lineHeight: '1.75',
+                    color: 'var(--text-primary)',
+                    margin: 0,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word' as const,
+                    userSelect: 'text' as const,
+                    outline: 'none',
+                  }}
+                />
+              ) : null}
+
+              {englishPrompt && showExecutionPrompt ? (
+                <div style={{ position: 'relative' }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      minHeight: "var(--size-output-text-min-height)",
+                      padding: '10px 10px 48px',
+                      borderRadius: 'var(--ui-space-8)',
+                      backgroundColor: 'var(--bg-node-base)',
+                      border: '1px solid var(--border-node)',
+                      color: 'var(--text-secondary)',
+                      fontSize: 'var(--ui-type-xs-size)',
+                      lineHeight: '1.65',
+                      fontFamily: 'monospace',
+                      wordBreak: 'break-word' as const,
+                      userSelect: 'text' as const,
+                    }}
+                  >
+                    {englishPrompt}
+                  </p>
+                  <div style={{ position: 'absolute', right: "var(--ui-space-8)", bottom: "var(--ui-space-8)", display: 'flex', gap: "calc(var(--ui-space-unit) * 1.5)" }}>
+                    <button
+                      type="button"
+                      className="nodrag"
+                      onClick={onRegenerateEnglishPrompt}
+                      disabled={isTranslating || !koreanPrompt.trim()}
+                      aria-label="영문 프롬프트 재생성"
+                      title="영문 프롬프트 재생성"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: "var(--size-control-lg)",
+                        height: "var(--size-control-lg)",
+                        borderRadius: "var(--ui-radius-pill)",
+                        border: '1px solid var(--border-node)',
+                        backgroundColor: 'var(--text-primary)',
+                        color: 'var(--bg-node-base)',
+                        cursor: isTranslating || !koreanPrompt.trim() ? 'not-allowed' : 'pointer',
+                        opacity: isTranslating || !koreanPrompt.trim() ? 0.45 : 1,
+                      }}
+                    >
+                      {isTranslating ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={13} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="nodrag"
+                      onClick={copyExecutionPrompt}
+                      aria-label="영문 프롬프트 복사"
+                      title={isExecutionPromptCopied ? '복사됨' : '영문 프롬프트 복사'}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: "var(--size-control-lg)",
+                        height: "var(--size-control-lg)",
+                        borderRadius: "var(--ui-radius-pill)",
+                        border: '1px solid var(--border-node)',
+                        backgroundColor: 'var(--bg-canvas)',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isExecutionPromptCopied ? <Check size={13} /> : <Copy size={13} />}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           )}
 
           {/* 연결은 됐지만 아직 프롬프트 없는 경우 */}
-          {isAnyConnected && !isTranslating && !englishPrompt && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '196px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>입력을 기다리는 중...</span>
+          {isAnyConnected && !isTranslating && !koreanPrompt && !englishPrompt && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'var(--size-preview-height)' }}>
+              <span style={{ fontSize: 'calc(var(--ui-type-xs-size) * 1.1)', color: 'var(--text-muted)' }}>입력을 기다리는 중...</span>
             </div>
           )}
         </div>
@@ -366,13 +504,13 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
+            gap: 'var(--ui-space-8)',
             backgroundColor: (!canGenerate || isGenerating) ? 'var(--bg-node-base)' : 'var(--text-primary)',
             color: (!canGenerate || isGenerating) ? 'var(--text-muted)' : 'var(--bg-node-base)',
             padding: '12px 16px',
-            borderRadius: '100px',
+            borderRadius: 'var(--ui-radius-pill)',
             fontWeight: 600,
-            fontSize: '14px',
+            fontSize: 'var(--ui-type-sm-6-size)',
             border: (!canGenerate || isGenerating) ? '1px solid var(--border-node)' : 'none',
             cursor: (!canGenerate || isGenerating) ? 'not-allowed' : 'pointer',
             transition: 'all 0.18s ease',
@@ -381,9 +519,19 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
         >
           {isGenerating
             ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> 생성 중... {generateElapsedLabel ?? '0초'}</>
+            : isTranslating
+              ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> 프롬프트 생성 중... {translateElapsedLabel ?? '0초'}</>
             : <><Play size={16} fill="currentColor" /> 이미지 생성</>
           }
         </button>
+
+        {hasExecutionPrompt && (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: 'calc(var(--ui-type-xs-size) * 1.1)', fontWeight: 700 }}>
+              이미지 생성에는 영문 실행 프롬프트가 전달됩니다.
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

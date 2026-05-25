@@ -3,30 +3,35 @@ import React from 'react';
 import { Monitor, X } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 
+type ResolutionNodeData = {
+  resolution: string;
+  setResolution: (value: string) => void;
+};
+
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
-  borderRadius: '12px',
+  borderRadius: 'var(--ui-radius-xl)',
   border: 'none',
-  width: '180px',
+  width: 'var(--size-node-sm)',
   display: 'flex',
   flexDirection: 'column' as const,
   overflow: 'hidden',
-  boxShadow: 'var(--shadow-node)',
+  boxShadow: 'var(--ui-shadow-node)',
 };
 
 const headerStyle = {
   backgroundColor: 'var(--bg-node-header)',
-  padding: '8px 12px',
+  padding: 'var(--ui-space-8) var(--ui-space-12)',
   borderBottom: 'none',
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: 'var(--ui-space-8)',
 };
 
 const titleStyle = {
-  fontSize: '12px',
+  fontSize: 'var(--ui-type-xs-2-size)',
   fontWeight: 600 as const,
   color: 'var(--text-secondary)',
   textTransform: 'uppercase' as const,
@@ -34,18 +39,18 @@ const titleStyle = {
 };
 
 const bodyStyle = {
-  padding: '12px',
+  padding: 'var(--ui-space-12)',
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: '12px',
+  gap: 'var(--ui-space-12)',
 };
 
 const toolbarStyle = {
   display: 'flex',
   alignItems: 'center',
-  gap: '4px',
+  gap: 'var(--ui-space-4)',
   backgroundColor: 'var(--bg-canvas)',
-  borderRadius: '12px',
+  borderRadius: 'var(--ui-radius-xl)',
   padding: '4px',
   border: 'none',
 };
@@ -55,8 +60,8 @@ const toolbarButtonStyle = (isActive: boolean) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '8px',
-  borderRadius: '8px',
+  padding: 'var(--ui-space-8)',
+  borderRadius: 'var(--ui-space-8)',
   border: 'none',
   backgroundColor: isActive ? 'var(--bg-node-base)' : 'transparent',
   color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -78,21 +83,21 @@ const chipStyle = {
   display: 'flex',
   alignItems: 'center',
   backgroundColor: 'var(--bg-canvas)',
-  padding: '4px 6px 4px 10px',
-  borderRadius: '100px',
+  padding: 'var(--ui-space-4) calc(var(--ui-space-unit) * 1.5) var(--ui-space-4) var(--ui-space-10)',
+  borderRadius: 'var(--ui-radius-pill)',
   border: '1px solid var(--border-node)',
-  gap: '6px',
+  gap: 'calc(var(--ui-space-unit) * 1.5)',
 };
 
 const portLabelStyle = {
-  fontSize: '10px',
+  fontSize: 'var(--ui-type-xs-size)',
   fontWeight: 700,
   color: 'var(--text-secondary)',
   textTransform: 'uppercase' as const,
   letterSpacing: '0.3px',
 };
 
-export function ResolutionNode({ id, data, isConnectable }: any) {
+export function ResolutionNode({ id, data }: { id: string; data: ResolutionNodeData }) {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = React.useState(false);
   const { resolution, setResolution } = data;
@@ -114,16 +119,16 @@ export function ResolutionNode({ id, data, isConnectable }: any) {
       <div style={bodyStyle}>
         <div style={toolbarStyle} className="nodrag">
           <button style={toolbarButtonStyle(resolution === 'SD')} onClick={() => setResolution('SD')} title="SD 해상도">
-            <span style={{ fontSize: '10px', fontWeight: 700 }}>SD</span>
+            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 700 }}>SD</span>
           </button>
           <button style={toolbarButtonStyle(resolution === 'HD')} onClick={() => setResolution('HD')} title="HD 해상도">
-            <span style={{ fontSize: '10px', fontWeight: 700 }}>HD</span>
+            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 700 }}>HD</span>
           </button>
           <button style={toolbarButtonStyle(resolution === '4K')} onClick={() => setResolution('4K')} title="4K 해상도">
-            <span style={{ fontSize: '10px', fontWeight: 700 }}>4K</span>
+            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 700 }}>4K</span>
           </button>
           <button style={toolbarButtonStyle(resolution === '8K')} onClick={() => setResolution('8K')} title="8K 해상도">
-            <span style={{ fontSize: '10px', fontWeight: 700 }}>8K</span>
+            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 700 }}>8K</span>
           </button>
         </div>
 
@@ -155,7 +160,7 @@ export function ResolutionNode({ id, data, isConnectable }: any) {
             </span>
             
             {/* 핸들과 점을 위한 컨테이너 (공간 확보) */}
-            <div style={{ width: '12px', height: '12px', position: 'relative', zIndex: 1 }}>
+            <div style={{ width: 'var(--size-port-dot)', height: 'var(--size-port-dot)', position: 'relative', zIndex: 1 }}>
               <div style={{ 
                 width: '100%', 
                 height: '100%', 
@@ -176,14 +181,14 @@ export function ResolutionNode({ id, data, isConnectable }: any) {
               position={Position.Right}
               id="resolution-out"
               isConnectable={true}
-              style={{ 
-                ...(isConnected 
+              style={{
+                ...(isConnected
                   ? {
-                      width: '12px', 
-                      height: '12px', 
-                      right: '6px', // chip padding-right와 맞춤
-                      top: '50%', 
-                      transform: 'translateY(-50%)',
+                      width: 'var(--size-port-dot)',
+                      height: 'var(--size-port-dot)',
+                      right: 'calc(var(--size-port-dot) / 2)', // chip padding-right와 맞춤
+                      top: 'calc(50% - var(--size-port-dot) / 2)',
+                      transform: 'none',
                       pointerEvents: 'none',
                       background: 'transparent',
                       border: 'none',

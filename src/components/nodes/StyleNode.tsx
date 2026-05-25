@@ -6,31 +6,38 @@ import { useReactFlow } from '@xyflow/react';
 import { StyleAddModal } from '@/components/StyleAddModal';
 import type { StyleEntry } from '@/components/StyleAddModal';
 
+type StyleNodeData = {
+  styles?: StyleEntry[];
+  activeStyleId?: string | null;
+  setStyles: React.Dispatch<React.SetStateAction<StyleEntry[]>>;
+  setActiveStyleId: (styleId: string | null) => void;
+};
+
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
-  borderRadius: '12px',
+  borderRadius: 'var(--ui-radius-xl)',
   border: 'none',
-  width: '280px',
+  width: 'var(--size-node-reference)',
   display: 'flex',
   flexDirection: 'column' as const,
-  boxShadow: 'var(--shadow-node)',
+  boxShadow: 'var(--ui-shadow-node)',
   overflow: 'visible' as const,
 };
 
 const headerStyle = {
   backgroundColor: 'var(--bg-node-header)',
-  padding: '8px 12px',
+  padding: 'var(--ui-space-8) var(--ui-space-12)',
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: 'var(--ui-space-8)',
   borderTopLeftRadius: '12px',
   borderTopRightRadius: '12px',
 };
 
 const titleStyle = {
-  fontSize: '12px',
+  fontSize: 'var(--ui-type-xs-2-size)',
   fontWeight: 600 as const,
   color: 'var(--text-secondary)',
   textTransform: 'uppercase' as const,
@@ -38,23 +45,23 @@ const titleStyle = {
 };
 
 const bodyStyle = {
-  padding: '12px',
+  padding: 'var(--ui-space-12)',
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: '8px',
+  gap: 'var(--ui-space-8)',
 };
 
 const chipStyle = {
   display: 'flex',
   alignItems: 'center',
   backgroundColor: 'var(--bg-canvas)',
-  padding: '4px 6px 4px 10px',
-  borderRadius: '100px',
+  padding: 'var(--ui-space-4) calc(var(--ui-space-unit) * 1.5) var(--ui-space-4) var(--ui-space-10)',
+  borderRadius: 'var(--ui-radius-pill)',
   border: '1px solid var(--border-node)',
-  gap: '6px',
+  gap: 'calc(var(--ui-space-unit) * 1.5)',
 };
 
-export function StyleNode({ id, data }: any) {
+export function StyleNode({ id, data }: { id: string; data: StyleNodeData }) {
   const { setEdges } = useReactFlow();
   const [showModal, setShowModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -101,10 +108,10 @@ export function StyleNode({ id, data }: any) {
           <span style={titleStyle}>스타일 참조</span>
           {activeStyle && (
             <span style={{
-              marginLeft: 'auto', fontSize: '10px', fontWeight: 700,
+              marginLeft: 'auto', fontSize: 'var(--ui-type-xs-size)', fontWeight: 700,
               color: 'var(--port-style)',
               backgroundColor: 'color-mix(in srgb, var(--port-style) 12%, transparent)',
-              padding: '2px 8px', borderRadius: '100px',
+              padding: 'calc(var(--ui-space-unit) * 0.5) var(--ui-space-8)', borderRadius: 'var(--ui-radius-pill)',
             }}>
               선택됨
             </span>
@@ -114,7 +121,7 @@ export function StyleNode({ id, data }: any) {
         <div style={bodyStyle}>
           {/* 스타일 카드 목록 */}
           {styles.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '6px' }} className="nodrag">
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 'calc(var(--ui-space-unit) * 1.5)' }} className="nodrag">
               {styles.map((s: StyleEntry) => {
                 const isActive = s.id === activeStyleId;
                 return (
@@ -123,10 +130,10 @@ export function StyleNode({ id, data }: any) {
                     onClick={() => handleSelect(s.id)}
                     style={{
                       display: 'flex',
-                      gap: '10px',
+                      gap: 'var(--ui-space-10)',
                       alignItems: 'flex-start',
-                      padding: '8px',
-                      borderRadius: '8px',
+                      padding: 'var(--ui-space-8)',
+                      borderRadius: 'var(--ui-space-8)',
                       border: `1.5px solid ${isActive ? 'var(--port-style)' : 'var(--border-node)'}`,
                       backgroundColor: isActive
                         ? 'color-mix(in srgb, var(--port-style) 8%, transparent)'
@@ -138,7 +145,7 @@ export function StyleNode({ id, data }: any) {
                   >
                     {/* 썸네일 */}
                     <div style={{
-                      width: '48px', height: '48px', borderRadius: '6px',
+                      width: 'var(--size-icon-container)', height: 'var(--size-icon-container)', borderRadius: 'var(--ui-radius-md)',
                       overflow: 'hidden', flexShrink: 0,
                       backgroundColor: 'var(--bg-node-header)',
                     }}>
@@ -152,7 +159,7 @@ export function StyleNode({ id, data }: any) {
                     {/* 프롬프트 텍스트 */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{
-                        fontSize: '10px', lineHeight: '1.5',
+                        fontSize: 'var(--ui-type-xs-size)', lineHeight: '1.5',
                         color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                         margin: 0,
                         display: '-webkit-box',
@@ -168,8 +175,8 @@ export function StyleNode({ id, data }: any) {
                     <button
                       onClick={(e) => handleDelete(e, s.id)}
                       style={{
-                        position: 'absolute' as const, top: '6px', right: '6px',
-                        width: '20px', height: '20px', borderRadius: '50%',
+                        position: 'absolute' as const, top: 'calc(var(--size-port-dot) / 2)', right: 'calc(var(--size-port-dot) / 2)',
+                        width: 'var(--size-control-xs)', height: 'var(--size-control-xs)', borderRadius: '50%',
                         border: 'none', backgroundColor: 'transparent',
                         cursor: 'pointer', display: 'flex', alignItems: 'center',
                         justifyContent: 'center', opacity: 0.5,
@@ -190,8 +197,8 @@ export function StyleNode({ id, data }: any) {
           {/* 빈 상태 */}
           {styles.length === 0 && (
             <div style={{
-              padding: '20px 12px', textAlign: 'center' as const,
-              color: 'var(--text-muted)', fontSize: '11px',
+              padding: 'var(--ui-space-20) var(--ui-space-12)', textAlign: 'center' as const,
+              color: 'var(--text-muted)', fontSize: 'calc(var(--ui-type-xs-size) * 1.1)',
             }}>
               <Palette size={24} color="var(--border-node)" style={{ marginBottom: '8px' }} />
               <p style={{ margin: 0 }}>추가 버튼으로 참조할<br />스타일 이미지를 등록하세요</p>
@@ -203,13 +210,13 @@ export function StyleNode({ id, data }: any) {
             className="nodrag"
             onClick={() => setShowModal(true)}
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              width: '100%', padding: '8px',
-              borderRadius: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'calc(var(--ui-space-unit) * 1.5)',
+              width: '100%', padding: 'var(--ui-space-8)',
+              borderRadius: 'var(--ui-space-8)',
               border: '1.5px dashed var(--border-node)',
               backgroundColor: 'transparent',
               color: 'var(--text-secondary)',
-              fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+              fontSize: 'var(--ui-type-xs-2-size)', fontWeight: 600, cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
             onMouseEnter={e => {
@@ -245,7 +252,7 @@ export function StyleNode({ id, data }: any) {
               onClick={isConnected ? handleDisconnect : undefined}
             >
               <span style={{
-                fontSize: '10px', fontWeight: 700,
+                fontSize: 'var(--ui-type-xs-size)', fontWeight: 700,
                 color: isConnected ? 'var(--port-style)' : 'var(--text-secondary)',
                 textTransform: 'uppercase' as const, letterSpacing: '0.3px',
                 pointerEvents: 'none', zIndex: 1, position: 'relative' as const,
@@ -253,7 +260,7 @@ export function StyleNode({ id, data }: any) {
                 {isConnected && isHovered ? '연결 해제' : '스타일 출력'}
               </span>
 
-              <div style={{ width: '12px', height: '12px', position: 'relative' as const, zIndex: 1 }}>
+              <div style={{ width: 'var(--size-port-dot)', height: 'var(--size-port-dot)', position: 'relative' as const, zIndex: 1 }}>
                 <div style={{
                   width: '100%', height: '100%', borderRadius: '50%',
                   background: isConnected && isHovered ? 'var(--bg-node-base)' : 'var(--port-style)',
@@ -272,7 +279,7 @@ export function StyleNode({ id, data }: any) {
                 isConnectable={true}
                 style={{
                   ...(isConnected
-                    ? { width: '12px', height: '12px', right: '6px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', background: 'transparent', border: 'none' }
+                    ? { width: 'var(--size-port-dot)', height: 'var(--size-port-dot)', right: 'calc(var(--size-port-dot) / 2)', top: 'calc(50% - var(--size-port-dot) / 2)', transform: 'none', pointerEvents: 'none', background: 'transparent', border: 'none' }
                     : { position: 'absolute', inset: 0, width: '100%', height: '100%', background: 'transparent', border: 'none', opacity: 0, zIndex: 10, cursor: 'crosshair', pointerEvents: 'auto', transform: 'none', right: 'auto', top: 'auto' }
                   ),
                 }}

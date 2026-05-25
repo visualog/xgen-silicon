@@ -63,8 +63,6 @@ async function runGeminiCLI(prompt: string, timeoutMs = 60000): Promise<string> 
     );
 
     let stdout = "";
-    let timeoutHandle: NodeJS.Timeout;
-
     proc.stdout.on("data", (data: Buffer) => {
       stdout += data.toString();
     });
@@ -72,7 +70,7 @@ async function runGeminiCLI(prompt: string, timeoutMs = 60000): Promise<string> 
     // stderr는 무시 (warnings, MCP 오류, Skill 충돌 메시지 필터링)
     proc.stderr.on("data", () => {});
 
-    timeoutHandle = setTimeout(() => {
+    const timeoutHandle = setTimeout(() => {
       proc.kill();
       reject(new Error("Gemini CLI 응답 시간 초과"));
     }, timeoutMs);
@@ -234,4 +232,3 @@ Return ONLY a valid JSON object with this exact structure, no other text:
     }
   }
 }
-

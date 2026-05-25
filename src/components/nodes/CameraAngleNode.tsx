@@ -8,25 +8,25 @@ const nodeStyle = {
   backgroundColor: "color-mix(in srgb, var(--bg-node-base) 5%, transparent)",
   backdropFilter: "blur(16px)",
   WebkitBackdropFilter: "blur(16px)",
-  borderRadius: "12px",
+  borderRadius: "var(--ui-radius-xl)",
   border: "none",
-  width: "220px",
+  width: "var(--size-node-md)",
   display: "flex",
   flexDirection: "column" as const,
   overflow: "hidden",
-  boxShadow: "var(--shadow-node)",
+  boxShadow: "var(--ui-shadow-node)",
 };
 
 const headerStyle = {
   backgroundColor: "var(--bg-node-header)",
-  padding: "8px 12px",
+  padding: "var(--ui-space-8) var(--ui-space-12)",
   display: "flex",
   alignItems: "center",
-  gap: "8px",
+  gap: "var(--ui-space-8)",
 };
 
 const titleStyle = {
-  fontSize: "12px",
+  fontSize: "var(--ui-type-xs-2-size)",
   fontWeight: 600 as const,
   color: "var(--text-secondary)",
   textTransform: "uppercase" as const,
@@ -34,30 +34,30 @@ const titleStyle = {
 };
 
 const bodyStyle = {
-  padding: "12px",
+  padding: "var(--ui-space-12)",
   display: "flex",
   flexDirection: "column" as const,
-  gap: "12px",
+  gap: "var(--ui-space-12)",
 };
 
 const optionGridStyle = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
-  gap: "6px",
+  gap: "calc(var(--ui-space-unit) * 1.5)",
 };
 
 const optionButtonStyle = (isActive: boolean) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "10px 8px",
-  borderRadius: "10px",
+  padding: "var(--ui-space-10) var(--ui-space-8)",
+  borderRadius: "var(--ui-space-10)",
   border: `1px solid ${isActive ? "var(--port-camera-angle)" : "var(--border-node)"}`,
   backgroundColor: isActive
     ? "color-mix(in srgb, var(--port-camera-angle) 14%, transparent)"
     : "var(--bg-canvas)",
   color: isActive ? "var(--port-camera-angle)" : "var(--text-secondary)",
-  fontSize: "12px",
+  fontSize: "var(--ui-type-xs-2-size)",
   fontWeight: 600,
   cursor: "pointer",
   transition: "all 0.15s ease",
@@ -67,10 +67,10 @@ const chipStyle = {
   display: "flex",
   alignItems: "center",
   backgroundColor: "var(--bg-canvas)",
-  padding: "4px 6px 4px 10px",
-  borderRadius: "100px",
+  padding: "var(--ui-space-4) calc(var(--ui-space-unit) * 1.5) var(--ui-space-4) var(--ui-space-10)",
+  borderRadius: "var(--ui-radius-pill)",
   border: "1px solid var(--border-node)",
-  gap: "6px",
+  gap: "calc(var(--ui-space-unit) * 1.5)",
 };
 
 type CameraAngleNodeData = {
@@ -101,7 +101,7 @@ export function CameraAngleNode({ id, data }: { id: string; data: CameraAngleNod
       <div style={headerStyle}>
         <Aperture size={16} color="var(--text-secondary)" />
         <span style={titleStyle}>카메라 앵글</span>
-        <button type="button" onClick={data.onRemove} className="nodrag" title="카메라 앵글 노드 제거" style={{ marginLeft: "auto", width: "22px", height: "22px", borderRadius: "999px", border: "none", backgroundColor: "transparent", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+        <button type="button" onClick={data.onRemove} className="nodrag" title="카메라 앵글 노드 제거" style={{ marginLeft: "auto", width: "var(--size-control-sm)", height: "var(--size-control-sm)", borderRadius: "var(--ui-radius-pill)", border: "none", backgroundColor: "transparent", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <Trash2 size={12} />
         </button>
       </div>
@@ -162,10 +162,10 @@ function NodeOutputChip({
         onMouseLeave={() => onHover(false)}
         onClick={onClick}
       >
-        <span style={{ fontSize: "10px", fontWeight: 700, color: isConnected ? colorVar : "var(--text-secondary)", textTransform: "uppercase" as const, letterSpacing: "0.3px", pointerEvents: "none", zIndex: 1, position: "relative" as const }}>
+        <span style={{ fontSize: "var(--ui-type-xs-size)", fontWeight: 700, color: isConnected ? colorVar : "var(--text-secondary)", textTransform: "uppercase" as const, letterSpacing: "0.3px", pointerEvents: "none", zIndex: 1, position: "relative" as const }}>
           {isConnected && isHovered ? "연결 해제" : label}
         </span>
-        <div style={{ width: "12px", height: "12px", position: "relative" as const, zIndex: 1 }}>
+        <div style={{ width: "var(--size-port-dot)", height: "var(--size-port-dot)", position: "relative" as const, zIndex: 1 }}>
           <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: isConnected && isHovered ? "var(--bg-node-base)" : colorVar, border: isConnected && isHovered ? `1px solid ${colorVar}` : "2px solid var(--bg-node-base)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s ease" }}>
             {isConnected && isHovered && <X size={8} color={colorVar} strokeWidth={4} />}
           </div>
@@ -177,7 +177,7 @@ function NodeOutputChip({
           isConnectable={true}
           style={{
             ...(isConnected
-              ? { width: "12px", height: "12px", right: "6px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", background: "transparent", border: "none" }
+              ? { width: "var(--size-port-dot)", height: "var(--size-port-dot)", right: "calc(var(--size-port-dot) / 2)", top: "calc(50% - var(--size-port-dot) / 2)", transform: "none", pointerEvents: "none", background: "transparent", border: "none" }
               : { position: "absolute", inset: 0, width: "100%", height: "100%", background: "transparent", border: "none", opacity: 0, zIndex: 10, cursor: "crosshair", pointerEvents: "auto", transform: "none", right: "auto", top: "auto" }),
           }}
         />

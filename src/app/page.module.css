@@ -9,7 +9,7 @@
   height: 100vh;
   padding: 16px;
   gap: 10px;
-  background-color: var(--color-canvas-white);
+  background-color: var(--ui-surface-page);
   overflow: hidden;
 
   /* Bento Grid Definition:
@@ -32,8 +32,8 @@
 
 /* ─── Bento Card Base ────────────────────────────── */
 .bentoCard {
-  background-color: var(--color-cloud-white);
-  border-radius: var(--radius-card);
+  background-color: var(--ui-surface-white);
+  border-radius: var(--ui-radius-card);
   overflow: hidden;
   transition: box-shadow 0.2s ease;
   border: 1px solid transparent;
@@ -42,33 +42,33 @@
 /* ─── Header Card ────────────────────────────────── */
 .headerCard {
   grid-area: header;
-  background-color: var(--color-cloud-white);
+  background-color: var(--ui-surface-white);
   border-radius: 20px;
   display: flex;
   align-items: center;
-  padding: 0 var(--space-20);
+  padding: 0 var(--ui-space-20);
 }
 
 .logoContainer {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
+  gap: var(--ui-space-8);
 }
 
 .logo {
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: var(--color-midnight-ink);
+  color: var(--ui-ink-primary);
 }
 
 .betaBadge {
   font-size: 10px;
   font-weight: 700;
   padding: 2px 7px;
-  border-radius: var(--radius-pill);
-  background-color: var(--color-midnight-ink);
-  color: var(--color-cloud-white);
+  border-radius: var(--ui-radius-pill);
+  background-color: var(--ui-ink-primary);
+  color: var(--ui-surface-white);
   text-transform: uppercase;
   letter-spacing: 0.8px;
 }
@@ -77,7 +77,7 @@
 .canvasCard {
   grid-area: canvas;
   background-color: transparent;
-  border-radius: var(--radius-card);
+  border-radius: var(--ui-radius-card);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -90,7 +90,7 @@
   max-width: 88%;
   max-height: 85%;
   object-fit: contain;
-  border-radius: var(--radius-2xl);
+  border-radius: var(--ui-radius-2xl);
   transition: opacity 0.4s ease;
   box-shadow: rgba(0,0,0,0.08) 0px 12px 32px;
 }
@@ -100,27 +100,27 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-12);
+  gap: var(--ui-space-12);
   user-select: none;
 }
 
 .placeholderIcon {
   width: 56px;
   height: 56px;
-  background-color: var(--color-canvas-white);
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--color-faded-gray);
+  background-color: var(--ui-surface-page);
+  border-radius: var(--ui-radius-xl);
+  border: 1px solid var(--ui-border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  color: var(--color-steel-gray);
+  color: var(--ui-ink-tertiary);
 }
 
 .placeholderText {
   font-size: 14px;
   font-weight: 400;
-  color: var(--color-silver-mist);
+  color: var(--ui-ink-muted);
   text-align: center;
   line-height: 1.7;
 }
@@ -135,22 +135,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-16);
+  gap: var(--ui-space-16);
   z-index: 10;
-  border-radius: var(--radius-card);
+  border-radius: var(--ui-radius-card);
 }
 
 .loadingText {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-graphite);
+  color: var(--ui-ink-secondary);
 }
 
 .spinner {
   width: 28px;
   height: 28px;
-  border: 2.5px solid var(--color-faded-gray);
-  border-top-color: var(--color-midnight-ink);
+  border: 2.5px solid var(--ui-border-subtle);
+  border-top-color: var(--ui-ink-primary);
   border-radius: 50%;
   animation: spin 0.85s linear infinite;
 }
@@ -162,54 +162,54 @@
 /* ─── Style Card ─────────────────────────────────── */
 .styleCard {
   grid-area: style;
-  background-color: var(--color-cloud-white);
+  background-color: var(--ui-surface-white);
   border-radius: 20px;
-  padding: var(--space-16) var(--space-20);
+  padding: var(--ui-space-16) var(--ui-space-20);
   display: flex;
   flex-direction: column;
-  gap: var(--space-12);
+  gap: var(--ui-space-12);
   overflow: hidden;
 }
 
 /* ─── Prompt Card ────────────────────────────────── */
 .promptCard {
   grid-area: prompt;
-  background-color: var(--color-cloud-white);
+  background-color: var(--ui-surface-white);
   border-radius: 20px;
-  padding: var(--space-16) var(--space-20);
+  padding: var(--ui-space-16) var(--ui-space-20);
   display: flex;
   flex-direction: column;
-  gap: var(--space-10);
+  gap: var(--ui-space-10);
 }
 
 /* ─── Action Card ────────────────────────────────── */
 .actionCard {
   grid-area: action;
-  background-color: var(--color-cloud-white);
+  background-color: var(--ui-surface-white);
   border-radius: 20px;
-  padding: var(--space-12) var(--space-16);
+  padding: var(--ui-space-12) var(--ui-space-16);
   display: flex;
   flex-direction: row;
-  gap: var(--space-8);
+  gap: var(--ui-space-8);
   align-items: center;
 }
 
 /* ─── Library Card ───────────────────────────────── */
 .libraryCard {
   grid-area: library;
-  background-color: var(--color-cloud-white);
+  background-color: var(--ui-surface-white);
   border-radius: 20px;
-  padding: var(--space-12) var(--space-20);
+  padding: var(--ui-space-12) var(--ui-space-20);
   display: flex;
   align-items: center;
-  gap: var(--space-12);
+  gap: var(--ui-space-12);
   overflow: hidden;
 }
 
 .libraryLabel {
   font-size: 11px;
   font-weight: 700;
-  color: var(--color-silver-mist);
+  color: var(--ui-ink-muted);
   letter-spacing: 0.8px;
   text-transform: uppercase;
   white-space: nowrap;
@@ -218,7 +218,7 @@
 
 .libraryScroll {
   display: flex;
-  gap: var(--space-8);
+  gap: var(--ui-space-8);
   overflow-x: auto;
   flex: 1;
   scrollbar-width: none;
@@ -238,7 +238,7 @@
   border: 2px solid transparent;
   flex-shrink: 0;
   transition: all 0.18s ease;
-  background-color: var(--color-canvas-white);
+  background-color: var(--ui-surface-page);
 }
 
 .historyThumb:hover {
@@ -247,7 +247,7 @@
 }
 
 .historyThumb.activeThumb {
-  border-color: var(--color-midnight-ink);
+  border-color: var(--ui-ink-primary);
 }
 
 .historyThumb img {
@@ -258,7 +258,7 @@
 
 .libraryEmpty {
   font-size: 13px;
-  color: var(--color-silver-mist);
+  color: var(--ui-ink-muted);
 }
 
 /* ─── Section Title ──────────────────────────────── */
@@ -267,7 +267,7 @@
   font-weight: 700;
   letter-spacing: 0.9px;
   text-transform: uppercase;
-  color: var(--color-silver-mist);
+  color: var(--ui-ink-muted);
   flex-shrink: 0;
 }
 
@@ -275,15 +275,15 @@
 .styleGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-8);
+  gap: var(--ui-space-8);
   flex: 1;
   min-height: 0;
 }
 
 .styleItem {
   aspect-ratio: 1;
-  background-color: var(--color-canvas-white);
-  border: 1.5px solid var(--color-faded-gray);
+  background-color: var(--ui-surface-page);
+  border: 1.5px solid var(--ui-border-subtle);
   border-radius: 8px; /* 20px outer - 16px padding = 4px → min 8px */
   cursor: pointer;
   display: flex;
@@ -296,15 +296,15 @@
 }
 
 .styleItem:hover {
-  border-color: var(--color-graphite);
+  border-color: var(--ui-ink-secondary);
   transform: translateY(-1px);
   box-shadow: rgba(0,0,0,0.06) 0px 4px 12px;
 }
 
 .styleItem.active {
-  border-color: var(--color-midnight-ink);
+  border-color: var(--ui-ink-primary);
   border-width: 2px;
-  background-color: var(--color-cloud-white);
+  background-color: var(--ui-surface-white);
 }
 
 .styleImage {
@@ -320,16 +320,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-cloud-white);
+  background-color: var(--ui-surface-white);
   border-radius: 50%;
-  box-shadow: var(--shadow-sm);
-  color: var(--color-midnight-ink);
+  box-shadow: var(--ui-shadow-sm);
+  color: var(--ui-ink-primary);
 }
 
 .uploadLabel {
   font-size: 11px;
   font-weight: 600;
-  color: var(--color-steel-gray);
+  color: var(--ui-ink-tertiary);
   text-align: center;
   line-height: 1.4;
 }
@@ -342,8 +342,8 @@
   background-color: transparent;
   border: none;
   padding: 0;
-  color: var(--color-midnight-ink);
-  font-family: var(--font-sans);
+  color: var(--ui-ink-primary);
+  font-family: var(--ui-font-sans);
   font-size: 14px;
   line-height: 1.65;
   resize: none;
@@ -351,14 +351,14 @@
 }
 
 .inputArea::placeholder {
-  color: var(--color-silver-mist);
+  color: var(--ui-ink-muted);
 }
 
 /* ─── Buttons ────────────────────────────────────── */
 .btnGenerate {
   flex: 1;
-  background-color: var(--color-midnight-ink);
-  color: var(--color-cloud-white);
+  background-color: var(--ui-ink-primary);
+  color: var(--ui-surface-white);
   padding: 12px 16px;
   border-radius: 8px; /* 20px outer - 12px padding = 8px */
   font-weight: 600;
@@ -373,7 +373,7 @@
 }
 
 .btnGenerate:hover:not(:disabled) {
-  background-color: var(--color-jet-black);
+  background-color: var(--ui-ink-strong);
   transform: translateY(-1px);
   box-shadow:
     rgba(255, 255, 255, 0.12) 0px 0.5px 0px inset,
@@ -381,8 +381,8 @@
 }
 
 .btnGenerate:disabled {
-  background-color: var(--color-faded-gray);
-  color: var(--color-silver-mist);
+  background-color: var(--ui-border-subtle);
+  color: var(--ui-ink-muted);
   box-shadow: none;
   cursor: not-allowed;
   transform: none;
@@ -390,22 +390,22 @@
 
 .btnDownload {
   flex: 1;
-  background-color: var(--color-cloud-white);
-  color: var(--color-graphite);
+  background-color: var(--ui-surface-white);
+  color: var(--ui-ink-secondary);
   padding: 12px 16px;
   border-radius: 8px; /* 20px outer - 12px padding = 8px */
   font-weight: 500;
   font-size: 14px;
-  border: 1px solid var(--color-faded-gray);
+  border: 1px solid var(--ui-border-subtle);
   cursor: pointer;
   transition: all 0.18s ease;
   white-space: nowrap;
 }
 
 .btnDownload:hover:not(:disabled) {
-  background-color: var(--color-canvas-white);
-  border-color: var(--color-graphite);
-  color: var(--color-midnight-ink);
+  background-color: var(--ui-surface-page);
+  border-color: var(--ui-ink-secondary);
+  color: var(--ui-ink-primary);
 }
 
 .btnDownload:disabled {

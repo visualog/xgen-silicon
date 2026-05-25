@@ -42,27 +42,27 @@ const nodeStyle = {
   backgroundColor: "color-mix(in srgb, var(--bg-node-base) 5%, transparent)",
   backdropFilter: "blur(16px)",
   WebkitBackdropFilter: "blur(16px)",
-  borderRadius: "12px",
+  borderRadius: "var(--ui-radius-xl)",
   border: "none",
-  width: "280px",
+  width: "var(--size-node-reference)",
   display: "flex",
   flexDirection: "column" as const,
-  boxShadow: "var(--shadow-node)",
+  boxShadow: "var(--ui-shadow-node)",
   overflow: "visible" as const,
 };
 
 const headerStyle = {
   backgroundColor: "var(--bg-node-header)",
-  padding: "8px 12px",
+  padding: "var(--ui-space-8) var(--ui-space-12)",
   display: "flex",
   alignItems: "center",
-  gap: "8px",
+  gap: "var(--ui-space-8)",
   borderTopLeftRadius: "12px",
   borderTopRightRadius: "12px",
 };
 
 const titleStyle = {
-  fontSize: "12px",
+  fontSize: "var(--ui-type-xs-2-size)",
   fontWeight: 600 as const,
   color: "var(--text-secondary)",
   textTransform: "uppercase" as const,
@@ -108,17 +108,17 @@ export function ReferenceNode({ id, data }: { id: string; data: ReferenceNodeDat
           <Icon size={16} color="var(--text-secondary)" />
           <span style={titleStyle}>{copy.title}</span>
           {activeReference && (
-            <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: copy.color, backgroundColor: `color-mix(in srgb, ${copy.color} 12%, transparent)`, padding: "2px 8px", borderRadius: 999 }}>
+            <span style={{ marginLeft: "auto", fontSize: "var(--ui-type-xs-size)", fontWeight: 700, color: copy.color, backgroundColor: `color-mix(in srgb, ${copy.color} 12%, transparent)`, padding: "calc(var(--ui-space-unit) * 0.5) var(--ui-space-8)", borderRadius: "var(--ui-radius-pill)" }}>
               {copy.selected}
             </span>
           )}
-          <button type="button" onClick={data.onRemove} className="nodrag" title={`${copy.title} 노드 제거`} style={{ width: 22, height: 22, borderRadius: 999, border: "none", backgroundColor: "transparent", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <button type="button" onClick={data.onRemove} className="nodrag" title={`${copy.title} 노드 제거`} style={{ width: "var(--size-control-sm)", height: "var(--size-control-sm)", borderRadius: "var(--ui-radius-pill)", border: "none", backgroundColor: "transparent", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <Trash2 size={12} />
           </button>
         </div>
-        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ padding: "var(--ui-space-12)", display: "flex", flexDirection: "column", gap: "var(--ui-space-8)" }}>
           {data.references.length > 0 ? (
-            <div className="nodrag" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="nodrag" style={{ display: "flex", flexDirection: "column", gap: "calc(var(--ui-space-unit) * 1.5)" }}>
               {data.references.map((entry) => {
                 const isActive = entry.id === data.activeReferenceId;
                 return (
@@ -126,12 +126,12 @@ export function ReferenceNode({ id, data }: { id: string; data: ReferenceNodeDat
                     key={entry.id}
                     type="button"
                     onClick={() => data.setActiveReferenceId(isActive ? null : entry.id)}
-                    style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: 8, borderRadius: 8, border: `1.5px solid ${isActive ? copy.color : "var(--border-node)"}`, backgroundColor: isActive ? `color-mix(in srgb, ${copy.color} 8%, transparent)` : "var(--bg-canvas)", color: "inherit", cursor: "pointer", textAlign: "left", position: "relative" }}
+                    style={{ display: "flex", gap: "var(--ui-space-10)", alignItems: "flex-start", padding: "var(--ui-space-8)", borderRadius: "var(--ui-space-8)", border: `1.5px solid ${isActive ? copy.color : "var(--border-node)"}`, backgroundColor: isActive ? `color-mix(in srgb, ${copy.color} 8%, transparent)` : "var(--bg-canvas)", color: "inherit", cursor: "pointer", textAlign: "left", position: "relative" }}
                   >
-                    <span style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden", flexShrink: 0, backgroundColor: "var(--bg-node-header)" }}>
+                    <span style={{ width: "var(--size-icon-container)", height: "var(--size-icon-container)", borderRadius: "var(--ui-radius-md)", overflow: "hidden", flexShrink: 0, backgroundColor: "var(--bg-node-header)" }}>
                       <img src={entry.imageUrl} alt={entry.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 10, lineHeight: 1.5, color: isActive ? "var(--text-primary)" : "var(--text-secondary)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: "var(--ui-type-xs-size)", lineHeight: 1.5, color: isActive ? "var(--text-primary)" : "var(--text-secondary)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                       {entry.prompt || "참조 프롬프트 없음"}
                     </span>
                     <span
@@ -141,7 +141,7 @@ export function ReferenceNode({ id, data }: { id: string; data: ReferenceNodeDat
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") handleDelete(event as unknown as React.MouseEvent, entry.id);
                       }}
-                      style={{ position: "absolute", top: 6, right: 6, width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.58 }}
+                      style={{ position: "absolute", top: "calc(var(--size-port-dot) / 2)", right: "calc(var(--size-port-dot) / 2)", width: "var(--size-control-xs)", height: "var(--size-control-xs)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.58 }}
                     >
                       <Trash2 size={11} color="var(--text-secondary)" />
                     </span>
@@ -150,12 +150,12 @@ export function ReferenceNode({ id, data }: { id: string; data: ReferenceNodeDat
               })}
             </div>
           ) : (
-            <div style={{ padding: "18px 12px", textAlign: "center", color: "var(--text-muted)", fontSize: 11, lineHeight: 1.5 }}>
+            <div style={{ padding: "calc(var(--ui-space-unit) * 4.5) var(--ui-space-12)", textAlign: "center", color: "var(--text-muted)", fontSize: "calc(var(--ui-type-xs-size) * 1.1)", lineHeight: 1.5 }}>
               <Icon size={24} color="var(--border-node)" style={{ marginBottom: 8 }} />
               <p style={{ margin: 0 }}>{copy.empty}</p>
             </div>
           )}
-          <button type="button" className="nodrag" onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: 8, borderRadius: 8, border: "1.5px dashed var(--border-node)", backgroundColor: "transparent", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          <button type="button" className="nodrag" onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "calc(var(--ui-space-unit) * 1.5)", width: "100%", padding: "var(--ui-space-8)", borderRadius: "var(--ui-space-8)", border: "1.5px dashed var(--border-node)", backgroundColor: "transparent", color: "var(--text-secondary)", fontSize: "var(--ui-type-xs-2-size)", fontWeight: 600, cursor: "pointer" }}>
             <Plus size={14} /> 추가
           </button>
           <NodeOutputChip color={copy.color} label={copy.output} handleId={copy.handleId} isConnected={isConnected} isHovered={isHovered} onHover={setIsHovered} onClick={isConnected ? handleDisconnect : undefined} />
@@ -168,14 +168,14 @@ export function ReferenceNode({ id, data }: { id: string; data: ReferenceNodeDat
 function NodeOutputChip({ color, label, handleId, isConnected, isHovered, onHover, onClick }: { color: string; label: string; handleId: string; isConnected: boolean; isHovered: boolean; onHover: (value: boolean) => void; onClick?: () => void }) {
   return (
     <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
-      <div className="nodrag" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)} onClick={onClick} style={{ display: "flex", alignItems: "center", padding: "4px 6px 4px 10px", borderRadius: 999, border: `1px solid ${isConnected ? color : isHovered ? color : "var(--border-node)"}`, backgroundColor: isConnected ? `color-mix(in srgb, ${color} 15%, transparent)` : "var(--bg-canvas)", gap: 6, cursor: isConnected ? "pointer" : "crosshair", position: "relative" }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: isConnected ? color : "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.3, pointerEvents: "none", zIndex: 1 }}>
+      <div className="nodrag" onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)} onClick={onClick} style={{ display: "flex", alignItems: "center", padding: "var(--ui-space-4) calc(var(--ui-space-unit) * 1.5) var(--ui-space-4) var(--ui-space-10)", borderRadius: "var(--ui-radius-pill)", border: `1px solid ${isConnected ? color : isHovered ? color : "var(--border-node)"}`, backgroundColor: isConnected ? `color-mix(in srgb, ${color} 15%, transparent)` : "var(--bg-canvas)", gap: "calc(var(--ui-space-unit) * 1.5)", cursor: isConnected ? "pointer" : "crosshair", position: "relative" }}>
+        <span style={{ fontSize: "var(--ui-type-xs-size)", fontWeight: 700, color: isConnected ? color : "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.3, pointerEvents: "none", zIndex: 1 }}>
           {isConnected && isHovered ? "연결 해제" : label}
         </span>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", background: isConnected && isHovered ? "var(--bg-node-base)" : color, border: isConnected && isHovered ? `1px solid ${color}` : "2px solid var(--bg-node-base)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
+        <span style={{ width: "var(--size-port-dot)", height: "var(--size-port-dot)", borderRadius: "50%", background: isConnected && isHovered ? "var(--bg-node-base)" : color, border: isConnected && isHovered ? `1px solid ${color}` : "2px solid var(--bg-node-base)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
           {isConnected && isHovered && <X size={8} color={color} strokeWidth={4} />}
         </span>
-        <Handle type="source" position={Position.Right} id={handleId} isConnectable={true} style={{ ...(isConnected ? { width: 12, height: 12, right: 6, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", background: "transparent", border: "none" } : { position: "absolute", inset: 0, width: "100%", height: "100%", background: "transparent", border: "none", opacity: 0, zIndex: 10, cursor: "crosshair", pointerEvents: "auto", transform: "none", right: "auto", top: "auto" }) }} />
+        <Handle type="source" position={Position.Right} id={handleId} isConnectable={true} style={{ ...(isConnected ? { width: "var(--size-port-dot)", height: "var(--size-port-dot)", right: "calc(var(--size-port-dot) / 2)", top: "calc(50% - var(--size-port-dot) / 2)", transform: "none", pointerEvents: "none", background: "transparent", border: "none" } : { position: "absolute", inset: 0, width: "100%", height: "100%", background: "transparent", border: "none", opacity: 0, zIndex: 10, cursor: "crosshair", pointerEvents: "auto", transform: "none", right: "auto", top: "auto" }) }} />
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import Link from "next/link";
+import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import {
   ReactFlow,
   Controls,
@@ -23,19 +24,20 @@ import {
   Check,
   Copy,
   Download,
-  ImagePlus,
-  LayoutGrid,
+  Eye,
+  Moon,
+  Palette as PaletteIcon,
   Plus,
   Sparkles,
+  Sun,
   Trash2,
 } from "lucide-react";
 
 import { PromptNode } from "@/components/nodes/PromptNode";
 import { StyleNode } from "@/components/nodes/StyleNode";
 import { ReferenceNode } from "@/components/nodes/ReferenceNode";
-import { ElementBoardNode } from "@/components/nodes/ElementBoardNode";
-import { RatioNode } from "@/components/nodes/RatioNode";
-import { ResolutionNode } from "@/components/nodes/ResolutionNode";
+import { ElementItemNode } from "@/components/nodes/ElementItemNode";
+import { OutputSettingsNode } from "@/components/nodes/OutputSettingsNode";
 import { CompositionNode } from "@/components/nodes/CompositionNode";
 import { BackgroundNode } from "@/components/nodes/BackgroundNode";
 import { ConstraintNode } from "@/components/nodes/ConstraintNode";
@@ -53,7 +55,6 @@ import { CanvasNode } from "@/components/nodes/CanvasNode";
 import type { StyleEntry } from "@/components/StyleAddModal";
 
 const STORAGE_KEY = "brandgen_state";
-const APP_VERSION = "v0.1.0";
 
 const OPTIONAL_NODE_CONFIG = {
   composition: {
@@ -215,6 +216,7 @@ type ElementBoardItem = {
   name: string;
   category: string;
   description: string;
+  enabled?: boolean;
   sheetStatus?: ElementSheetStatus;
   sheetImageUrl?: string;
   sheetPrompt?: string;
@@ -231,6 +233,8 @@ type ElementBoard = {
 type ConsistencyStatus = "pending" | "ready" | "failed";
 
 type EditorSnapshot = {
+  title: string;
+  isTitleUserEdited?: boolean;
   prompt: string;
   styles: StyleEntry[];
   activeStyleId: string | null;
@@ -264,6 +268,7 @@ type GeneratedResult = EditorSnapshot & {
   id: string;
   title: string;
   createdAt: string;
+  generationDurationSeconds?: number;
   consistency?: ConsistencyElements;
   consistencyStatus?: ConsistencyStatus;
 };
@@ -277,14 +282,14 @@ type PersistedState = {
 type FlowNode = Node<Record<string, unknown>, string>;
 type FlowEdge = Edge;
 type NodeRect = { x: number; y: number; width: number; height: number };
+type GalleryColumnItem = { result: GeneratedResult; index: number };
 
 const NODE_SIZE_BY_TYPE: Record<string, { width: number; height: number }> = {
   promptNode: { width: 320, height: 240 },
   styleNode: { width: 320, height: 250 },
   referenceNode: { width: 280, height: 260 },
-  elementBoardNode: { width: 320, height: 360 },
-  ratioNode: { width: 220, height: 140 },
-  resolutionNode: { width: 220, height: 140 },
+  elementItemNode: { width: 260, height: 180 },
+  outputSettingsNode: { width: 240, height: 220 },
   objectAngleNode: { width: 260, height: 290 },
   outputNode: { width: 380, height: 320 },
   canvasNode: { width: 380, height: 320 },
@@ -399,6 +404,7 @@ function normalizeElementBoardItem(item: Partial<ElementBoardItem>, index: numbe
     name,
     category: typeof item.category === "string" && item.category.trim() ? item.category.trim() : "object",
     description,
+    enabled: item.enabled !== false,
     sheetStatus: item.sheetStatus,
     sheetImageUrl: typeof item.sheetImageUrl === "string" ? item.sheetImageUrl : undefined,
     sheetPrompt: typeof item.sheetPrompt === "string" ? item.sheetPrompt : undefined,
@@ -477,6 +483,8 @@ function createElementBoardFromConsistency(consistency: ConsistencyElements, obj
 }
 
 const DEFAULT_SNAPSHOT: EditorSnapshot = {
+  title: "새 브랜드 이미지",
+  isTitleUserEdited: false,
   prompt: "",
   styles: [],
   activeStyleId: null,
@@ -506,6 +514,68 @@ const DEFAULT_SNAPSHOT: EditorSnapshot = {
   nodePositions: {},
 };
 
+const OPTIONAL_NODE_KEYS = Object.keys(OPTIONAL_NODE_CONFIG) as OptionalNodeKey[];
+
+function isOptionalNodeKey(key: unknown): key is OptionalNodeKey {
+  return typeof key === "string" && key in OPTIONAL_NODE_CONFIG;
+}
+
+function normalizeOptionalNodeKeys(keys: unknown): OptionalNodeKey[] {
+  if (!Array.isArray(keys)) return [];
+  return keys.filter(isOptionalNodeKey);
+}
+
+function normalizeNodePositions(positions?: NodePositionMap): NodePositionMap {
+  if (!positions) return {};
+
+  const normalized = { ...positions };
+  if (!normalized["output-settings-node"]) {
+    const legacyOutputSettingsPosition = normalized["ratio-node"] ?? normalized["resolution-node"];
+    if (legacyOutputSettingsPosition) normalized["output-settings-node"] = legacyOutputSettingsPosition;
+  }
+
+  return normalized;
+}
+
+function normalizeEditorSnapshot(snapshot: Partial<EditorSnapshot>): EditorSnapshot {
+  return {
+    ...DEFAULT_SNAPSHOT,
+    ...snapshot,
+    title: typeof snapshot.title === "string" ? snapshot.title : DEFAULT_SNAPSHOT.title,
+    isTitleUserEdited: Boolean(snapshot.isTitleUserEdited),
+    prompt: typeof snapshot.prompt === "string" ? snapshot.prompt : DEFAULT_SNAPSHOT.prompt,
+    styles: Array.isArray(snapshot.styles) ? snapshot.styles : DEFAULT_SNAPSHOT.styles,
+    activeStyleId: typeof snapshot.activeStyleId === "string" ? snapshot.activeStyleId : null,
+    characterReferences: Array.isArray(snapshot.characterReferences) ? snapshot.characterReferences : [],
+    activeCharacterReferenceId:
+      typeof snapshot.activeCharacterReferenceId === "string" ? snapshot.activeCharacterReferenceId : null,
+    objectReferences: Array.isArray(snapshot.objectReferences) ? snapshot.objectReferences : [],
+    activeObjectReferenceId:
+      typeof snapshot.activeObjectReferenceId === "string" ? snapshot.activeObjectReferenceId : null,
+    elementBoard: normalizeElementBoard(snapshot.elementBoard),
+    ratio: typeof snapshot.ratio === "string" ? snapshot.ratio : DEFAULT_SNAPSHOT.ratio,
+    resolution: typeof snapshot.resolution === "string" ? snapshot.resolution : DEFAULT_SNAPSHOT.resolution,
+    composition: typeof snapshot.composition === "string" ? snapshot.composition : DEFAULT_SNAPSHOT.composition,
+    backgroundPrompt:
+      typeof snapshot.backgroundPrompt === "string" ? snapshot.backgroundPrompt : DEFAULT_SNAPSHOT.backgroundPrompt,
+    constraints: typeof snapshot.constraints === "string" ? snapshot.constraints : DEFAULT_SNAPSHOT.constraints,
+    mood: typeof snapshot.mood === "string" ? snapshot.mood : DEFAULT_SNAPSHOT.mood,
+    palette: typeof snapshot.palette === "string" ? snapshot.palette : DEFAULT_SNAPSHOT.palette,
+    cameraAngle: typeof snapshot.cameraAngle === "string" ? snapshot.cameraAngle : DEFAULT_SNAPSHOT.cameraAngle,
+    objectAngle: typeof snapshot.objectAngle === "string" ? snapshot.objectAngle : DEFAULT_SNAPSHOT.objectAngle,
+    lighting: typeof snapshot.lighting === "string" ? snapshot.lighting : DEFAULT_SNAPSHOT.lighting,
+    gesture: typeof snapshot.gesture === "string" ? snapshot.gesture : DEFAULT_SNAPSHOT.gesture,
+    propsPrompt: typeof snapshot.propsPrompt === "string" ? snapshot.propsPrompt : DEFAULT_SNAPSHOT.propsPrompt,
+    detailLevel: typeof snapshot.detailLevel === "string" ? snapshot.detailLevel : DEFAULT_SNAPSHOT.detailLevel,
+    englishPrompt: typeof snapshot.englishPrompt === "string" ? snapshot.englishPrompt : "",
+    koreanPrompt: typeof snapshot.koreanPrompt === "string" ? snapshot.koreanPrompt : "",
+    imageUrl: typeof snapshot.imageUrl === "string" ? snapshot.imageUrl : null,
+    visibleOptionalNodes: normalizeOptionalNodeKeys(snapshot.visibleOptionalNodes),
+    connectedOptionalNodes: normalizeOptionalNodeKeys(snapshot.connectedOptionalNodes),
+    nodePositions: normalizeNodePositions(snapshot.nodePositions),
+  };
+}
+
 const MANDATORY_EDGES = [
   {
     id: "e-prompt-output",
@@ -524,17 +594,9 @@ const MANDATORY_EDGES = [
     style: { stroke: "var(--port-style)", strokeWidth: 3 },
   },
   {
-    id: "e-ratio-output",
-    source: "ratio-node",
-    sourceHandle: "ratio-out",
-    target: "output-node",
-    targetHandle: "general-in",
-    style: { stroke: "var(--port-ratio)", strokeWidth: 3 },
-  },
-  {
-    id: "e-resolution-output",
-    source: "resolution-node",
-    sourceHandle: "resolution-out",
+    id: "e-output-settings-output",
+    source: "output-settings-node",
+    sourceHandle: "output-settings-out",
     target: "output-node",
     targetHandle: "general-in",
     style: { stroke: "var(--port-resolution)", strokeWidth: 3 },
@@ -545,8 +607,7 @@ function buildEditorNodes(optionalKeys: OptionalNodeKey[], includeCanvas: boolea
   const baseNodes: FlowNode[] = [
     { id: "prompt-node", type: "promptNode", position: { x: 50, y: 50 }, data: {} },
     { id: "style-node", type: "styleNode", position: { x: 50, y: 300 }, data: {} },
-    { id: "ratio-node", type: "ratioNode", position: { x: 50, y: 550 }, data: {} },
-    { id: "resolution-node", type: "resolutionNode", position: { x: 50, y: 700 }, data: {} },
+    { id: "output-settings-node", type: "outputSettingsNode", position: { x: 50, y: 550 }, data: {} },
     { id: "output-node", type: "outputNode", position: { x: 450, y: 150 }, data: {} },
   ];
 
@@ -580,23 +641,29 @@ function applyNodePositions(nodes: FlowNode[], positions?: NodePositionMap): Flo
   if (!positions) return nodes;
 
   return nodes.map((node) => {
-    const position = positions[node.id];
+    const position =
+      positions[node.id] ??
+      (node.id === "output-settings-node"
+        ? positions["ratio-node"] ?? positions["resolution-node"]
+        : undefined);
     return position ? { ...node, position } : node;
   });
 }
 
 function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanvas: boolean): FlowEdge[] {
-  const optionalEdges: FlowEdge[] = connectedOptionalKeys.map((key) => {
-    const config = OPTIONAL_NODE_CONFIG[key];
-    return {
-      id: config.edgeId,
-      source: config.id,
-      sourceHandle: config.sourceHandle,
-      target: "output-node",
-      targetHandle: "general-in",
-      style: { stroke: config.color, strokeWidth: 3 },
-    };
-  });
+  const optionalEdges: FlowEdge[] = connectedOptionalKeys
+    .filter((key) => key !== "elementBoard")
+    .map((key) => {
+      const config = OPTIONAL_NODE_CONFIG[key];
+      return {
+        id: config.edgeId,
+        source: config.id,
+        sourceHandle: config.sourceHandle,
+        target: "output-node",
+        targetHandle: "general-in",
+        style: { stroke: config.color, strokeWidth: 3 },
+      };
+    });
 
   return includeCanvas
     ? [
@@ -628,13 +695,14 @@ function createFallbackDisplayTitle(prompt: string, englishPrompt: string, korea
   return firstClause.length > 24 ? `${firstClause.slice(0, 24).trim()}…` : firstClause;
 }
 
-function isLegacyGeneratedTitle(result: Pick<GeneratedResult, "title" | "prompt" | "englishPrompt">) {
+function isLegacyGeneratedTitle(result: Pick<GeneratedResult, "title" | "prompt" | "englishPrompt" | "isTitleUserEdited">) {
+  if (result.isTitleUserEdited) return false;
   const legacyTitle = createResultTitle(result.prompt, result.englishPrompt);
   return !result.title?.trim() || result.title === legacyTitle;
 }
 
-function getDisplayTitle(result: Pick<GeneratedResult, "title" | "prompt" | "englishPrompt" | "koreanPrompt">) {
-  if (!isLegacyGeneratedTitle(result as Pick<GeneratedResult, "title" | "prompt" | "englishPrompt">)) {
+function getDisplayTitle(result: Pick<GeneratedResult, "title" | "prompt" | "englishPrompt" | "koreanPrompt" | "isTitleUserEdited">) {
+  if (!isLegacyGeneratedTitle(result as Pick<GeneratedResult, "title" | "prompt" | "englishPrompt" | "isTitleUserEdited">)) {
     return result.title.trim();
   }
   return createFallbackDisplayTitle(result.prompt, result.englishPrompt, result.koreanPrompt);
@@ -666,6 +734,10 @@ function getPreviewKoreanPrompt(activeResult: GeneratedResult | null, koreanProm
   return activeResult?.koreanPrompt ?? koreanPrompt ?? "";
 }
 
+function getSnapshotTitle(snapshot: Partial<EditorSnapshot>) {
+  return snapshot.title?.trim() || createFallbackDisplayTitle(snapshot.prompt || "", snapshot.englishPrompt || "", snapshot.koreanPrompt || "");
+}
+
 function emptyConsistency(): ConsistencyElements {
   return {
     character: "",
@@ -675,6 +747,42 @@ function emptyConsistency(): ConsistencyElements {
     elements: [],
     rules: [],
   };
+}
+
+function getElementNodeId(elementId: string) {
+  return `element-item-${elementId}`;
+}
+
+function getElementCanvasNodeId(elementId: string) {
+  return `element-canvas-${elementId}`;
+}
+
+function getGalleryColumnCount(width: number) {
+  if (width <= 640) return 1;
+  if (width <= 900) return 2;
+  if (width <= 1100) return 3;
+  return 4;
+}
+
+function getResultHeightEstimate(result: GeneratedResult) {
+  const [widthText, heightText] = result.ratio.split(":");
+  const width = Number(widthText);
+  const height = Number(heightText);
+  const ratioHeight = width > 0 && height > 0 ? height / width : 1;
+  return ratioHeight + 0.08;
+}
+
+function distributeResultsToColumns(results: GeneratedResult[], columnCount: number): GalleryColumnItem[][] {
+  const columns = Array.from({ length: columnCount }, () => [] as GalleryColumnItem[]);
+  const heights = Array.from({ length: columnCount }, () => 0);
+
+  results.forEach((result, index) => {
+    const targetIndex = heights.indexOf(Math.min(...heights));
+    columns[targetIndex].push({ result, index });
+    heights[targetIndex] += getResultHeightEstimate(result);
+  });
+
+  return columns;
 }
 
 function createReferenceEntryFromConsistency(kind: "character" | "object" | "style", prompt: string, imageUrl: string): StyleEntry {
@@ -717,7 +825,7 @@ function appendConsistencyReferences(
 
 function formatElementBoardPrompt(board: ElementBoard) {
   const normalized = normalizeElementBoard(board);
-  const elementPrompts = normalized.elements.map((element) => {
+  const elementPrompts = normalized.elements.filter((element) => element.enabled !== false).map((element) => {
     const sheetReference = element.sheetImageUrl
       ? "visual turnaround sheet is available and must be treated as the primary identity reference"
       : "turnaround sheet not generated yet; use text identity only";
@@ -812,14 +920,18 @@ function FlowContent() {
   const titleBackfillRequestedRef = useRef<Set<string>>(new Set());
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [viewMode, setViewMode] = useState<ViewMode>("gallery");
+  const [isNodeAddMenuOpen, setIsNodeAddMenuOpen] = useState(false);
   const [activeResultId, setActiveResultId] = useState<string | null>(null);
   const [generatedResults, setGeneratedResults] = useState<GeneratedResult[]>([]);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isPreviewPromptCopied, setIsPreviewPromptCopied] = useState(false);
   const [isPreviewImageDownloaded, setIsPreviewImageDownloaded] = useState(false);
-  const [previewPromptLanguage, setPreviewPromptLanguage] = useState<"ko" | "en">("en");
+  const [previewPromptLanguage, setPreviewPromptLanguage] = useState<"ko" | "en">("ko");
   const [isPreviewKoreanPromptLoading, setIsPreviewKoreanPromptLoading] = useState(false);
+  const [galleryColumnCount, setGalleryColumnCount] = useState(4);
 
+  const [editorTitle, setEditorTitle] = useState(DEFAULT_SNAPSHOT.title);
+  const [isTitleUserEdited, setIsTitleUserEdited] = useState(Boolean(DEFAULT_SNAPSHOT.isTitleUserEdited));
   const [prompt, setPrompt] = useState(DEFAULT_SNAPSHOT.prompt);
   const [styles, setStyles] = useState<StyleEntry[]>(DEFAULT_SNAPSHOT.styles);
   const [activeStyleId, setActiveStyleId] = useState<string | null>(DEFAULT_SNAPSHOT.activeStyleId);
@@ -861,59 +973,69 @@ function FlowContent() {
   const translateStartedAtRef = useRef<number | null>(null);
   const generateStartedAtRef = useRef<number | null>(null);
   const nodesRef = useRef<FlowNode[]>(nodes);
+  const skipNextBriefResetRef = useRef(false);
 
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
 
-  const applySnapshotToEditor = useCallback((snapshot: EditorSnapshot) => {
-    setPrompt(snapshot.prompt);
-    setStyles(snapshot.styles);
-    setActiveStyleId(snapshot.activeStyleId);
-    setCharacterReferences(snapshot.characterReferences ?? []);
-    setActiveCharacterReferenceId(snapshot.activeCharacterReferenceId ?? null);
-    setObjectReferences(snapshot.objectReferences ?? []);
-    setActiveObjectReferenceId(snapshot.activeObjectReferenceId ?? null);
-    setElementBoard(normalizeElementBoard(snapshot.elementBoard));
-    setRatio(snapshot.ratio);
-    setResolution(snapshot.resolution);
-    setComposition(snapshot.composition);
-    setBackgroundPrompt(snapshot.backgroundPrompt);
-    setConstraints(snapshot.constraints);
-    setMood(snapshot.mood);
-    setPalette(snapshot.palette);
-    setCameraAngle(snapshot.cameraAngle);
-    setObjectAngle(snapshot.objectAngle ?? DEFAULT_SNAPSHOT.objectAngle);
-    setLighting(snapshot.lighting);
-    setGesture(snapshot.gesture);
-    setPropsPrompt(snapshot.propsPrompt);
-    setDetailLevel(snapshot.detailLevel);
-    setEnglishPrompt(snapshot.englishPrompt);
-    setKoreanPrompt(snapshot.koreanPrompt);
-    setImageUrl(snapshot.imageUrl);
+  const applySnapshotToEditor = useCallback((snapshot: EditorSnapshot, options?: { preserveKoreanPrompt?: boolean }) => {
+    const normalizedSnapshot = normalizeEditorSnapshot(snapshot);
+
+    skipNextBriefResetRef.current = true;
+    setEditorTitle(getSnapshotTitle(normalizedSnapshot));
+    setIsTitleUserEdited(Boolean(normalizedSnapshot.isTitleUserEdited));
+    setPrompt(normalizedSnapshot.prompt);
+    setStyles(normalizedSnapshot.styles);
+    setActiveStyleId(normalizedSnapshot.activeStyleId);
+    setCharacterReferences(normalizedSnapshot.characterReferences);
+    setActiveCharacterReferenceId(normalizedSnapshot.activeCharacterReferenceId);
+    setObjectReferences(normalizedSnapshot.objectReferences);
+    setActiveObjectReferenceId(normalizedSnapshot.activeObjectReferenceId);
+    setElementBoard(normalizedSnapshot.elementBoard);
+    setRatio(normalizedSnapshot.ratio);
+    setResolution(normalizedSnapshot.resolution);
+    setComposition(normalizedSnapshot.composition);
+    setBackgroundPrompt(normalizedSnapshot.backgroundPrompt);
+    setConstraints(normalizedSnapshot.constraints);
+    setMood(normalizedSnapshot.mood);
+    setPalette(normalizedSnapshot.palette);
+    setCameraAngle(normalizedSnapshot.cameraAngle);
+    setObjectAngle(normalizedSnapshot.objectAngle);
+    setLighting(normalizedSnapshot.lighting);
+    setGesture(normalizedSnapshot.gesture);
+    setPropsPrompt(normalizedSnapshot.propsPrompt);
+    setDetailLevel(normalizedSnapshot.detailLevel);
+    setEnglishPrompt(normalizedSnapshot.englishPrompt);
+    setKoreanPrompt(options?.preserveKoreanPrompt ? normalizedSnapshot.koreanPrompt : "");
+    setImageUrl(normalizedSnapshot.imageUrl);
     setError(false);
     setNodes(
       applyNodePositions(
-        buildEditorNodes(snapshot.visibleOptionalNodes, Boolean(snapshot.imageUrl)),
-        snapshot.nodePositions,
+        buildEditorNodes(normalizedSnapshot.visibleOptionalNodes, Boolean(normalizedSnapshot.imageUrl)),
+        normalizedSnapshot.nodePositions,
       ),
     );
-    setEdges(buildEditorEdges(snapshot.connectedOptionalNodes, Boolean(snapshot.imageUrl)));
+    setEdges(buildEditorEdges(normalizedSnapshot.connectedOptionalNodes, Boolean(normalizedSnapshot.imageUrl)));
   }, []);
 
   const captureCurrentSnapshot = useCallback(
     (nextImageUrl?: string | null): EditorSnapshot => {
-      const visibleOptionalNodes = (Object.keys(OPTIONAL_NODE_CONFIG) as OptionalNodeKey[]).filter((key) =>
+      const visibleOptionalNodes = OPTIONAL_NODE_KEYS.filter((key) =>
         nodes.some((node) => node.id === OPTIONAL_NODE_CONFIG[key].id),
       );
-      const connectedOptionalNodes = (Object.keys(OPTIONAL_NODE_CONFIG) as OptionalNodeKey[]).filter((key) =>
-        edges.some(
-          (edge) =>
-            edge.source === OPTIONAL_NODE_CONFIG[key].id && edge.target === "output-node",
-        ),
+      const connectedOptionalNodes = OPTIONAL_NODE_KEYS.filter((key) =>
+        key === "elementBoard"
+          ? elementBoard.elements.length > 0
+          : edges.some(
+              (edge) =>
+                edge.source === OPTIONAL_NODE_CONFIG[key].id && edge.target === "output-node",
+            ),
       );
 
       return {
+        title: getSnapshotTitle({ title: editorTitle, prompt, englishPrompt, koreanPrompt }),
+        isTitleUserEdited,
         prompt,
         styles,
         activeStyleId,
@@ -944,6 +1066,8 @@ function FlowContent() {
       };
     },
     [
+      editorTitle,
+      isTitleUserEdited,
       prompt,
       styles,
       activeStyleId,
@@ -994,7 +1118,7 @@ function FlowContent() {
         if (cancelled) return;
         if (saved.theme) setTheme(saved.theme);
         if (saved.generatedResults?.length) setGeneratedResults(saved.generatedResults);
-        if (saved.draft) applySnapshotToEditor(saved.draft);
+        if (saved.draft) applySnapshotToEditor(saved.draft, { preserveKoreanPrompt: true });
         hasLoadedRef.current = true;
       });
 
@@ -1023,10 +1147,14 @@ function FlowContent() {
           generatedResults,
           draft: captureCurrentSnapshot(),
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch {
+          // Large data URLs can exceed localStorage quota; the file store remains authoritative.
+        }
         void writeFilePersistedState(payload);
       } catch {
-        // ignore storage failures
+        // ignore snapshot failures
       }
     }, 800);
 
@@ -1036,6 +1164,16 @@ function FlowContent() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    const updateGalleryColumnCount = () => {
+      setGalleryColumnCount(getGalleryColumnCount(window.innerWidth));
+    };
+
+    updateGalleryColumnCount();
+    window.addEventListener("resize", updateGalleryColumnCount);
+    return () => window.removeEventListener("resize", updateGalleryColumnCount);
+  }, []);
 
   useEffect(() => {
     if (!previewImageUrl) return;
@@ -1062,6 +1200,17 @@ function FlowContent() {
     return () => window.clearTimeout(timeoutId);
   }, [isPreviewImageDownloaded]);
 
+  useEffect(() => {
+    if (!isNodeAddMenuOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsNodeAddMenuOpen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isNodeAddMenuOpen]);
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
@@ -1069,32 +1218,37 @@ function FlowContent() {
   const connectedState = useMemo(() => {
     const isPromptConnected = edges.some((e) => e.target === "output-node" && e.source === "prompt-node");
     const isStyleConnected = edges.some((e) => e.target === "output-node" && e.source === "style-node");
-    const isRatioConnected = edges.some((e) => e.target === "output-node" && e.source === "ratio-node");
-    const isResolutionConnected = edges.some((e) => e.target === "output-node" && e.source === "resolution-node");
+    const isOutputSettingsConnected = edges.some(
+      (e) => e.target === "output-node" && e.source === "output-settings-node",
+    );
 
     const optionals = Object.fromEntries(
-      (Object.keys(OPTIONAL_NODE_CONFIG) as OptionalNodeKey[]).map((key) => [
-        key,
-        edges.some((e) => e.target === "output-node" && e.source === OPTIONAL_NODE_CONFIG[key].id),
-      ]),
+        OPTIONAL_NODE_KEYS.map((key) => {
+        const config = OPTIONAL_NODE_CONFIG[key];
+        const isConnected =
+          key === "elementBoard"
+            ? elementBoard.elements.some((element) => element.enabled !== false)
+            : edges.some((e) => e.target === "output-node" && e.source === config.id);
+        return [key, isConnected];
+      }),
     ) as Record<OptionalNodeKey, boolean>;
 
     return {
       isPromptConnected,
       isStyleConnected,
-      isRatioConnected,
-      isResolutionConnected,
+      isOutputSettingsConnected,
+      isRatioConnected: isOutputSettingsConnected,
+      isResolutionConnected: isOutputSettingsConnected,
       ...optionals,
     };
-  }, [edges]);
+  }, [edges, elementBoard.elements]);
 
   const hasAnyConnection = useMemo(
     () =>
       connectedState.isPromptConnected ||
       connectedState.isStyleConnected ||
-      connectedState.isRatioConnected ||
-      connectedState.isResolutionConnected ||
-      (Object.keys(OPTIONAL_NODE_CONFIG) as OptionalNodeKey[]).some((key) => connectedState[key]),
+      connectedState.isOutputSettingsConnected ||
+      OPTIONAL_NODE_KEYS.some((key) => connectedState[key]),
     [connectedState],
   );
 
@@ -1106,6 +1260,61 @@ function FlowContent() {
     () => objectReferences.find((entry) => entry.id === activeObjectReferenceId)?.prompt || "",
     [objectReferences, activeObjectReferenceId],
   );
+  const activeStyleEntry = useMemo(
+    () => styles.find((styleEntry) => styleEntry.id === activeStyleId) ?? null,
+    [styles, activeStyleId],
+  );
+  const enabledElementCount = useMemo(
+    () => elementBoard.elements.filter((element) => element.enabled !== false).length,
+    [elementBoard.elements],
+  );
+  const promptBriefSourceKey = useMemo(
+    () =>
+      JSON.stringify({
+        prompt,
+        activeStyleId,
+        activeCharacterReferenceId,
+        activeObjectReferenceId,
+        ratio,
+        resolution,
+        composition,
+        backgroundPrompt,
+        constraints,
+        mood,
+        palette,
+        cameraAngle,
+        objectAngle,
+        lighting,
+        gesture,
+        propsPrompt,
+        detailLevel,
+        elementIds: elementBoard.elements
+          .filter((element) => element.enabled !== false)
+          .map((element) => element.id),
+        connectedState,
+      }),
+    [
+      prompt,
+      activeStyleId,
+      activeCharacterReferenceId,
+      activeObjectReferenceId,
+      ratio,
+      resolution,
+      composition,
+      backgroundPrompt,
+      constraints,
+      mood,
+      palette,
+      cameraAngle,
+      objectAngle,
+      lighting,
+      gesture,
+      propsPrompt,
+      detailLevel,
+      elementBoard.elements,
+      connectedState,
+    ],
+  );
   const visibleEnglishPrompt = hasAnyConnection
     ? appendElementBoardPrompt(
         appendConsistencyReferences(
@@ -1116,11 +1325,84 @@ function FlowContent() {
         connectedState.elementBoard ? elementBoard : null,
       )
     : "";
-  const visibleKoreanPrompt = hasAnyConnection ? koreanPrompt : "";
+  const visibleKoreanPrompt = useMemo(() => {
+    if (!hasAnyConnection) return "";
+
+    const primaryLines: string[] = [];
+    const detailLines: string[] = [];
+
+    if (connectedState.isPromptConnected && prompt.trim()) {
+      primaryLines.push(prompt.trim());
+    }
+    if (connectedState.isStyleConnected && activeStyleEntry?.label) {
+      detailLines.push(`스타일: ${activeStyleEntry.label}`);
+    }
+    if (connectedState.characterReference && activeCharacterReferenceId) {
+      const label = characterReferences.find((entry) => entry.id === activeCharacterReferenceId)?.label;
+      detailLines.push(`캐릭터 참조: ${label || "선택된 참조"}`);
+    }
+    if (connectedState.objectReference && activeObjectReferenceId) {
+      const label = objectReferences.find((entry) => entry.id === activeObjectReferenceId)?.label;
+      detailLines.push(`오브젝트 참조: ${label || "선택된 참조"}`);
+    }
+    if (connectedState.isRatioConnected) detailLines.push(`비율: ${ratio}`);
+    if (connectedState.isResolutionConnected) detailLines.push(`해상도: ${resolution}`);
+    if (connectedState.composition && composition.trim()) detailLines.push(`구도: ${composition.trim()}`);
+    if (connectedState.background && backgroundPrompt.trim()) detailLines.push(`배경: ${backgroundPrompt.trim()}`);
+    if (connectedState.constraints && constraints.trim()) detailLines.push(`제한사항: ${constraints.trim()}`);
+    if (connectedState.mood && mood.trim()) detailLines.push(`무드: ${mood.trim()}`);
+    if (connectedState.palette && palette.trim()) detailLines.push(`팔레트: ${palette.trim()}`);
+    if (connectedState.cameraAngle && cameraAngle.trim()) detailLines.push(`카메라 앵글: ${cameraAngle.trim()}`);
+    if (connectedState.objectAngle && objectAngle.trim()) detailLines.push(`오브젝트 방향: ${objectAngle.trim()}`);
+    if (connectedState.lighting && lighting.trim()) detailLines.push(`조명: ${lighting.trim()}`);
+    if (connectedState.gesture && gesture.trim()) detailLines.push(`제스처: ${gesture.trim()}`);
+    if (connectedState.props && propsPrompt.trim()) detailLines.push(`소품: ${propsPrompt.trim()}`);
+    if (connectedState.detail && detailLevel.trim()) detailLines.push(`밀도: ${detailLevel.trim()}`);
+    if (connectedState.elementBoard && enabledElementCount > 0) {
+      detailLines.push(`앨리먼트 보드: ${enabledElementCount}개 요소 고정`);
+    }
+
+    const automaticBrief = [...primaryLines, ...detailLines].join("\n");
+    return koreanPrompt.trim() || automaticBrief || "연결된 노드를 기준으로 생성 브리프를 준비 중입니다.";
+  }, [
+    hasAnyConnection,
+    connectedState,
+    prompt,
+    activeStyleEntry,
+    activeCharacterReferenceId,
+    characterReferences,
+    activeObjectReferenceId,
+    objectReferences,
+    ratio,
+    resolution,
+    composition,
+    backgroundPrompt,
+    constraints,
+    mood,
+    palette,
+    cameraAngle,
+    objectAngle,
+    lighting,
+    gesture,
+    propsPrompt,
+    detailLevel,
+    enabledElementCount,
+    koreanPrompt,
+  ]);
+
+  useEffect(() => {
+    if (skipNextBriefResetRef.current) {
+      skipNextBriefResetRef.current = false;
+      return;
+    }
+    setKoreanPrompt("");
+  }, [promptBriefSourceKey]);
+
   const connectedElementSheetImages = useMemo(
     () =>
       connectedState.elementBoard
         ? elementBoard.elements
+            .filter((element) => element.enabled !== false)
             .map((element) => element.sheetImageUrl)
             .filter((sheetImageUrl): sheetImageUrl is string => Boolean(sheetImageUrl?.trim()))
         : [],
@@ -1156,6 +1438,7 @@ function FlowContent() {
 
   const requestTitleInBackground = useCallback(
     async (result: GeneratedResult) => {
+      if (result.isTitleUserEdited) return;
       if (titleBackfillRequestedRef.current.has(result.id)) return;
       titleBackfillRequestedRef.current.add(result.id);
 
@@ -1174,13 +1457,20 @@ function FlowContent() {
         if (!data.title?.trim()) return;
 
         setGeneratedResults((prev) =>
-          prev.map((entry) => (entry.id === result.id ? { ...entry, title: data.title!.trim() } : entry)),
+          prev.map((entry) =>
+            entry.id === result.id && !entry.isTitleUserEdited
+              ? { ...entry, title: data.title!.trim() }
+              : entry,
+          ),
         );
+        if (activeResultId === result.id && !isTitleUserEdited) {
+          setEditorTitle(data.title.trim());
+        }
       } catch (error) {
         console.error(error);
       }
     },
-    [],
+    [activeResultId, isTitleUserEdited],
   );
 
   const requestConsistencyInBackground = useCallback(
@@ -1305,8 +1595,75 @@ function FlowContent() {
     hasAnyConnection,
   ]);
 
+  const regenerateEnglishPromptFromBrief = useCallback(async () => {
+    const nextBrief = visibleKoreanPrompt.trim();
+    if (!nextBrief || isTranslating) return;
+
+    const controller = new AbortController();
+    setIsTranslating(true);
+    setKoreanPrompt(nextBrief);
+    try {
+      const activeStyle = connectedState.isStyleConnected ? activeStyleEntry : null;
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: nextBrief,
+          style: connectedState.isStyleConnected ? (activeStyle?.prompt || null) : null,
+          characterReference: connectedState.characterReference ? activeCharacterReferencePrompt : null,
+          objectReference: connectedState.objectReference ? activeObjectReferencePrompt : null,
+          ratio: connectedState.isRatioConnected ? ratio : null,
+          resolution: connectedState.isResolutionConnected ? resolution : null,
+          composition: connectedState.composition ? composition : null,
+          background: connectedState.background ? backgroundPrompt : null,
+          constraints: connectedState.constraints ? constraints : null,
+          mood: connectedState.mood ? mood : null,
+          palette: connectedState.palette ? palette : null,
+          cameraAngle: connectedState.cameraAngle ? cameraAngle : null,
+          objectAngle: connectedState.objectAngle ? objectAngle : null,
+          lighting: connectedState.lighting ? lighting : null,
+          gesture: connectedState.gesture ? gesture : null,
+          propsPrompt: connectedState.props ? propsPrompt : null,
+          detailLevel: connectedState.detail ? detailLevel : null,
+        }),
+        signal: controller.signal,
+      });
+
+      const data = (await res.json()) as { englishPrompt?: string };
+      if (data.englishPrompt?.trim()) {
+        setEnglishPrompt(data.englishPrompt.trim());
+      }
+    } catch (error: unknown) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        console.error(error);
+      }
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [
+    activeCharacterReferencePrompt,
+    activeObjectReferencePrompt,
+    activeStyleEntry,
+    backgroundPrompt,
+    cameraAngle,
+    composition,
+    connectedState,
+    constraints,
+    detailLevel,
+    gesture,
+    isTranslating,
+    lighting,
+    mood,
+    objectAngle,
+    palette,
+    propsPrompt,
+    ratio,
+    resolution,
+    visibleKoreanPrompt,
+  ]);
+
   useEffect(() => {
-    const pendingResults = generatedResults.filter((result) => isLegacyGeneratedTitle(result));
+    const pendingResults = generatedResults.filter((result) => !result.isTitleUserEdited && isLegacyGeneratedTitle(result));
     if (pendingResults.length === 0) return;
 
     const timeoutId = window.setTimeout(() => {
@@ -1378,6 +1735,7 @@ function FlowContent() {
 
     setIsGenerating(true);
     setError(false);
+    const generationStartedAt = Date.now();
 
     setNodes((prevNodes) => {
       if (prevNodes.some((node) => node.id === "canvas-node")) return prevNodes;
@@ -1442,29 +1800,35 @@ function FlowContent() {
       const snapshot = {
         ...captureCurrentSnapshot(data.url),
         englishPrompt: data.englishPrompt?.trim() || visibleEnglishPrompt,
-        koreanPrompt: data.koreanPrompt?.trim() || "",
+        koreanPrompt: data.koreanPrompt?.trim() || visibleKoreanPrompt,
       };
 
       const resultId = `result-${Date.now()}`;
-      const nextTitle = data.title?.trim() || createFallbackDisplayTitle(snapshot.prompt, snapshot.englishPrompt, snapshot.koreanPrompt);
+      const generatedTitle = data.title?.trim() || createFallbackDisplayTitle(snapshot.prompt, snapshot.englishPrompt, snapshot.koreanPrompt);
+      const nextTitle = snapshot.isTitleUserEdited ? snapshot.title : generatedTitle;
+      const generationDurationSeconds = Math.max(1, Math.round((Date.now() - generationStartedAt) / 1000));
       setGeneratedResults((prev) => {
         const nextResult: GeneratedResult = {
           ...snapshot,
           id: resultId,
           title: nextTitle,
           createdAt: new Date().toISOString(),
+          generationDurationSeconds,
           consistencyStatus: "pending",
         };
 
         setActiveResultId(resultId);
         return [nextResult, ...prev];
       });
+      setEditorTitle(nextTitle);
       void requestConsistencyInBackground(resultId, data.url, snapshot.englishPrompt);
       if (data.englishPrompt?.trim()) {
         setEnglishPrompt(data.englishPrompt.trim());
       }
       if (data.koreanPrompt?.trim()) {
         setKoreanPrompt(data.koreanPrompt.trim());
+      } else if (visibleKoreanPrompt.trim()) {
+        setKoreanPrompt(visibleKoreanPrompt.trim());
       }
     } catch {
       setError(true);
@@ -1497,10 +1861,12 @@ function FlowContent() {
     cameraAngle,
     objectAngle,
     visibleEnglishPrompt,
+    visibleKoreanPrompt,
   ]);
 
   const addOptionalNode = useCallback((key: OptionalNodeKey) => {
     const config = OPTIONAL_NODE_CONFIG[key];
+    if (key === "elementBoard") return;
     setNodes((prev) => {
       if (prev.some((node) => node.id === config.id)) return prev;
       const position = findOptionalNodePosition(prev, config.type, config.position);
@@ -1598,25 +1964,162 @@ function FlowContent() {
     [activeStyleId, elementBoard, englishPrompt, imageUrl, prompt, styles, visibleEnglishPrompt],
   );
 
+  const updateElementBoardItem = useCallback((elementId: string, patch: Partial<ElementBoardItem>) => {
+    setElementBoard((prev) => ({
+      ...prev,
+      elements: prev.elements.map((element) =>
+        element.id === elementId ? { ...element, ...patch } : element,
+      ),
+    }));
+  }, []);
+
   const activeOptionalNodes = useMemo(
     () =>
       Object.fromEntries(
-        (Object.keys(OPTIONAL_NODE_CONFIG) as OptionalNodeKey[]).map((key) => [
+        OPTIONAL_NODE_KEYS.map((key) => [
           key,
           nodes.some((node) => node.id === OPTIONAL_NODE_CONFIG[key].id),
         ]),
       ) as Record<OptionalNodeKey, boolean>,
     [nodes],
   );
+  const optionalNodeEntries = useMemo(
+    () =>
+      OPTIONAL_NODE_KEYS
+        .filter((key) => key !== "elementBoard")
+        .map((key) => ({ key, config: OPTIONAL_NODE_CONFIG[key], isActive: activeOptionalNodes[key] })),
+    [activeOptionalNodes],
+  );
+  const availableOptionalNodeEntries = useMemo(
+    () => optionalNodeEntries.filter((entry) => !entry.isActive),
+    [optionalNodeEntries],
+  );
+  const addedOptionalNodeEntries = useMemo(
+    () => optionalNodeEntries.filter((entry) => entry.isActive),
+    [optionalNodeEntries],
+  );
+
+  useEffect(() => {
+    const elementIds = new Set(elementBoard.elements.map((element) => element.id));
+    const sheetElementIds = new Set(
+      elementBoard.elements
+        .filter((element) => Boolean(element.sheetImageUrl?.trim()))
+        .map((element) => element.id),
+    );
+
+    queueMicrotask(() => {
+      setNodes((prev) => {
+        const canvasNode = prev.find((node) => node.id === "canvas-node");
+
+        const filtered = prev.filter((node) => {
+          if (node.id === OPTIONAL_NODE_CONFIG.elementBoard.id) return false;
+          if (node.id.startsWith("element-item-")) {
+            return elementIds.has(node.id.replace("element-item-", ""));
+          }
+          if (node.id.startsWith("element-canvas-")) {
+            return sheetElementIds.has(node.id.replace("element-canvas-", ""));
+          }
+          return true;
+        });
+
+        const nextNodes = [...filtered];
+        let changed = filtered.length !== prev.length;
+        if (!canvasNode) return changed ? nextNodes : prev;
+
+        elementBoard.elements.forEach((element, index) => {
+          const elementNodeId = getElementNodeId(element.id);
+          if (!nextNodes.some((node) => node.id === elementNodeId)) {
+            changed = true;
+            nextNodes.push({
+              id: elementNodeId,
+              type: "elementItemNode",
+              position: {
+                x: canvasNode.position.x + getNodeSize(canvasNode.type).width + 260,
+                y: canvasNode.position.y + index * 210,
+              },
+              data: {},
+            });
+          }
+
+          if (element.sheetImageUrl?.trim()) {
+            const canvasNodeId = getElementCanvasNodeId(element.id);
+            if (!nextNodes.some((node) => node.id === canvasNodeId)) {
+              changed = true;
+              nextNodes.push({
+                id: canvasNodeId,
+                type: "canvasNode",
+                position: {
+                  x: canvasNode.position.x + getNodeSize(canvasNode.type).width + 620,
+                  y: canvasNode.position.y + index * 240,
+                },
+                data: {},
+              });
+            }
+          }
+        });
+
+        return changed ? nextNodes : prev;
+      });
+
+      setEdges((prev) => {
+        const filtered = prev.filter((edge) => {
+          if (edge.source === OPTIONAL_NODE_CONFIG.elementBoard.id || edge.target === OPTIONAL_NODE_CONFIG.elementBoard.id) {
+            return false;
+          }
+          if (edge.id.startsWith("e-canvas-element-item-")) {
+            return elementIds.has(edge.target.replace("element-item-", ""));
+          }
+          if (edge.id.startsWith("e-element-item-canvas-")) {
+            return sheetElementIds.has(edge.source.replace("element-item-", ""));
+          }
+          return true;
+        });
+
+        const nextEdges = [...filtered];
+        let changed = filtered.length !== prev.length;
+        elementBoard.elements.forEach((element) => {
+          const elementNodeId = getElementNodeId(element.id);
+          const canvasEdgeId = `e-canvas-element-item-${element.id}`;
+          if (!nextEdges.some((edge) => edge.id === canvasEdgeId)) {
+            changed = true;
+            nextEdges.push({
+              id: canvasEdgeId,
+              source: "canvas-node",
+              sourceHandle: "canvas-out",
+              target: elementNodeId,
+              targetHandle: "element-in",
+              style: { stroke: "var(--port-element-board)", strokeWidth: 3 },
+            });
+          }
+
+          if (element.sheetImageUrl?.trim()) {
+            const elementCanvasEdgeId = `e-element-item-canvas-${element.id}`;
+            if (!nextEdges.some((edge) => edge.id === elementCanvasEdgeId)) {
+              changed = true;
+              nextEdges.push({
+                id: elementCanvasEdgeId,
+                source: elementNodeId,
+                sourceHandle: "element-out",
+                target: getElementCanvasNodeId(element.id),
+                targetHandle: "canvas-in",
+                style: { stroke: "var(--port-element-board)", strokeWidth: 3 },
+              });
+            }
+          }
+        });
+
+        return changed ? nextEdges : prev;
+      });
+    });
+  }, [elementBoard.elements]);
 
   const nodeTypes = useMemo(
     () => ({
       promptNode: PromptNode,
       styleNode: StyleNode,
       referenceNode: ReferenceNode,
-      elementBoardNode: ElementBoardNode,
-      ratioNode: RatioNode,
-      resolutionNode: ResolutionNode,
+      elementItemNode: ElementItemNode,
+      outputSettingsNode: OutputSettingsNode,
       compositionNode: CompositionNode,
       backgroundNode: BackgroundNode,
       constraintNode: ConstraintNode,
@@ -1659,9 +2162,10 @@ function FlowContent() {
       let style = { stroke: "#94a3b8", strokeWidth: 2 };
       if (params.sourceHandle === "prompt-out") style = { stroke: "var(--port-prompt)", strokeWidth: 3 };
       if (params.sourceHandle === "style-out") style = { stroke: "var(--port-style)", strokeWidth: 3 };
-      if (params.sourceHandle === "ratio-out") style = { stroke: "var(--port-ratio)", strokeWidth: 3 };
-      if (params.sourceHandle === "resolution-out") style = { stroke: "var(--port-resolution)", strokeWidth: 3 };
-      for (const key of Object.keys(OPTIONAL_NODE_CONFIG) as OptionalNodeKey[]) {
+      if (params.sourceHandle === "output-settings-out") style = { stroke: "var(--port-resolution)", strokeWidth: 3 };
+      if (params.sourceHandle === "canvas-out") style = { stroke: "var(--text-primary)", strokeWidth: 3 };
+      if (params.sourceHandle === "element-out") style = { stroke: "var(--port-element-board)", strokeWidth: 3 };
+      for (const key of OPTIONAL_NODE_KEYS) {
         if (params.sourceHandle === OPTIONAL_NODE_CONFIG[key].sourceHandle) {
           style = { stroke: OPTIONAL_NODE_CONFIG[key].color, strokeWidth: 3 };
         }
@@ -1712,23 +2216,8 @@ function FlowContent() {
           },
         };
       }
-      if (node.id === "element-board-node") {
-        return {
-          ...node,
-          data: {
-            ...baseData,
-            board: elementBoard,
-            setBoard: setElementBoard,
-            onGenerateSheet: generateElementSheet,
-            onRemove: () => removeOptionalNode("elementBoard"),
-          },
-        };
-      }
-      if (node.id === "ratio-node") {
-        return { ...node, data: { ...baseData, ratio, setRatio } };
-      }
-      if (node.id === "resolution-node") {
-        return { ...node, data: { ...baseData, resolution, setResolution } };
+      if (node.id === "output-settings-node") {
+        return { ...node, data: { ...baseData, ratio, setRatio, resolution, setResolution } };
       }
       if (node.id === "composition-node") {
         return { ...node, data: { ...baseData, composition, setComposition, onRemove: () => removeOptionalNode("composition") } };
@@ -1763,6 +2252,39 @@ function FlowContent() {
       if (node.id === "detail-node") {
         return { ...node, data: { ...baseData, detailLevel, setDetailLevel, onRemove: () => removeOptionalNode("detail") } };
       }
+      if (node.id.startsWith("element-item-")) {
+        const elementId = node.id.replace("element-item-", "");
+        const element = elementBoard.elements.find((item) => item.id === elementId);
+        return {
+          ...node,
+          data: {
+            ...baseData,
+            name: element?.name,
+            category: element?.category,
+            description: element?.description,
+            enabled: element?.enabled !== false,
+            sheetStatus: element?.sheetStatus,
+            onUpdate: (patch: Partial<ElementBoardItem>) => updateElementBoardItem(elementId, patch),
+            onGenerateSheet: () => generateElementSheet(elementId),
+          },
+        };
+      }
+      if (node.id.startsWith("element-canvas-")) {
+        const elementId = node.id.replace("element-canvas-", "");
+        const element = elementBoard.elements.find((item) => item.id === elementId);
+        return {
+          ...node,
+          data: {
+            ...baseData,
+            imageUrl: element?.sheetImageUrl ?? null,
+            error: element?.sheetStatus === "failed",
+            isGenerating: element?.sheetStatus === "generating",
+            ratio: "1:1",
+            title: "앨리먼트 캔버스",
+            onPreviewImage: openPreviewImage,
+          },
+        };
+      }
       if (node.id === "output-node") {
         return {
           ...node,
@@ -1772,14 +2294,14 @@ function FlowContent() {
             ratio,
             resolution,
             englishPrompt: visibleEnglishPrompt,
+            koreanPrompt: visibleKoreanPrompt,
+            setKoreanPrompt,
+            onRegenerateEnglishPrompt: regenerateEnglishPromptFromBrief,
             isTranslating,
             translateElapsedLabel: formatDurationLabel(translateElapsedSeconds),
             lastTranslateDurationLabel: formatDurationLabel(lastTranslateDurationSeconds),
             onGenerate: handleGenerate,
-            canGenerate:
-              !isTranslating &&
-              ((connectedState.isPromptConnected && !!prompt.trim()) ||
-                (connectedState.isStyleConnected && !!activeStyleId)),
+            canGenerate: !isTranslating && !!visibleEnglishPrompt.trim(),
             isGenerating,
             generateElapsedLabel: formatDurationLabel(generateElapsedSeconds),
             lastGenerateDurationLabel: formatDurationLabel(lastGenerateDurationSeconds),
@@ -1795,6 +2317,7 @@ function FlowContent() {
             error,
             isGenerating,
             ratio,
+            title: "캔버스",
             generateElapsedLabel: formatDurationLabel(generateElapsedSeconds),
             lastGenerateDurationLabel: formatDurationLabel(lastGenerateDurationSeconds),
             onPreviewImage: openPreviewImage,
@@ -1814,6 +2337,7 @@ function FlowContent() {
     activeObjectReferenceId,
     elementBoard,
     generateElementSheet,
+    updateElementBoardItem,
     ratio,
     resolution,
     composition,
@@ -1829,13 +2353,14 @@ function FlowContent() {
     detailLevel,
     isTranslating,
     handleGenerate,
+    regenerateEnglishPromptFromBrief,
     isGenerating,
     imageUrl,
     error,
-    connectedState,
     openPreviewImage,
     removeOptionalNode,
     visibleEnglishPrompt,
+    visibleKoreanPrompt,
     translateElapsedSeconds,
     lastTranslateDurationSeconds,
     generateElapsedSeconds,
@@ -1858,12 +2383,32 @@ function FlowContent() {
     () => generatedResults.find((result) => result.id === activeResultId) || null,
     [generatedResults, activeResultId],
   );
+  const galleryColumns = useMemo(
+    () => distributeResultsToColumns(generatedResults, galleryColumnCount),
+    [generatedResults, galleryColumnCount],
+  );
   const activePreviewResult = useMemo(
     () => {
       if (activeResult && (!previewImageUrl || activeResult.imageUrl === previewImageUrl)) return activeResult;
       return generatedResults.find((result) => result.imageUrl === previewImageUrl) || activeResult;
     },
     [activeResult, generatedResults, previewImageUrl],
+  );
+
+  const handleEditorTitleChange = useCallback(
+    (nextTitle: string) => {
+      setEditorTitle(nextTitle);
+      setIsTitleUserEdited(true);
+      if (!activeResultId) return;
+      setGeneratedResults((prev) =>
+        prev.map((result) =>
+          result.id === activeResultId
+            ? { ...result, title: nextTitle, isTitleUserEdited: true }
+            : result,
+        ),
+      );
+    },
+    [activeResultId],
   );
 
   const previewTitle = useMemo(
@@ -1880,6 +2425,10 @@ function FlowContent() {
     () => getPreviewKoreanPrompt(activePreviewResult, visibleKoreanPrompt),
     [activePreviewResult, visibleKoreanPrompt],
   );
+  const editorTitleInputSize = useMemo(() => {
+    const titleLength = Array.from(editorTitle.trim() || "새 브랜드 이미지").length;
+    return Math.min(Math.max(titleLength + 2, 10), 34);
+  }, [editorTitle]);
 
   const activePreviewPrompt = (previewPromptLanguage === "ko" ? previewKoreanPrompt : previewPrompt) ?? "";
   const activePreviewConsistency = activePreviewResult?.consistency ?? emptyConsistency();
@@ -1992,8 +2541,15 @@ function FlowContent() {
   const applyConsistencyAsElementBoard = useCallback(() => {
     if (!activePreviewResult?.consistency) return;
     setElementBoard(createElementBoardFromConsistency(activePreviewResult.consistency, objectAngle));
-    addOptionalNode("elementBoard");
-  }, [activePreviewResult, addOptionalNode, objectAngle]);
+    setNodes((prev) => prev.filter((node) => node.id !== OPTIONAL_NODE_CONFIG.elementBoard.id));
+    setEdges((prev) =>
+      prev.filter(
+        (edge) =>
+          edge.source !== OPTIONAL_NODE_CONFIG.elementBoard.id &&
+          edge.target !== OPTIONAL_NODE_CONFIG.elementBoard.id,
+      ),
+    );
+  }, [activePreviewResult, objectAngle]);
 
   const applyAllConsistency = useCallback(() => {
     applyConsistencyAsReference("character");
@@ -2002,161 +2558,206 @@ function FlowContent() {
     applyConsistencyAsElementBoard();
   }, [applyConsistencyAsElementBoard, applyConsistencyAsReference]);
 
+  const galleryStats = useMemo(() => {
+    const total = generatedResults.length;
+    const recentResult = generatedResults[0] ?? null;
+    const recentStyleCount = recentResult?.styles?.length ?? 0;
+    const recentElementCount = recentResult
+      ? normalizeElementBoard(recentResult.elementBoard).elements.length
+      : 0;
+    const generationDurations = generatedResults
+      .map((result) => result.generationDurationSeconds)
+      .filter((duration): duration is number => typeof duration === "number" && Number.isFinite(duration));
+    const averageGenerationDuration =
+      generationDurations.length > 0
+        ? Math.round(generationDurations.reduce((sum, duration) => sum + duration, 0) / generationDurations.length)
+        : null;
+
+    return {
+      total,
+      recentStyleCount,
+      recentElementCount,
+      averageGenerationDurationLabel:
+        averageGenerationDuration === null ? "기록 없음" : formatDurationLabel(averageGenerationDuration),
+    };
+  }, [generatedResults]);
+
   if (viewMode === "gallery") {
     return (
-      <main style={{ minHeight: "100vh", backgroundColor: "var(--bg-canvas)", color: "var(--text-primary)" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 48px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 28 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div>
-                <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.8 }}>BrandGen</span>
+      <main className="studio-shell">
+        <div className="studio-noise" aria-hidden="true" />
+        <section className="studio-hero">
+          <nav className="studio-topbar" aria-label="BrandGen workspace">
+            <div className="brand-lockup">
+              <div className="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 44 44" focusable="false">
+                  <rect x="5" y="5" width="34" height="34" rx="7.5" fill="currentColor" />
+                  <path d="M16.2 16.2 27.8 27.8M27.8 16.2 16.2 27.8" />
+                </svg>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 999, backgroundColor: "var(--bg-node-base)", border: "1px solid var(--border-node)", color: "var(--text-secondary)", letterSpacing: 0.2 }}>{APP_VERSION}</span>
+              <div>
+                <div className="brand-name">BrandGen</div>
+              </div>
+            </div>
+
+            <div className="studio-actions">
+              <Link href="/design-system" className="secondary-command studio-action-plain">
+                <PaletteIcon size={16} />
+                디자인 시스템
+              </Link>
+              <span className="studio-action-divider" aria-hidden="true" />
               <button
+                type="button"
                 onClick={toggleTheme}
-                title="Toggle Theme"
-                style={{ width: 42, height: 24, borderRadius: 999, backgroundColor: theme === "dark" ? "var(--port-ratio)" : "var(--border-node)", position: "relative", cursor: "pointer", border: "none" }}
+                className="icon-toggle studio-action-plain"
+                title={theme === "dark" ? "Light theme" : "Dark theme"}
+                aria-label={theme === "dark" ? "Light theme" : "Dark theme"}
               >
-                <div style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "var(--bg-node-base)", position: "absolute", top: 3, left: theme === "dark" ? 21 : 3, transition: "left 0.2s" }} />
+                {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />}
               </button>
             </div>
+          </nav>
 
-            <button
-              onClick={startNewGeneration}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "14px 18px",
-                borderRadius: 16,
-                border: "1px solid color-mix(in srgb, var(--port-prompt) 55%, var(--border-node))",
-                backgroundColor: "color-mix(in srgb, var(--port-prompt) 14%, transparent)",
-                color: "var(--text-primary)",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              <Plus size={16} />
-              신규 생성
-            </button>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginBottom: 24 }}>
-            <div>
-              <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -0.9 }}>라이브러리</div>
+          <div className="hero-grid info-grid">
+            <div className="metrics-panel" aria-label="Workspace summary">
+              <div className="metric-card major">
+                <strong>{galleryStats.total}</strong>
+                <small>라이브러리</small>
+              </div>
+              <div className="metric-card">
+                <strong>{galleryStats.recentStyleCount}</strong>
+                <small>스타일</small>
+              </div>
+              <div className="metric-card">
+                <strong>{galleryStats.recentElementCount}</strong>
+                <small>앨리먼트</small>
+              </div>
+              <div className="metric-card">
+                <strong>{galleryStats.averageGenerationDurationLabel}</strong>
+                <small>이미지 생성 평균 속도</small>
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <LayoutGrid size={14} color="var(--text-secondary)" />
-              <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{generatedResults.length}개의 결과</span>
+          </div>
+        </section>
+
+        <section className="library-section" aria-label="Generated image library">
+          <div className="library-heading">
+            <div>
+              <h2>라이브러리</h2>
+            </div>
+            <div className="library-tools">
+              <button type="button" onClick={startNewGeneration} className="primary-command">
+                만들기
+              </button>
             </div>
           </div>
 
           {generatedResults.length === 0 ? (
-            <div style={{ padding: "72px 32px", borderRadius: 28, border: "1px dashed var(--border-node)", background: "linear-gradient(180deg, color-mix(in srgb, var(--bg-node-base) 80%, transparent), transparent)", textAlign: "center" }}>
-              <div style={{ width: 72, height: 72, margin: "0 auto 18px", borderRadius: 24, backgroundColor: "color-mix(in srgb, var(--port-style) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Sparkles size={30} color="var(--port-style)" />
+            <div className="empty-studio">
+              <div className="empty-signal" aria-hidden="true">
+                <span />
+                <span />
+                <span />
               </div>
-              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 10 }}>아직 저장된 결과가 없습니다</div>
-              <div style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 22 }}>
-                첫 번째 이미지를 만든 뒤, 여기서 다시 편집하고 복제하는 흐름으로 이어갈 수 있습니다.
-              </div>
-              <button
-                onClick={startNewGeneration}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "14px 20px",
-                  borderRadius: 16,
-                  border: "1px solid var(--border-node)",
-                  backgroundColor: "var(--bg-node-base)",
-                  color: "var(--text-primary)",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                <ImagePlus size={16} />
+              <h3>첫 번째 기준 이미지를 만드세요</h3>
+              <p>생성 후 이 화면에서 이미지별 프롬프트, 스타일, 일관성 앨리먼트를 바로 재사용할 수 있습니다.</p>
+              <button type="button" onClick={startNewGeneration} className="primary-command large">
+                <Sparkles size={18} />
                 이미지 생성
               </button>
             </div>
           ) : (
-            <div className="gallery-masonry">
-              {generatedResults.map((result) => (
-                <div
-                  key={result.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openResultInEditor(result)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      openResultInEditor(result);
-                    }
-                  }}
-                  className="gallery-card"
-                  style={{
-                    textAlign: "left",
-                  }}
-                >
-                  <div className="gallery-card-media">
-                    {result.imageUrl ? (
-                      <Image
-                        src={result.imageUrl}
-                        alt={getDisplayTitle(result)}
-                        width={900}
-                        height={1200}
-                        unoptimized
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                        className="gallery-card-image"
-                      />
-                    ) : null}
-                    <button
-                      type="button"
-                      className="gallery-card-delete"
-                      title="이미지 삭제"
-                      aria-label={`${getDisplayTitle(result)} 삭제`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (!window.confirm("이 이미지를 라이브러리에서 삭제할까요?")) return;
-                        deleteGeneratedResult(result.id);
-                      }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                    <div className="gallery-card-overlay">
-                      <div className="gallery-card-copy">
-                        <div className="gallery-card-title">{getDisplayTitle(result)}</div>
-                        <div
-                          className="gallery-card-style"
-                          style={{
-                            display: "-webkit-box",
-                            WebkitBoxOrient: "vertical",
-                            WebkitLineClamp: 3,
-                            overflow: "hidden",
-                          }}
-                        >
-                          {getActiveStylePrompt(result) || "스타일 프롬프트 없음"}
+            <div
+              className="gallery-masonry redesigned"
+              style={{ "--gallery-column-count": galleryColumnCount } as CSSProperties}
+            >
+              {galleryColumns.map((column, columnIndex) => (
+                <div className="gallery-masonry-column" key={`gallery-column-${columnIndex}`}>
+                  {column.map(({ result, index }) => {
+                    const status = result.consistencyStatus || "pending";
+                    const title = getDisplayTitle(result);
+                    const cardPrompt = result.koreanPrompt || getActiveStylePrompt(result) || result.englishPrompt;
+                    return (
+                      <div
+                        key={result.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openResultInEditor(result)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openResultInEditor(result);
+                          }
+                        }}
+                        className="gallery-card studio-card"
+                        style={{ animationDelay: `${Math.min(index, 10) * 55}ms` }}
+                      >
+                        <div className="gallery-card-media">
+                          {result.imageUrl ? (
+                            <Image
+                              src={result.imageUrl}
+                              alt={title}
+                              width={900}
+                              height={1200}
+                              unoptimized
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                              className="gallery-card-image"
+                            />
+                          ) : null}
+                          <div className={`asset-status ${status}`}>
+                            <span />
+                            {status === "ready" ? "locked" : status === "failed" ? "retry" : "analyzing"}
+                          </div>
+                          <button
+                            type="button"
+                            className="gallery-card-delete"
+                            title="이미지 삭제"
+                            aria-label={`${title} 삭제`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (!window.confirm("이 이미지를 라이브러리에서 삭제할까요?")) return;
+                              deleteGeneratedResult(result.id);
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                        <div className="asset-data-strip">
+                          <span>{result.ratio}</span>
+                          <span>{result.resolution}</span>
+                          <span>{result.elementBoard?.elements?.length || 0} elements</span>
+                        </div>
+                        <div className="gallery-card-overlay">
+                          <div className="gallery-card-copy">
+                            <div className="gallery-card-title">{title}</div>
+                            <div className="gallery-card-style">
+                              {cardPrompt || "프롬프트 정보 없음"}
+                            </div>
+                          </div>
+                          <div className="gallery-card-footer">
+                            <div className="gallery-card-date">
+                              {new Date(result.createdAt).toLocaleString("ko-KR")}
+                            </div>
+                            <div className="open-cue">
+                              <Eye size={14} />
+                              열기
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="gallery-card-footer">
-                        <div className="gallery-card-date">
-                          {new Date(result.createdAt).toLocaleString("ko-KR")}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
       </main>
     );
   }
 
   return (
-    <main style={{ width: "100vw", height: "100vh", backgroundColor: "var(--bg-canvas)" }}>
+    <main className="editor-shell">
       <ReactFlow
         nodes={finalNodes}
         edges={edges}
@@ -2175,14 +2776,33 @@ function FlowContent() {
         <Background color="var(--border-node)" gap={24} size={1} />
       </ReactFlow>
 
-      <div style={{ position: "absolute", top: 20, right: 20, zIndex: 4, display: "flex", alignItems: "center", padding: "4px", backgroundColor: "var(--bg-node-base)", borderRadius: "20px", border: "1px solid var(--border-node)", boxShadow: "var(--shadow-node)" }}>
+      <div className="editor-topbar">
+        <button
+          onClick={() => setViewMode("gallery")}
+          className="round-tool back-tool"
+          title="결과 보드로 돌아가기"
+          aria-label="결과 보드로 돌아가기"
+        >
+          <ArrowLeft size={16} />
+        </button>
+        <input
+          className="editor-title-input"
+          value={editorTitle}
+          onChange={(event) => handleEditorTitleChange(event.target.value)}
+          size={editorTitleInputSize}
+          placeholder="새 브랜드 이미지"
+          aria-label="이미지 캔버스 제목"
+        />
+      </div>
+
+      <div className="editor-mode-toggle" aria-label="Editor mode controls">
         <Controls
           showInteractive={false}
           position="top-right"
           style={{
             position: "relative",
-            top: 0,
-            right: 0,
+            top: "auto",
+            right: "auto",
             margin: 0,
             display: "flex",
             flexDirection: "row",
@@ -2191,118 +2811,92 @@ function FlowContent() {
             boxShadow: "none",
           }}
         />
-      </div>
-
-      <div style={{ position: "absolute", top: 20, left: 20, zIndex: 4, display: "flex", alignItems: "center", gap: "8px", padding: "10px 16px", backgroundColor: "var(--bg-node-base)", borderRadius: "20px", border: "1px solid var(--border-node)", boxShadow: "var(--shadow-node)" }}>
-        <button
-          onClick={() => setViewMode("gallery")}
-          style={{ width: 34, height: 34, borderRadius: 17, border: "1px solid var(--border-node)", backgroundColor: "var(--bg-canvas)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-primary)" }}
-          title="결과 보드로 돌아가기"
-        >
-          <ArrowLeft size={16} />
-        </button>
-        <span style={{ fontSize: "17px", fontWeight: 700, letterSpacing: "-0.5px", color: "var(--text-primary)" }}>BrandGen</span>
-        <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 7px", borderRadius: "100px", backgroundColor: "var(--bg-canvas)", border: "1px solid var(--border-node)", color: "var(--text-secondary)", letterSpacing: "0.3px" }}>{APP_VERSION}</span>
-        <div style={{ width: "1px", height: "16px", backgroundColor: "var(--border-node)", margin: "0 4px" }} />
         <button
           onClick={toggleTheme}
           title="Toggle Theme"
-          style={{ width: 36, height: 20, borderRadius: 10, backgroundColor: theme === "dark" ? "var(--port-ratio)" : "var(--border-node)", position: "relative", cursor: "pointer", transition: "background-color 0.2s", border: "none" }}
+          className="icon-toggle compact"
+          aria-label={theme === "dark" ? "Light theme" : "Dark theme"}
         >
-          <div style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "var(--bg-node-base)", position: "absolute", top: 2, left: theme === "dark" ? 18 : 2, transition: "left 0.2s" }} />
+          {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
         </button>
       </div>
 
-      <div style={{ position: "absolute", top: 88, left: 20, zIndex: 4, width: 320, padding: "12px", backgroundColor: "var(--bg-node-base)", borderRadius: "16px", border: "1px solid var(--border-node)", boxShadow: "var(--shadow-node)", display: "flex", flexDirection: "column", gap: "10px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "color-mix(in srgb, var(--port-composition) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--port-composition)" }}>
-              <Sparkles size={14} />
-            </div>
-            <div>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>설정 노드 추가</div>
-              <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.45 }}>기본 노드는 고정, 세밀한 제어만 필요할 때 추가합니다.</div>
-            </div>
-          </div>
-        </div>
+      <div className="node-add-dock">
+        <button
+          type="button"
+          className="node-add-trigger"
+          onClick={() => setIsNodeAddMenuOpen((prev) => !prev)}
+          aria-expanded={isNodeAddMenuOpen}
+          aria-label="설정 노드 추가"
+        >
+          <Sparkles size={14} />
+          <span>설정 노드</span>
+          <strong>{availableOptionalNodeEntries.length}</strong>
+        </button>
 
-        {(Object.keys(OPTIONAL_NODE_CONFIG) as OptionalNodeKey[]).map((key) => {
-          const config = OPTIONAL_NODE_CONFIG[key];
-          const isActive = activeOptionalNodes[key];
-          return (
-            <button
-              key={key}
-              type="button"
-              className="nodrag"
-              disabled={isActive}
-              onClick={() => addOptionalNode(key)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: "12px",
-                border: `1px solid ${isActive ? "var(--border-node)" : `color-mix(in srgb, ${config.color} 45%, var(--border-node))`}`,
-                backgroundColor: isActive ? "var(--bg-canvas)" : `color-mix(in srgb, ${config.color} 10%, transparent)`,
-                color: isActive ? "var(--text-muted)" : "var(--text-primary)",
-                cursor: isActive ? "default" : "pointer",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2px", textAlign: "left" as const }}>
-                <span style={{ fontSize: "12px", fontWeight: 700 }}>{config.label}</span>
-                <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{config.description}</span>
+        {isNodeAddMenuOpen && (
+          <div className="node-add-popover" role="menu" aria-label="설정 노드 추가">
+            <div className="node-add-popover-header">
+              <span>추가 가능</span>
+              <small>{availableOptionalNodeEntries.length}</small>
+            </div>
+
+            <div className="node-add-list">
+              {availableOptionalNodeEntries.length > 0 ? (
+                availableOptionalNodeEntries.map(({ key, config }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="menuitem"
+                    className="nodrag optional-node-button node-add-option"
+                    data-tip={config.description}
+                    title={config.description}
+                    onClick={() => {
+                      addOptionalNode(key);
+                      setIsNodeAddMenuOpen(false);
+                    }}
+                    style={{ "--node-accent": config.color } as CSSProperties}
+                  >
+                    <span>{config.label}</span>
+                    <Plus size={14} />
+                  </button>
+                ))
+              ) : (
+                <div className="node-add-empty">모든 설정 노드가 추가되었습니다.</div>
+              )}
+            </div>
+
+            {addedOptionalNodeEntries.length > 0 && (
+              <div className="node-added-section">
+                <div className="node-add-popover-header muted">
+                  <span>추가됨</span>
+                  <small>{addedOptionalNodeEntries.length}</small>
+                </div>
+                <div className="node-added-list">
+                  {addedOptionalNodeEntries.map(({ key, config }) => (
+                    <span key={key} className="node-added-chip">
+                      {config.label}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div style={{ width: 28, height: 28, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: isActive ? "transparent" : "var(--bg-node-base)", color: isActive ? "var(--text-muted)" : config.color, border: isActive ? "1px dashed var(--border-node)" : "none" }}>
-                <Plus size={14} />
-              </div>
-            </button>
-          );
-        })}
+            )}
+          </div>
+        )}
       </div>
-
-      {activeResult && (
-        <div style={{ position: "absolute", top: 88, right: 20, zIndex: 4, width: 300, padding: "12px", backgroundColor: "var(--bg-node-base)", borderRadius: "16px", border: "1px solid var(--border-node)", boxShadow: "var(--shadow-node)", display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{getDisplayTitle(activeResult)}</div>
-          <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-            기존 결과를 기반으로 편집 중입니다. 여기서 다시 Generate 하면 원본은 유지되고, 새 결과 카드가 갤러리에 자동으로 추가됩니다.
-          </div>
-        </div>
-      )}
 
       {previewImageUrl && (
         <div
+          className="preview-overlay"
           onClick={() => setPreviewImageUrl(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 20,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "12px",
-            backgroundColor: "rgba(9, 9, 11, 0.84)",
-            backdropFilter: "blur(10px)",
-          }}
         >
           <div
+            className="preview-modal"
             onClick={(event) => event.stopPropagation()}
-            style={{
-              width: "min(96vw, 1600px)",
-              maxHeight: "100%",
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              padding: "12px",
-              borderRadius: "20px",
-              border: "1px solid rgba(255,255,255,0.12)",
-              backgroundColor: "color-mix(in srgb, var(--bg-node-base) 92%, black 8%)",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
-            }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", width: "100%" }}>
+            <div className="preview-header">
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <div className="preview-title">
                   {previewTitle}
                 </div>
               </div>
@@ -2325,21 +2919,9 @@ function FlowContent() {
                 </button>
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "row", gap: "10px", minHeight: 0 }}>
-              <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div
-                  style={{
-                    width: "100%",
-                    height: "calc(100vh - 110px)",
-                    minHeight: "70vh",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: "18px",
-                    overflow: "hidden",
-                    backgroundColor: "rgba(0,0,0,0.22)",
-                  }}
-                >
+            <div className="preview-body">
+              <div className="preview-image-column">
+                <div className="preview-image-stage">
                   <Image
                     src={previewImageUrl}
                     alt={previewTitle}
@@ -2358,47 +2940,15 @@ function FlowContent() {
                 </div>
               </div>
               <aside
-                style={{
-                  width: "min(360px, 28vw)",
-                  minWidth: "280px",
-                  maxHeight: "calc(100vh - 94px)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                  borderRadius: "18px",
-                  backgroundColor: "color-mix(in srgb, var(--bg-node-base) 88%, black 12%)",
-                }}
+                className="preview-sidebar"
               >
                 <div
+                  className="preview-prompt-panel"
                   style={{
-                    flex: "1 1 auto",
-                    overflowY: "auto",
-                    position: "relative",
-                    padding: "54px 14px 14px",
-                    borderRadius: "14px",
-                    backgroundColor: "var(--bg-canvas)",
-                    border: "1px solid var(--border-node)",
-                    fontSize: "13px",
-                    lineHeight: 1.7,
                     color: activePreviewPrompt.trim() ? "var(--text-primary)" : "var(--text-secondary)",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
                   }}
                 >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "12px",
-                      right: "12px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "4px",
-                      borderRadius: "999px",
-                      backgroundColor: "var(--bg-node-base)",
-                      border: "1px solid var(--border-node)",
-                    }}
-                  >
+                  <div className="preview-language-toggle">
                     {(["ko", "en"] as const).map((language) => {
                       const isActive = previewPromptLanguage === language;
                       return (
@@ -2431,15 +2981,7 @@ function FlowContent() {
                       : "영문 프롬프트가 없습니다.")}
                 </div>
                 <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px",
-                    padding: "12px",
-                    borderRadius: "14px",
-                    backgroundColor: "var(--bg-canvas)",
-                    border: "1px solid var(--border-node)",
-                  }}
+                  className="preview-consistency-panel"
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
                     <span style={{ fontSize: "12px", fontWeight: 800, color: "var(--text-primary)" }}>일관성 앨리먼트</span>
@@ -2534,7 +3076,7 @@ function FlowContent() {
                     </button>
                   )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div className="preview-actions">
                   <button
                     type="button"
                     onClick={downloadPreviewImage}

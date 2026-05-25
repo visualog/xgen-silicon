@@ -206,10 +206,10 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
         style={{
           position: "fixed", top: "50%", left: "50%",
           transform: "translate(-50%, -50%)",
-          zIndex: 1001, width: "480px", maxWidth: "95vw",
+          zIndex: 1001, width: "var(--size-modal-style-width)", maxWidth: "95vw",
           backgroundColor: "var(--bg-node-base)",
           border: "1px solid var(--border-node)",
-          borderRadius: "16px",
+          borderRadius: "var(--ui-radius-2xl)",
           boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
           overflow: "hidden",
         }}
@@ -217,23 +217,23 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
         {/* 헤더 */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "16px 20px",
+          padding: "var(--ui-space-16) var(--ui-space-20)",
           borderBottom: "1px solid var(--border-node)",
           backgroundColor: "var(--bg-node-header)",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--ui-space-8)" }}>
             <ImageIcon size={16} color="var(--text-secondary)" />
-            <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
+            <span style={{ fontSize: "var(--ui-type-sm-6-size)", fontWeight: 700, color: "var(--text-primary)" }}>
               {copy.title}
             </span>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", borderRadius: "6px", display: "flex" }}>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", borderRadius: "var(--ui-radius-md)", display: "flex" }}>
             <X size={16} color="var(--text-secondary)" />
           </button>
         </div>
 
         {/* 바디 */}
-        <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={{ padding: "var(--ui-space-20)", display: "flex", flexDirection: "column", gap: "16px" }}>
 
           {/* 이미지 첨부 영역 */}
           {!hasImage ? (
@@ -246,10 +246,10 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
                 onClick={() => fileInputRef.current?.click()}
                 style={{
                   border: `2px dashed ${isDragging ? "var(--port-style)" : "var(--border-node)"}`,
-                  borderRadius: "12px",
-                  padding: "32px 20px",
+                  borderRadius: "var(--ui-radius-xl)",
+                  padding: "var(--ui-space-32) var(--ui-space-20)",
                   display: "flex", flexDirection: "column", alignItems: "center",
-                  justifyContent: "center", gap: "12px",
+                  justifyContent: "center", gap: "var(--ui-space-12)",
                   cursor: "pointer",
                   backgroundColor: isDragging ? "color-mix(in srgb, var(--port-style) 8%, transparent)" : "var(--bg-canvas)",
                   transition: "all 0.2s ease",
@@ -257,17 +257,17 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
                 }}
               >
                 <div style={{
-                  width: "48px", height: "48px", borderRadius: "12px",
+                  width: "var(--size-icon-container)", height: "var(--size-icon-container)", borderRadius: "var(--ui-radius-xl)",
                   backgroundColor: "color-mix(in srgb, var(--port-style) 15%, transparent)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                   <Upload size={22} color="var(--port-style)" />
                 </div>
                 <div>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>
+                  <p style={{ fontSize: "var(--ui-type-sm-size)", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>
                     이미지를 드래그해서 놓기
                   </p>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>
+                  <p style={{ fontSize: "calc(var(--ui-type-xs-size) * 1.1)", color: "var(--text-muted)", margin: 0 }}>
                     또는 클릭해서 파일 선택 · PNG, JPG, WEBP
                   </p>
                 </div>
@@ -281,11 +281,11 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
               />
 
               {/* URL 입력 */}
-              <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+              <div style={{ display: "flex", gap: "var(--ui-space-8)", marginTop: "10px" }}>
                 <div style={{
-                  flex: 1, display: "flex", alignItems: "center", gap: "8px",
+                  flex: 1, display: "flex", alignItems: "center", gap: "var(--ui-space-8)",
                   backgroundColor: "var(--bg-canvas)", border: "1px solid var(--border-node)",
-                  borderRadius: "8px", padding: "0 12px",
+                  borderRadius: "var(--ui-space-8)", padding: "0 var(--ui-space-12)",
                 }}>
                   <Link size={14} color="var(--text-muted)" />
                   <input
@@ -296,7 +296,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
                     onKeyDown={(e) => { if (e.key === "Enter") handleUrlSubmit(); }}
                     style={{
                       flex: 1, background: "none", border: "none", outline: "none",
-                      fontSize: "12px", color: "var(--text-primary)", padding: "10px 0",
+                      fontSize: "var(--ui-type-xs-2-size)", color: "var(--text-primary)", padding: "10px 0",
                     }}
                   />
                 </div>
@@ -304,7 +304,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
                   onClick={handleUrlSubmit}
                   disabled={!urlInput.trim()}
                   style={{
-                    padding: "0 16px", borderRadius: "8px", fontSize: "12px", fontWeight: 600,
+                    padding: "0 var(--ui-space-16)", borderRadius: "var(--ui-space-8)", fontSize: "var(--ui-type-xs-2-size)", fontWeight: 600,
                     border: "1px solid var(--border-node)", cursor: urlInput.trim() ? "pointer" : "not-allowed",
                     backgroundColor: urlInput.trim() ? "var(--text-primary)" : "var(--bg-canvas)",
                     color: urlInput.trim() ? "var(--bg-node-base)" : "var(--text-muted)",
@@ -317,7 +317,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
             </div>
           ) : (
             /* 이미지 미리보기 */
-            <div style={{ position: "relative", borderRadius: "12px", overflow: "hidden", height: "200px" }}>
+            <div style={{ position: "relative", borderRadius: "var(--ui-radius-xl)", overflow: "hidden", height: "var(--size-modal-preview-height)" }}>
               <img
                 src={imageUrl}
                 alt={copy.alt}
@@ -326,8 +326,8 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
               <button
                 onClick={() => { setImageUrl(""); setImageBase64(""); setPrompt(""); }}
                 style={{
-                  position: "absolute", top: "8px", right: "8px",
-                  width: "28px", height: "28px", borderRadius: "50%",
+                  position: "absolute", top: "var(--ui-space-8)", right: "var(--ui-space-8)",
+                  width: "var(--size-control-md)", height: "var(--size-control-md)", borderRadius: "50%",
                   backgroundColor: "rgba(0,0,0,0.6)", border: "none", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}
@@ -340,15 +340,15 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
           {/* 스타일 프롬프트 입력 */}
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>
+              <label style={{ fontSize: "var(--ui-type-xs-2-size)", fontWeight: 600, color: "var(--text-secondary)" }}>
                 {copy.promptLabel}
               </label>
               <button
                 onClick={handleAnalyze}
                 disabled={!hasImage || isAnalyzing}
                 style={{
-                  display: "flex", alignItems: "center", gap: "6px",
-                  padding: "4px 10px", borderRadius: "100px", fontSize: "11px", fontWeight: 700,
+                  display: "flex", alignItems: "center", gap: "calc(var(--ui-space-unit) * 1.5)",
+                  padding: "var(--ui-space-4) var(--ui-space-10)", borderRadius: "var(--ui-radius-pill)", fontSize: "calc(var(--ui-type-xs-size) * 1.1)", fontWeight: 700,
                   border: "1px solid var(--port-style)",
                   backgroundColor: hasImage && !isAnalyzing
                     ? "color-mix(in srgb, var(--port-style) 15%, transparent)"
@@ -375,30 +375,30 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
                 width: "100%", boxSizing: "border-box" as const,
                 backgroundColor: "var(--bg-canvas)",
                 border: "1px solid var(--border-node)",
-                borderRadius: "8px", padding: "12px",
-                fontSize: "12px", lineHeight: "1.6",
+                borderRadius: "var(--ui-space-8)", padding: "var(--ui-space-12)",
+                fontSize: "var(--ui-type-xs-2-size)", lineHeight: "1.6",
                 color: "var(--text-primary)", resize: "vertical" as const, outline: "none",
                 fontFamily: "inherit",
               }}
             />
             {(isAnalyzing || lastAnalyzeDurationSeconds) && (
-              <p style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "6px" }}>
+              <p style={{ fontSize: "calc(var(--ui-type-xs-size) * 1.1)", color: "var(--text-secondary)", marginTop: "6px" }}>
                 {isAnalyzing
                   ? `${copy.helper} · ${formatDurationLabel(analyzeElapsedSeconds) ?? "0초"}`
                   : `마지막 분석 완료 · ${formatDurationLabel(lastAnalyzeDurationSeconds)}`}
               </p>
             )}
             {analyzeError && (
-              <p style={{ fontSize: "11px", color: "#ef4444", marginTop: "4px" }}>{analyzeError}</p>
+              <p style={{ fontSize: "calc(var(--ui-type-xs-size) * 1.1)", color: "var(--port-constraint)", marginTop: "4px" }}>{analyzeError}</p>
             )}
           </div>
 
           {/* 액션 버튼 */}
-          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", gap: "var(--ui-space-8)", justifyContent: "flex-end" }}>
             <button
               onClick={onClose}
               style={{
-                padding: "10px 20px", borderRadius: "8px", fontSize: "13px",
+                padding: "var(--ui-space-10) var(--ui-space-20)", borderRadius: "var(--ui-space-8)", fontSize: "var(--ui-type-sm-size)",
                 border: "1px solid var(--border-node)", backgroundColor: "var(--bg-canvas)",
                 color: "var(--text-secondary)", cursor: "pointer",
               }}
@@ -409,8 +409,8 @@ export function StyleAddModal({ onAdd, onClose, mode = "style" }: Props) {
               onClick={handleAdd}
               disabled={!canAdd}
               style={{
-                display: "flex", alignItems: "center", gap: "6px",
-                padding: "10px 20px", borderRadius: "8px", fontSize: "13px", fontWeight: 700,
+                display: "flex", alignItems: "center", gap: "calc(var(--ui-space-unit) * 1.5)",
+                padding: "var(--ui-space-10) var(--ui-space-20)", borderRadius: "var(--ui-space-8)", fontSize: "var(--ui-type-sm-size)", fontWeight: 700,
                 border: "none",
                 backgroundColor: canAdd ? "var(--text-primary)" : "var(--bg-node-base)",
                 color: canAdd ? "var(--bg-node-base)" : "var(--text-muted)",
