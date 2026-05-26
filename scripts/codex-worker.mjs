@@ -552,6 +552,30 @@ All returned string values must be written in natural English.
   return JSON.parse(cleaned);
 }
 
+function appendStructuredNodeSettings(promptBody, settings) {
+  const parts = [];
+  if (settings.prompt) parts.push(`Core prompt: ${settings.prompt}`);
+  if (settings.style) parts.push(`Style reference: ${settings.style}`);
+  if (settings.characterReference) parts.push(`Character lock: ${settings.characterReference}`);
+  if (settings.objectReference) parts.push(`Object lock: ${settings.objectReference}`);
+  if (settings.ratio) parts.push(`Aspect ratio: ${settings.ratio}`);
+  if (settings.resolution) parts.push(`Resolution: ${settings.resolution}`);
+  if (settings.composition) parts.push(`Composition: ${settings.composition}`);
+  if (settings.background) parts.push(`Background: ${settings.background}`);
+  if (settings.constraints) parts.push(`Constraints: ${settings.constraints}`);
+  if (settings.mood) parts.push(`Mood: ${settings.mood}`);
+  if (settings.palette) parts.push(`Palette: ${settings.palette}`);
+  if (settings.cameraAngle) parts.push(`Camera angle: ${settings.cameraAngle}`);
+  if (settings.objectAngle) parts.push(`Object orientation: ${settings.objectAngle}`);
+  if (settings.lighting) parts.push(`Lighting: ${settings.lighting}`);
+  if (settings.gesture) parts.push(`Gesture/expression: ${settings.gesture}`);
+  if (settings.propsPrompt) parts.push(`Props: ${settings.propsPrompt}`);
+  if (settings.detailLevel) parts.push(`Detail density: ${settings.detailLevel}`);
+  if (settings.imageMixPrompt) parts.push(settings.imageMixPrompt);
+  if (parts.length === 0 || promptBody.includes("AUTHORITATIVE STRUCTURED INPUTS")) return promptBody;
+  return `${promptBody}, AUTHORITATIVE STRUCTURED INPUTS: ${parts.join(" | ")}. These are the current connected node values and must override stale wording elsewhere.`;
+}
+
 async function analyzeStyleWithCodex(imagePath, mode = "style") {
   const focus =
     mode === "character"
@@ -746,6 +770,28 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
   }
   if (promptBody && imageMixPrompt && !promptBody.includes("IMAGE MIX REFERENCES")) {
     promptBody = `${promptBody}, ${imageMixPrompt}`;
+  }
+  if (promptBody) {
+    promptBody = appendStructuredNodeSettings(promptBody, {
+      prompt,
+      style,
+      characterReference,
+      objectReference,
+      ratio,
+      resolution,
+      composition,
+      background,
+      constraints,
+      mood,
+      palette,
+      cameraAngle,
+      objectAngle,
+      lighting,
+      gesture,
+      propsPrompt,
+      detailLevel,
+      imageMixPrompt,
+    });
   }
 
   if (!promptBody) {

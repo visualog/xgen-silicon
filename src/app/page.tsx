@@ -944,6 +944,17 @@ function appendImageMixPrompt(englishPrompt: string, items: ImageMixItem[]) {
   return [englishPrompt.trim(), imageMixPrompt].filter(Boolean).join(", ");
 }
 
+function appendAuthoritativeNodeSettings(englishPrompt: string, settings: string[]) {
+  const normalized = settings.map((setting) => setting.trim()).filter(Boolean);
+  if (normalized.length === 0) return englishPrompt;
+  const marker = "AUTHORITATIVE NODE SETTINGS";
+  if (englishPrompt.includes(marker)) return englishPrompt;
+  return [
+    englishPrompt.trim(),
+    `${marker}: ${normalized.join(" | ")}. These connected node settings are current and must override weaker or stale wording elsewhere in the prompt. Preserve every explicit setting unless it directly conflicts with a stricter consistency lock.`,
+  ].filter(Boolean).join(", ");
+}
+
 function mergeGeneratedResults(
   localResults: GeneratedResult[] = [],
   fileResults: GeneratedResult[] = [],
@@ -1438,17 +1449,64 @@ function FlowContent() {
     () => formatImageMixPrompt(connectedImageMixItems),
     [connectedImageMixItems],
   );
+  const authoritativeNodeSettings = useMemo(() => {
+    const settings: string[] = [];
+    if (connectedState.isPromptConnected && prompt.trim()) settings.push(`Core prompt: ${prompt.trim()}`);
+    if (connectedState.isStyleConnected && activeStyleEntry?.prompt?.trim()) settings.push(`Style reference: ${activeStyleEntry.prompt.trim()}`);
+    if (connectedState.characterReference && activeCharacterReferencePrompt.trim()) settings.push(`Character lock: ${activeCharacterReferencePrompt.trim()}`);
+    if (connectedState.objectReference && activeObjectReferencePrompt.trim()) settings.push(`Object lock: ${activeObjectReferencePrompt.trim()}`);
+    if (connectedState.isRatioConnected && ratio.trim()) settings.push(`Aspect ratio: ${ratio.trim()}`);
+    if (connectedState.isResolutionConnected && resolution.trim()) settings.push(`Resolution: ${resolution.trim()}`);
+    if (connectedState.composition && composition.trim()) settings.push(`Composition: ${composition.trim()}`);
+    if (connectedState.background && backgroundPrompt.trim()) settings.push(`Background: ${backgroundPrompt.trim()}`);
+    if (connectedState.constraints && constraints.trim()) settings.push(`Constraints: ${constraints.trim()}`);
+    if (connectedState.mood && mood.trim()) settings.push(`Mood: ${mood.trim()}`);
+    if (connectedState.palette && palette.trim()) settings.push(`Palette: ${palette.trim()}`);
+    if (connectedState.cameraAngle && cameraAngle.trim()) settings.push(`Camera angle: ${cameraAngle.trim()}`);
+    if (connectedState.objectAngle && objectAngle.trim()) settings.push(`Object orientation: ${objectAngle.trim()}`);
+    if (connectedState.lighting && lighting.trim()) settings.push(`Lighting: ${lighting.trim()}`);
+    if (connectedState.gesture && gesture.trim()) settings.push(`Gesture/expression: ${gesture.trim()}`);
+    if (connectedState.props && propsPrompt.trim()) settings.push(`Props: ${propsPrompt.trim()}`);
+    if (connectedState.detail && detailLevel.trim()) settings.push(`Detail density: ${detailLevel.trim()}`);
+    if (connectedState.elementBoard && enabledElementCount > 0) settings.push(`Element board: ${enabledElementCount} enabled consistency elements`);
+    if (connectedState.imageMix && connectedImageMixItems.length > 0) settings.push(`Image mix: ${connectedImageMixItems.length} role-weighted visual references`);
+    return settings;
+  }, [
+    activeCharacterReferencePrompt,
+    activeObjectReferencePrompt,
+    activeStyleEntry,
+    backgroundPrompt,
+    cameraAngle,
+    composition,
+    connectedImageMixItems,
+    connectedState,
+    constraints,
+    detailLevel,
+    enabledElementCount,
+    gesture,
+    lighting,
+    mood,
+    objectAngle,
+    palette,
+    prompt,
+    propsPrompt,
+    ratio,
+    resolution,
+  ]);
   const visibleEnglishPrompt = hasAnyConnection
-    ? appendImageMixPrompt(
-        appendElementBoardPrompt(
-          appendConsistencyReferences(
-            appendObjectAnglePrompt(englishPrompt, connectedState.objectAngle ? objectAngle : null),
-            connectedState.characterReference ? activeCharacterReferencePrompt : null,
-            connectedState.objectReference ? activeObjectReferencePrompt : null,
+    ? appendAuthoritativeNodeSettings(
+        appendImageMixPrompt(
+          appendElementBoardPrompt(
+            appendConsistencyReferences(
+              appendObjectAnglePrompt(englishPrompt, connectedState.objectAngle ? objectAngle : null),
+              connectedState.characterReference ? activeCharacterReferencePrompt : null,
+              connectedState.objectReference ? activeObjectReferencePrompt : null,
+            ),
+            connectedState.elementBoard ? elementBoard : null,
           ),
-          connectedState.elementBoard ? elementBoard : null,
+          connectedImageMixItems,
         ),
-        connectedImageMixItems,
+        authoritativeNodeSettings,
       )
     : "";
   const generationEnglishPrompt = visibleEnglishPrompt;
@@ -2516,7 +2574,6 @@ function FlowContent() {
     error,
     openPreviewImage,
     removeOptionalNode,
-    visibleEnglishPrompt,
     visibleKoreanPrompt,
     translateElapsedSeconds,
     lastTranslateDurationSeconds,
