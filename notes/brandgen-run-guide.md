@@ -1,6 +1,6 @@
-# BrandGen 실행 가이드
+# xGen 실행 가이드
 
-집 컴퓨터에서 GitHub 저장소를 클론해서 BrandGen을 실행하는 방법입니다. 실행 환경이 macOS인지 Windows인지에 따라 앱 실행 방식이 조금 다릅니다.
+집 컴퓨터에서 GitHub 저장소를 클론해서 xGen을 실행하는 방법입니다. 실행 환경이 macOS인지 Windows인지에 따라 앱 실행 방식이 조금 다릅니다.
 
 ## 공통 준비
 
@@ -61,7 +61,7 @@ macOS 앱 번들로 패키징하려면 다음을 실행합니다.
 
 ```bash
 npm run pack:mac
-open release/mac/BrandGen.app
+open release/mac/xGen.app
 ```
 
 ## Windows에서 웹 실행

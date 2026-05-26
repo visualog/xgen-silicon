@@ -25,6 +25,7 @@ import {
   Copy,
   Download,
   Eye,
+  Info,
   Moon,
   Palette as PaletteIcon,
   Plus,
@@ -55,6 +56,7 @@ import { CanvasNode } from "@/components/nodes/CanvasNode";
 import type { StyleEntry } from "@/components/StyleAddModal";
 
 const STORAGE_KEY = "brandgen_state";
+const LOCAL_STORAGE_MAX_BYTES = 500_000;
 
 const OPTIONAL_NODE_CONFIG = {
   composition: {
@@ -292,7 +294,7 @@ const NODE_SIZE_BY_TYPE: Record<string, { width: number; height: number }> = {
   outputSettingsNode: { width: 240, height: 220 },
   objectAngleNode: { width: 260, height: 290 },
   outputNode: { width: 380, height: 320 },
-  canvasNode: { width: 380, height: 320 },
+  canvasNode: { width: 480, height: 560 },
   default: { width: 220, height: 170 },
 };
 
@@ -621,13 +623,13 @@ function buildEditorNodes(optionalKeys: OptionalNodeKey[], includeCanvas: boolea
     };
   });
 
-  return includeCanvas
+  const canvasNodes: FlowNode[] = includeCanvas
     ? [
-        ...baseNodes,
-        ...optionalNodes,
         { id: "canvas-node", type: "canvasNode", position: { x: 850, y: 150 }, data: {} },
       ]
-    : [...baseNodes, ...optionalNodes];
+    : [];
+
+  return [...baseNodes, ...optionalNodes, ...canvasNodes];
 }
 
 function getNodePositions(nodes: FlowNode[]): NodePositionMap {
@@ -665,10 +667,8 @@ function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanva
       };
     });
 
-  return includeCanvas
+  const canvasEdges: FlowEdge[] = includeCanvas
     ? [
-        ...MANDATORY_EDGES,
-        ...optionalEdges,
         {
           id: "e-prompt-canvas",
           source: "output-node",
@@ -679,7 +679,9 @@ function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanva
           animated: false,
         },
       ]
-    : [...MANDATORY_EDGES, ...optionalEdges];
+    : [];
+
+  return [...MANDATORY_EDGES, ...optionalEdges, ...canvasEdges];
 }
 
 function createResultTitle(prompt: string, englishPrompt: string) {
@@ -869,6 +871,10 @@ function readLocalPersistedState(): PersistedState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
+    if (raw.length > LOCAL_STORAGE_MAX_BYTES) {
+      localStorage.removeItem(STORAGE_KEY);
+      return {};
+    }
     const parsed = JSON.parse(raw) as PersistedState;
     return {
       theme: parsed.theme,
@@ -917,6 +923,7 @@ export default function Home() {
 
 function FlowContent() {
   const hasLoadedRef = useRef(false);
+  const skipNextPersistRef = useRef(false);
   const titleBackfillRequestedRef = useRef<Set<string>>(new Set());
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [viewMode, setViewMode] = useState<ViewMode>("gallery");
@@ -1016,7 +1023,9 @@ function FlowContent() {
         normalizedSnapshot.nodePositions,
       ),
     );
-    setEdges(buildEditorEdges(normalizedSnapshot.connectedOptionalNodes, Boolean(normalizedSnapshot.imageUrl)));
+    setEdges(
+      buildEditorEdges(normalizedSnapshot.connectedOptionalNodes, Boolean(normalizedSnapshot.imageUrl)),
+    );
   }, []);
 
   const captureCurrentSnapshot = useCallback(
@@ -1114,6 +1123,7 @@ function FlowContent() {
       };
 
       if (cancelled) return;
+      skipNextPersistRef.current = true;
       queueMicrotask(() => {
         if (cancelled) return;
         if (saved.theme) setTheme(saved.theme);
@@ -1140,6 +1150,10 @@ function FlowContent() {
 
   useEffect(() => {
     if (!hasLoadedRef.current) return;
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
+    }
     const timeoutId = window.setTimeout(() => {
       try {
         const payload = {
@@ -1148,7 +1162,7 @@ function FlowContent() {
           draft: captureCurrentSnapshot(),
         };
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme }));
         } catch {
           // Large data URLs can exceed localStorage quota; the file store remains authoritative.
         }
@@ -1322,9 +1336,10 @@ function FlowContent() {
           connectedState.characterReference ? activeCharacterReferencePrompt : null,
           connectedState.objectReference ? activeObjectReferencePrompt : null,
         ),
-        connectedState.elementBoard ? elementBoard : null,
+      connectedState.elementBoard ? elementBoard : null,
       )
     : "";
+  const generationEnglishPrompt = visibleEnglishPrompt;
   const visibleKoreanPrompt = useMemo(() => {
     if (!hasAnyConnection) return "";
 
@@ -1731,7 +1746,7 @@ function FlowContent() {
       : null;
     const effectivePrompt = connectedState.isPromptConnected ? prompt : "";
 
-    if ((!effectivePrompt.trim() && !activeStyle) || isGenerating || isTranslating) return;
+    if ((!effectivePrompt.trim() && !activeStyle && !generationEnglishPrompt.trim()) || isGenerating || isTranslating) return;
 
     setIsGenerating(true);
     setError(false);
@@ -1780,7 +1795,7 @@ function FlowContent() {
           gesture: connectedState.gesture ? gesture : null,
           propsPrompt: connectedState.props ? propsPrompt : null,
           detailLevel: connectedState.detail ? detailLevel : null,
-          prebuiltPrompt: visibleEnglishPrompt || null,
+          prebuiltPrompt: generationEnglishPrompt || null,
           elementSheetImages: connectedElementSheetImages,
         }),
       });
@@ -1799,7 +1814,7 @@ function FlowContent() {
       setImageUrl(data.url);
       const snapshot = {
         ...captureCurrentSnapshot(data.url),
-        englishPrompt: data.englishPrompt?.trim() || visibleEnglishPrompt,
+        englishPrompt: data.englishPrompt?.trim() || generationEnglishPrompt,
         koreanPrompt: data.koreanPrompt?.trim() || visibleKoreanPrompt,
       };
 
@@ -1847,6 +1862,7 @@ function FlowContent() {
     constraints,
     detailLevel,
     gesture,
+    generationEnglishPrompt,
     isGenerating,
     isTranslating,
     lighting,
@@ -1860,7 +1876,6 @@ function FlowContent() {
     styles,
     cameraAngle,
     objectAngle,
-    visibleEnglishPrompt,
     visibleKoreanPrompt,
   ]);
 
@@ -2293,7 +2308,7 @@ function FlowContent() {
             prompt,
             ratio,
             resolution,
-            englishPrompt: visibleEnglishPrompt,
+            englishPrompt: generationEnglishPrompt,
             koreanPrompt: visibleKoreanPrompt,
             setKoreanPrompt,
             onRegenerateEnglishPrompt: regenerateEnglishPromptFromBrief,
@@ -2301,7 +2316,7 @@ function FlowContent() {
             translateElapsedLabel: formatDurationLabel(translateElapsedSeconds),
             lastTranslateDurationLabel: formatDurationLabel(lastTranslateDurationSeconds),
             onGenerate: handleGenerate,
-            canGenerate: !isTranslating && !!visibleEnglishPrompt.trim(),
+            canGenerate: !isTranslating && !!generationEnglishPrompt.trim(),
             isGenerating,
             generateElapsedLabel: formatDurationLabel(generateElapsedSeconds),
             lastGenerateDurationLabel: formatDurationLabel(lastGenerateDurationSeconds),
@@ -2353,6 +2368,7 @@ function FlowContent() {
     detailLevel,
     isTranslating,
     handleGenerate,
+    generationEnglishPrompt,
     regenerateEnglishPromptFromBrief,
     isGenerating,
     imageUrl,
@@ -2495,7 +2511,7 @@ function FlowContent() {
     if (!previewImageUrl) return;
     const a = document.createElement("a");
     a.href = previewImageUrl;
-    a.download = `brandgen-${Date.now()}.png`;
+    a.download = `xgen-${Date.now()}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2587,7 +2603,7 @@ function FlowContent() {
       <main className="studio-shell">
         <div className="studio-noise" aria-hidden="true" />
         <section className="studio-hero">
-          <nav className="studio-topbar" aria-label="BrandGen workspace">
+          <nav className="studio-topbar" aria-label="xGen workspace">
             <div className="brand-lockup">
               <div className="brand-mark" aria-hidden="true">
                 <svg viewBox="0 0 44 44" focusable="false">
@@ -2596,7 +2612,7 @@ function FlowContent() {
                 </svg>
               </div>
               <div>
-                <div className="brand-name">BrandGen</div>
+                <div className="brand-name">xGen</div>
               </div>
             </div>
 
@@ -2604,6 +2620,15 @@ function FlowContent() {
               <Link href="/design-system" className="secondary-command studio-action-plain">
                 <PaletteIcon size={16} />
                 디자인 시스템
+              </Link>
+              <span className="studio-action-divider" aria-hidden="true" />
+              <Link
+                href="/guide"
+                className="icon-toggle studio-action-plain"
+                title="프로젝트 구조와 사용법"
+                aria-label="프로젝트 구조와 사용법"
+              >
+                <Info size={16} />
               </Link>
               <span className="studio-action-divider" aria-hidden="true" />
               <button

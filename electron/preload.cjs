@@ -1,6 +1,6 @@
 window.addEventListener("error", (event) => {
   console.error(
-    "[brandgen-preload] window error",
+    "[xgen-preload] window error",
     event.message,
     event.filename,
     event.lineno,
@@ -10,5 +10,5 @@ window.addEventListener("error", (event) => {
 });
 
 window.addEventListener("unhandledrejection", (event) => {
-  console.error("[brandgen-preload] unhandled rejection", event.reason?.stack || event.reason);
+  console.error("[xgen-preload] unhandled rejection", event.reason?.stack || event.reason);
 });

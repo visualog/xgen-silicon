@@ -1,7 +1,7 @@
-# BrandGen Codex 치환 계획
+# xGen Codex 치환 계획
 
 ## 목표
-`BrandGen`에서 현재 `Gemini CLI`와 `Pollinations`가 맡는 역할을 `codex exec` 기반 backend로 단계적으로 대체한다.
+`xGen`에서 현재 `Gemini CLI`와 `Pollinations`가 맡는 역할을 `codex exec` 기반 backend로 단계적으로 대체한다.
 
 ## 현재 역할 분해
 
@@ -79,7 +79,7 @@
 
 - `scripts/codex-worker.mjs` 추가
 - `npm run codex-worker`로 로컬 worker 기동 가능
-- BrandGen route handlers는 이제 직접 `codex exec`를 돌리지 않고 worker HTTP 서버에 위임
+- xGen route handlers는 이제 직접 `codex exec`를 돌리지 않고 worker HTTP 서버에 위임
 - worker는 Codex 작업을 직렬화해서 경쟁을 줄이도록 큐를 사용
 
 ## Worker 단계 실측
@@ -113,6 +113,6 @@
 
 ### 현재 운영 조건
 
-- BrandGen 앱에서 Codex 기반 이미지 생성을 쓰려면 별도 worker를 먼저 띄워야 한다.
+- xGen 앱에서 Codex 기반 이미지 생성을 쓰려면 별도 worker를 먼저 띄워야 한다.
 - 실행 명령: `npm run codex-worker`
 - 앱 route는 worker에 위임하고, worker가 `codex exec --json`을 직렬 큐로 처리한 뒤 `thread_id` 기준으로 생성 파일을 회수한다.

@@ -15,7 +15,7 @@ let mainWindow = null;
 const children = new Set();
 let shuttingDown = false;
 
-app.setName("BrandGen");
+app.setName("xGen");
 
 function isPortOpen(port, host = "127.0.0.1") {
   return new Promise((resolve) => {
@@ -136,7 +136,7 @@ function createMainWindow(appUrl) {
     height: 960,
     minWidth: 1120,
     minHeight: 720,
-    title: "BrandGen",
+    title: "xGen",
     backgroundColor: "#09090b",
     show: false,
     webPreferences: {

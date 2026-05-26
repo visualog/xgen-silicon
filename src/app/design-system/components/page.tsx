@@ -3,8 +3,8 @@ import type { CSSProperties } from "react";
 import { LayoutGrid, Palette, Wand2, X } from "lucide-react";
 
 export const metadata = {
-  title: "컴포넌트 | BrandGen 디자인 시스템",
-  description: "BrandGen 사이트와 앱에서 사용하는 컴포넌트 기준.",
+  title: "컴포넌트 | xGen 디자인 시스템",
+  description: "xGen 사이트와 앱에서 사용하는 컴포넌트 기준.",
 };
 
 type ComponentSpec = {
@@ -543,7 +543,7 @@ export default function ComponentsPage() {
   return (
     <main style={shellStyle}>
       <div style={pageStyle}>
-        <header className="studio-topbar" style={headerStyle} aria-label="BrandGen 디자인 시스템 컴포넌트">
+        <header className="studio-topbar" style={headerStyle} aria-label="xGen 디자인 시스템 컴포넌트">
           <div className="brand-lockup">
             <div className="brand-mark" aria-hidden="true">
               <svg viewBox="0 0 44 44" focusable="false">
@@ -553,7 +553,7 @@ export default function ComponentsPage() {
             </div>
             <div className="brand-breadcrumb" aria-label="현재 위치">
               <Link className="brand-name" href="/">
-                BrandGen
+                xGen
               </Link>
               <span className="breadcrumb-separator" aria-hidden="true">
                 /
@@ -745,7 +745,7 @@ function BrandLockupPreview() {
   return (
     <div className="brand-lockup">
       <BrandMark />
-      <div className="brand-name">BrandGen</div>
+      <div className="brand-name">xGen</div>
     </div>
   );
 }
@@ -755,7 +755,7 @@ function BrandBreadcrumbPreview() {
     <div className="brand-lockup">
       <BrandMark />
       <div className="brand-breadcrumb">
-        <Link className="brand-name" href="/">BrandGen</Link>
+        <Link className="brand-name" href="/">xGen</Link>
         <span className="breadcrumb-separator">/</span>
         <Link className="breadcrumb-link" href="/design-system">디자인 시스템</Link>
         <span className="breadcrumb-separator">/</span>

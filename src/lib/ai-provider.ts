@@ -29,7 +29,7 @@ const RESOLUTION_MAP: Record<string, number> = {
 
 // Plus X 브랜딩 스타일 컨텍스트 (GEMINI.md 스킬과 연동)
 const BRAND_STYLE_CONTEXT = `
-You are a brand design prompt engineer for BrandGen, specializing in "Plus X" illustration style.
+You are a brand design prompt engineer for xGen, specializing in "Plus X" illustration style.
 
 STYLE RULES:
 - Premium hand-drawn branding illustration, slightly irregular human-like lines
@@ -97,7 +97,7 @@ async function runGeminiCLI(prompt: string, timeoutMs = 60000): Promise<string> 
   });
 }
 
-export class BrandGenAI {
+export class XGenAI {
   /**
    * 한국어 입력 → 구조화 JSON 프롬프트 빌드
    * 영상의 에이전트 백엔드 패턴: CLI가 작업을 수행하고 앱이 결과를 소비

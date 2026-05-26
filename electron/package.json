@@ -1,5 +1,5 @@
 {
-  "name": "brandgen-electron-shell",
+  "name": "xgen-electron-shell",
   "private": true,
   "type": "module",
   "main": "main.mjs"

@@ -9,7 +9,7 @@ const staticSourceDir = path.join(rootDir, ".next", "static");
 const staticTargetDir = path.join(standaloneDir, ".next", "static");
 const publicSourceDir = path.join(rootDir, "public");
 const publicTargetDir = path.join(standaloneDir, "public");
-const localDataDir = path.join(standaloneDir, ".brandgen");
+const localDataDir = path.join(standaloneDir, ".xgen");
 
 async function copyIfExists(source, target) {
   try {

@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 export const metadata = {
-  title: "템플릿 | BrandGen 디자인 시스템",
-  description: "BrandGen 사이트와 앱에서 사용하는 화면 템플릿 기준.",
+  title: "템플릿 | xGen 디자인 시스템",
+  description: "xGen 사이트와 앱에서 사용하는 화면 템플릿 기준.",
 };
 
 type TemplateSpec = {
@@ -112,7 +112,7 @@ export default function TemplatesPage() {
   return (
     <main style={shellStyle}>
       <div style={pageStyle}>
-        <header className="studio-topbar" style={headerStyle} aria-label="BrandGen 디자인 시스템 템플릿">
+        <header className="studio-topbar" style={headerStyle} aria-label="xGen 디자인 시스템 템플릿">
           <div className="brand-lockup">
             <div className="brand-mark" aria-hidden="true">
               <svg viewBox="0 0 44 44" focusable="false">
@@ -122,7 +122,7 @@ export default function TemplatesPage() {
             </div>
             <div className="brand-breadcrumb" aria-label="현재 위치">
               <Link className="brand-name" href="/">
-                BrandGen
+                xGen
               </Link>
               <span className="breadcrumb-separator" aria-hidden="true">
                 /
@@ -189,7 +189,7 @@ function HomeGalleryPreview() {
   return (
     <div style={{ display: "grid", gap: "var(--ui-space-16)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--ui-space-12)" }}>
-        <strong>BrandGen</strong>
+        <strong>xGen</strong>
         <span className="tool-pill">새 보드</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "var(--ui-space-16)", alignItems: "end" }}>
@@ -280,7 +280,7 @@ function DesignSystemPreview() {
   return (
     <div style={{ display: "grid", gap: "var(--ui-space-20)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <strong>BrandGen Design System</strong>
+        <strong>xGen Design System</strong>
         <span className="tool-pill">컴포넌트</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "0.34fr 1fr", gap: "var(--ui-space-24)" }}>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Image as ImageIcon, Download, Loader2 } from 'lucide-react';
+import { Image as ImageIcon, Download, Expand, Loader2 } from 'lucide-react';
 
 const nodeStyle = {
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 5%, transparent)',
@@ -8,7 +8,7 @@ const nodeStyle = {
   WebkitBackdropFilter: 'blur(16px)',
   borderRadius: 'var(--ui-radius-xl)',
   border: 'none',
-  width: 'var(--size-node-canvas)',
+  width: '420px',
   display: 'flex',
   flexDirection: 'column' as const,
   boxShadow: 'var(--ui-shadow-node)',
@@ -118,7 +118,7 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
     if (!imageUrl) return;
     const a = document.createElement("a");
     a.href = imageUrl;
-    a.download = `brandgen-${Date.now()}.png`;
+    a.download = `xgen-${Date.now()}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -252,7 +252,7 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
         </div>
 
         {imageUrl && !isGenerating && !error && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4px', gap: 'var(--ui-space-8)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: '4px', gap: 'var(--ui-space-8)' }}>
             <button
               onClick={handlePreview}
               title="원본 크기로 보기"
@@ -262,7 +262,8 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
                 justifyContent: 'center',
                 backgroundColor: 'var(--bg-node-base)',
                 color: 'var(--text-primary)',
-                flex: 1,
+                flex: '0 0 auto',
+                width: 'max-content',
                 height: 'var(--size-control-input-lg)',
                 borderRadius: 'var(--ui-radius-pill)',
                 border: '1px solid var(--border-node)',
@@ -271,9 +272,11 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
                 gap: 'var(--ui-space-8)',
                 fontSize: 'var(--ui-type-sm-6-size)',
                 fontWeight: 600,
+                padding: '0 var(--ui-space-16)',
+                whiteSpace: 'nowrap',
               }}
             >
-              크게 보기
+              <Expand size={16} /> 크게 보기
             </button>
             <button
               onClick={handleDownload}
@@ -284,7 +287,8 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
                 justifyContent: 'center',
                 backgroundColor: 'var(--bg-node-base)',
                 color: 'var(--text-primary)',
-                flex: 1,
+                flex: '1 1 auto',
+                minWidth: 0,
                 height: 'var(--size-control-input-lg)',
                 borderRadius: 'var(--ui-radius-pill)',
                 border: '1px solid var(--border-node)',
@@ -293,6 +297,8 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
                 gap: 'var(--ui-space-8)',
                 fontSize: 'var(--ui-type-sm-6-size)',
                 fontWeight: 600,
+                padding: '0 var(--ui-space-16)',
+                whiteSpace: 'nowrap',
               }}
             >
               <Download size={18} /> 이미지 다운로드

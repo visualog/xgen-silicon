@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 export const metadata = {
-  title: "디자인 시스템 | BrandGen",
-  description: "BrandGen 인터페이스 토큰과 화면 구성 원칙.",
+  title: "디자인 시스템 | xGen",
+  description: "xGen 인터페이스 토큰과 화면 구성 원칙.",
 };
 
 type Token = {
@@ -118,7 +118,7 @@ export default function DesignSystemPage() {
     <main style={shellStyle}>
       <div className="studio-noise" aria-hidden="true" />
       <div style={pageStyle}>
-        <header className="studio-topbar" aria-label="BrandGen 디자인 시스템">
+        <header className="studio-topbar" aria-label="xGen 디자인 시스템">
           <div className="brand-lockup">
             <div className="brand-mark" aria-hidden="true">
               <svg viewBox="0 0 44 44" focusable="false">
@@ -128,7 +128,7 @@ export default function DesignSystemPage() {
             </div>
             <div className="brand-breadcrumb" aria-label="현재 위치">
               <Link className="brand-name" href="/">
-                BrandGen
+                xGen
               </Link>
               <span className="breadcrumb-separator" aria-hidden="true">
                 /
@@ -155,7 +155,7 @@ export default function DesignSystemPage() {
               </h1>
             </div>
             <p style={leadStyle}>
-              BrandGen의 디자인 시스템은 장식용 문서가 아니라, 갤러리와 노드 에디터를 같은 언어로 유지하기 위한 기준입니다.
+              xGen의 디자인 시스템은 장식용 문서가 아니라, 갤러리와 노드 에디터를 같은 언어로 유지하기 위한 기준입니다.
               프레임은 필요한 곳에만 쓰고, 대부분의 정보는 간격과 정렬로 묶습니다.
             </p>
           </div>

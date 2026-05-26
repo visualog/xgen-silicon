@@ -37,7 +37,7 @@ const CODEX_WORKDIR =
   process.cwd();
 
 const BRAND_STYLE_CONTEXT = `
-You are a brand design prompt engineer for BrandGen, specializing in "Plus X" illustration style.
+You are a brand design prompt engineer for xGen, specializing in "Plus X" illustration style.
 
 STYLE RULES:
 - Premium hand-drawn branding illustration, slightly irregular human-like lines

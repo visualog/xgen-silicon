@@ -40,8 +40,8 @@
     "typescript": "^5"
   },
   "build": {
-    "appId": "com.visualog.brandgen",
-    "productName": "BrandGen",
+    "appId": "com.visualog.xgen",
+    "productName": "xGen",
     "directories": {
       "output": "release"
     },

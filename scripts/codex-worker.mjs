@@ -12,7 +12,7 @@ const CODEX_WORKDIR =
   process.env.BRANDGEN_CODEX_CWD || process.cwd();
 
 const BRAND_STYLE_CONTEXT = `
-You are a brand design prompt engineer for BrandGen, specializing in "Plus X" illustration style.
+You are a brand design prompt engineer for xGen, specializing in "Plus X" illustration style.
 
 STYLE RULES:
 - Premium hand-drawn branding illustration, slightly irregular human-like lines
@@ -387,7 +387,7 @@ IMPORTANT STYLE RULE:
 - technicalTags must stay generic and must not introduce a conflicting palette, linework, texture, or lighting style.
 `
     : `
-When no Style field is provided, you may apply the default BrandGen "Plus X" style direction.
+When no Style field is provided, you may apply the default xGen "Plus X" style direction.
 `
   }
 
@@ -784,12 +784,13 @@ REQUIREMENTS:
       if (typeof imageInput !== "string" || !imageInput.trim()) continue;
       const imageData = await imageInputToBuffer(imageInput);
       const ext = imageExtensionFromMimeType(imageData.mimeType || "image/png");
-      const tmpFile = path.join(os.tmpdir(), `brandgen-element-reference-${Date.now()}-${index}.${ext}`);
+      const tmpFile = path.join(os.tmpdir(), `xgen-element-reference-${Date.now()}-${index}.${ext}`);
       fs.writeFileSync(tmpFile, imageData.buffer);
       sheetTmpFiles.push(tmpFile);
     }
 
-    const { threadId } = await runCodexExecForImageGeneration(instruction, 240000, sheetTmpFiles);
+    const imageInputs = sheetTmpFiles.filter(Boolean);
+    const { threadId } = await runCodexExecForImageGeneration(instruction, 240000, imageInputs);
     const filePath = findLatestGeneratedImage(threadId);
     logDebug("generateImageWithCodex:fileLookup", {
       threadId,
@@ -830,7 +831,7 @@ async function generateElementSheetWithCodex({ element, sourceImage, sourcePromp
     if (sourceImage) {
       const imageData = await imageInputToBuffer(sourceImage);
       const ext = imageExtensionFromMimeType(imageData.mimeType || "image/jpeg");
-      tmpFile = path.join(os.tmpdir(), `brandgen-element-sheet-${Date.now()}.${ext}`);
+      tmpFile = path.join(os.tmpdir(), `xgen-element-sheet-${Date.now()}.${ext}`);
       fs.writeFileSync(tmpFile, imageData.buffer);
       imagePaths = [tmpFile];
     }
@@ -990,7 +991,7 @@ async function handleAnalyzeStyle(payload) {
     const { imageBase64, mimeType = "image/jpeg", mode = "style" } = payload;
     const imageData = await imageInputToBuffer(imageBase64);
     const ext = imageExtensionFromMimeType(imageData.mimeType || mimeType);
-    tmpFile = path.join(os.tmpdir(), `brandgen-style-${Date.now()}.${ext}`);
+    tmpFile = path.join(os.tmpdir(), `xgen-style-${Date.now()}.${ext}`);
     fs.writeFileSync(tmpFile, imageData.buffer);
     return { suggestedPrompt: await analyzeStyleWithCodex(tmpFile, mode) };
   } finally {
@@ -1006,7 +1007,7 @@ async function handleAnalyzeConsistency(payload) {
     const { imageBase64, prompt = "", mimeType = "image/jpeg" } = payload;
     const imageData = await imageInputToBuffer(imageBase64);
     const ext = imageExtensionFromMimeType(imageData.mimeType || mimeType);
-    tmpFile = path.join(os.tmpdir(), `brandgen-consistency-${Date.now()}.${ext}`);
+    tmpFile = path.join(os.tmpdir(), `xgen-consistency-${Date.now()}.${ext}`);
     fs.writeFileSync(tmpFile, imageData.buffer);
     return await analyzeConsistencyWithCodex(tmpFile, prompt);
   } finally {
@@ -1060,7 +1061,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`BrandGen Codex worker listening on http://127.0.0.1:${PORT}`);
+  console.log(`xGen Codex worker listening on http://127.0.0.1:${PORT}`);
   console.log(`Using codex binary: ${CODEX_BIN}`);
   console.log(`Using workdir: ${CODEX_WORKDIR}`);
 });
