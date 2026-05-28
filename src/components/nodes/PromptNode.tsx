@@ -1,7 +1,13 @@
 import { Handle, Position, useNodeConnections } from '@xyflow/react';
 import React, { useCallback } from 'react';
-import { MessageSquareText, X } from 'lucide-react';
+import { Check, Library, MessageSquareText, Plus, X } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
+
+import {
+  PROMPT_EXAMPLE_CATEGORY_LABELS,
+  PROMPT_EXAMPLES,
+  type PromptExampleCategory,
+} from '@/lib/prompt-examples';
 
 type PromptNodeData = {
   prompt?: string;
@@ -47,7 +53,7 @@ const bodyStyle = {
 
 const textareaStyle = {
   width: '100%',
-  minHeight: 'var(--size-prompt-min-height)',
+  minHeight: 'calc(var(--size-prompt-min-height) * 0.82)',
   padding: 'var(--ui-space-12)',
   borderRadius: 'var(--ui-space-8)',
   border: 'none',
@@ -57,6 +63,70 @@ const textareaStyle = {
   resize: 'vertical' as const,
   outline: 'none',
   lineHeight: '1.5',
+};
+
+const examplePanelStyle = {
+  border: '1px solid var(--border-node)',
+  borderRadius: 'var(--ui-space-10)',
+  backgroundColor: 'var(--bg-canvas)',
+  overflow: 'hidden',
+};
+
+const exampleHeaderStyle = {
+  width: '100%',
+  minHeight: 'var(--size-control-input-lg)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 'var(--ui-space-8)',
+  padding: '0 var(--ui-space-10)',
+  border: 'none',
+  backgroundColor: 'transparent',
+  color: 'var(--text-secondary)',
+  cursor: 'pointer',
+};
+
+const categoryRowStyle = {
+  display: 'flex',
+  flexWrap: 'wrap' as const,
+  gap: 'calc(var(--ui-space-unit) * 1.5)',
+  padding: 'var(--ui-space-10) var(--ui-space-10) var(--ui-space-6)',
+  borderTop: '1px solid var(--border-node)',
+};
+
+const exampleListStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: 'var(--ui-space-8)',
+  maxHeight: '320px',
+  overflow: 'auto',
+  padding: 'var(--ui-space-10)',
+};
+
+const exampleCardStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: 'var(--ui-space-8)',
+  padding: 'var(--ui-space-10)',
+  border: '1px solid var(--border-node)',
+  borderRadius: 'var(--ui-space-10)',
+  backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 42%, transparent)',
+};
+
+const smallButtonStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 'calc(var(--ui-space-unit) * 1.5)',
+  minHeight: 'var(--size-control-md)',
+  padding: '0 var(--ui-space-10)',
+  borderRadius: 'var(--ui-radius-pill)',
+  border: '1px solid var(--border-node)',
+  backgroundColor: 'var(--bg-canvas)',
+  color: 'var(--text-secondary)',
+  fontSize: 'var(--ui-type-xs-size)',
+  fontWeight: 800,
+  cursor: 'pointer',
 };
 
 const portLabelContainerStyle = {
@@ -89,9 +159,28 @@ const portLabelStyle = {
 export function PromptNode({ id, data }: { id: string; data: PromptNodeData }) {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = React.useState(false);
+  const [isExampleOpen, setIsExampleOpen] = React.useState(false);
+  const [activeCategory, setActiveCategory] = React.useState<PromptExampleCategory | "all">("all");
+  const [appliedExampleId, setAppliedExampleId] = React.useState<string | null>(null);
 
   const onChange = useCallback((value: string) => {
     data.onChange(value);
+  }, [data]);
+
+  const visibleExamples = React.useMemo(
+    () => activeCategory === "all" ? PROMPT_EXAMPLES : PROMPT_EXAMPLES.filter((example) => example.category === activeCategory),
+    [activeCategory],
+  );
+
+  const applyExample = useCallback((prompt: string, exampleId: string) => {
+    data.onChange(prompt);
+    setAppliedExampleId(exampleId);
+  }, [data]);
+
+  const appendExample = useCallback((prompt: string, exampleId: string) => {
+    const currentPrompt = data.prompt?.trim();
+    data.onChange(currentPrompt ? `${currentPrompt}\n\n${prompt}` : prompt);
+    setAppliedExampleId(exampleId);
   }, [data]);
 
   const handleDisconnect = useCallback(() => {
@@ -113,9 +202,91 @@ export function PromptNode({ id, data }: { id: string; data: PromptNodeData }) {
           style={textareaStyle}
           value={data.prompt || ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="예: 자전거를 타고 달리는 사람..."
+          placeholder="무엇을 만들지 적거나, 아래 예시 프롬프트에서 시작하세요."
           className="nodrag"
         />
+
+        <div style={examplePanelStyle} className="nodrag">
+          <button
+            type="button"
+            style={exampleHeaderStyle}
+            onClick={() => setIsExampleOpen((prev) => !prev)}
+            aria-expanded={isExampleOpen}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--ui-space-8)', fontSize: 'var(--ui-type-xs-2-size)', fontWeight: 850 }}>
+              <Library size={14} />
+              예시 프롬프트
+            </span>
+            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 800 }}>
+              {isExampleOpen ? '닫기' : `${PROMPT_EXAMPLES.length}개`}
+            </span>
+          </button>
+
+          {isExampleOpen && (
+            <>
+              <div style={categoryRowStyle}>
+                <button
+                  type="button"
+                  style={{
+                    ...smallButtonStyle,
+                    borderColor: activeCategory === "all" ? "var(--port-prompt)" : "var(--border-node)",
+                    color: activeCategory === "all" ? "var(--port-prompt)" : "var(--text-secondary)",
+                  }}
+                  onClick={() => setActiveCategory("all")}
+                >
+                  전체
+                </button>
+                {(Object.keys(PROMPT_EXAMPLE_CATEGORY_LABELS) as PromptExampleCategory[]).map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    style={{
+                      ...smallButtonStyle,
+                      borderColor: activeCategory === category ? "var(--port-prompt)" : "var(--border-node)",
+                      color: activeCategory === category ? "var(--port-prompt)" : "var(--text-secondary)",
+                    }}
+                    onClick={() => setActiveCategory(category)}
+                  >
+                    {PROMPT_EXAMPLE_CATEGORY_LABELS[category]}
+                  </button>
+                ))}
+              </div>
+
+              <div style={exampleListStyle}>
+                {visibleExamples.map((example) => (
+                  <div key={example.id} style={exampleCardStyle}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ui-space-4)' }}>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: 'var(--ui-type-xs-2-size)' }}>{example.title}</strong>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.45 }}>{example.summary}</span>
+                    </div>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.55 }}>
+                      {example.prompt}
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'calc(var(--ui-space-unit) * 1.5)' }}>
+                      <button type="button" style={smallButtonStyle} onClick={() => appendExample(example.prompt, example.id)}>
+                        <Plus size={12} />
+                        추가
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          ...smallButtonStyle,
+                          backgroundColor: appliedExampleId === example.id ? 'color-mix(in srgb, var(--port-prompt) 14%, transparent)' : 'var(--text-primary)',
+                          color: appliedExampleId === example.id ? 'var(--port-prompt)' : 'var(--bg-node-base)',
+                          borderColor: appliedExampleId === example.id ? 'var(--port-prompt)' : 'var(--text-primary)',
+                        }}
+                        onClick={() => applyExample(example.prompt, example.id)}
+                      >
+                        {appliedExampleId === example.id ? <Check size={12} /> : null}
+                        적용
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
 
         <div 
           style={portLabelContainerStyle}

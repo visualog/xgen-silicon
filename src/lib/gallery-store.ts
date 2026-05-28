@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
+
+import { getDataDir, getOutputDirectory } from "@/lib/app-settings";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -11,17 +12,7 @@ export type GalleryStorePayload = {
   updatedAt?: string;
 };
 
-function getDefaultDataDir() {
-  if (process.platform === "darwin") {
-    return path.join(os.homedir(), "Library", "Application Support", "BrandGen", "data");
-  }
-  if (process.platform === "win32") {
-    return path.join(process.env.APPDATA || os.homedir(), "BrandGen", "data");
-  }
-  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"), "BrandGen", "data");
-}
-
-const DATA_DIR = process.env.BRANDGEN_DATA_DIR || getDefaultDataDir();
+const DATA_DIR = getDataDir();
 const STORE_PATH = path.join(DATA_DIR, "gallery.json");
 const IMAGE_DIR = path.join(DATA_DIR, "images");
 
@@ -36,6 +27,48 @@ function sanitizeFilePart(value: string) {
   return value.replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-+/g, "-").slice(0, 80) || "image";
 }
 
+function base64UrlEncode(value: string) {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function getTimestampFilePart(date = new Date()) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    "-",
+    pad(date.getMonth() + 1),
+    "-",
+    pad(date.getDate()),
+    "_",
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join("");
+}
+
+async function getUniqueFilePath(directory: string, fileBaseName: string, extension: string) {
+  const safeBaseName = sanitizeFilePart(fileBaseName);
+  const safeExtension = extension.startsWith(".") ? extension.toLowerCase() : `.${extension.toLowerCase()}`;
+  for (let index = 0; index < 1000; index += 1) {
+    const suffix = index === 0 ? "" : `-${index + 1}`;
+    const fileName = `${safeBaseName}${suffix}${safeExtension}`;
+    const filePath = path.join(/* turbopackIgnore: true */ directory, fileName);
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+        return { fileName, filePath };
+      }
+      throw error;
+    }
+  }
+  throw new Error("저장할 이미지 파일명을 만들지 못했습니다.");
+}
+
+function getGalleryImageUrl(fileName: string, filePath: string) {
+  return `/api/gallery/image/${encodeURIComponent(fileName)}?source=${base64UrlEncode(filePath)}`;
+}
+
 function parseDataImageUrl(value: string) {
   const match = value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) return null;
@@ -48,12 +81,18 @@ function parseDataImageUrl(value: string) {
 
 async function writeImageAsset(dataUrl: string, fileBaseName: string) {
   const parsed = parseDataImageUrl(dataUrl);
-  if (!parsed) return dataUrl;
+  if (!parsed) return { imageUrl: dataUrl };
 
-  await fs.mkdir(IMAGE_DIR, { recursive: true });
-  const fileName = `${sanitizeFilePart(fileBaseName)}.${parsed.extension}`;
-  await fs.writeFile(path.join(IMAGE_DIR, fileName), Buffer.from(parsed.base64, "base64"));
-  return `/api/gallery/image/${fileName}`;
+  const outputDirectory = await getOutputDirectory();
+  await fs.mkdir(outputDirectory, { recursive: true });
+  const fileBase = fileBaseName.includes("_") ? fileBaseName : `${getTimestampFilePart()}_${fileBaseName}`;
+  const { fileName, filePath } = await getUniqueFilePath(outputDirectory, fileBase, parsed.extension);
+  await fs.writeFile(filePath, Buffer.from(parsed.base64, "base64"));
+  return { imageUrl: getGalleryImageUrl(fileName, filePath), imagePath: filePath };
+}
+
+export async function saveGeneratedImageFromDataUrl(dataUrl: string, title?: string) {
+  return writeImageAsset(dataUrl, `${getTimestampFilePart()}_${title?.trim() || "xgen-image"}`);
 }
 
 async function externalizeImageUrls(value: unknown, pathParts: string[] = []): Promise<{ value: unknown; changed: boolean }> {
@@ -79,10 +118,18 @@ async function externalizeImageUrls(value: unknown, pathParts: string[] = []): P
   const id = typeof source.id === "string" ? source.id : pathParts.join("-");
 
   for (const [key, fieldValue] of Object.entries(source)) {
+    if ((key === "imagePath" || key === "sheetImagePath") && typeof next[key] === "string") {
+      changed ||= next[key] !== fieldValue;
+      continue;
+    }
+
     if ((key === "imageUrl" || key === "sheetImageUrl") && typeof fieldValue === "string") {
       const externalized = await writeImageAsset(fieldValue, `${id}-${key}`);
-      next[key] = externalized;
-      changed ||= externalized !== fieldValue;
+      next[key] = externalized.imageUrl;
+      if (externalized.imagePath) {
+        next[key === "sheetImageUrl" ? "sheetImagePath" : "imagePath"] = externalized.imagePath;
+      }
+      changed ||= externalized.imageUrl !== fieldValue || Boolean(externalized.imagePath);
       continue;
     }
 
@@ -113,7 +160,10 @@ async function normalizeGalleryPayload(payload: GalleryStorePayload, updatedAt =
 }
 
 export function getGalleryImagePath(fileName: string) {
-  return path.join(IMAGE_DIR, sanitizeFilePart(path.basename(fileName, path.extname(fileName))) + path.extname(fileName).toLowerCase());
+  return path.join(
+    /* turbopackIgnore: true */ IMAGE_DIR,
+    sanitizeFilePart(path.basename(fileName, path.extname(fileName))) + path.extname(fileName).toLowerCase(),
+  );
 }
 
 export async function readGalleryStore(): Promise<GalleryStorePayload> {

@@ -1389,6 +1389,116 @@ button {
   flex: 0 0 auto;
 }
 
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 72px 24px 24px;
+  background: color-mix(in srgb, var(--bg-canvas) 24%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.settings-modal {
+  width: min(460px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-18);
+  padding: var(--ui-space-18);
+  border: 1px solid var(--border-node);
+  border-radius: var(--ui-radius-2xl-2);
+  background: color-mix(in srgb, var(--bg-node-base) 94%, black 6%);
+  box-shadow: var(--ui-shadow-node);
+}
+
+.settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ui-space-16);
+}
+
+.settings-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font: var(--ui-type-lg);
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.settings-header p {
+  margin: var(--ui-space-6) 0 0;
+  color: var(--text-secondary);
+  font: var(--ui-type-sm);
+  line-height: 1.55;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-10);
+}
+
+.settings-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-12);
+  color: var(--text-primary);
+  font: var(--ui-type-sm);
+  font-weight: 900;
+}
+
+.settings-field-label small {
+  color: var(--text-secondary);
+  font: var(--ui-type-xs);
+  font-weight: 900;
+}
+
+.settings-path {
+  min-height: 44px;
+  padding: var(--ui-space-12);
+  border: 1px solid var(--border-node);
+  border-radius: var(--ui-radius-xl);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font: var(--ui-type-sm);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-8);
+}
+
+.settings-actions .secondary-command:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.settings-note,
+.settings-status {
+  color: var(--text-secondary);
+  font: var(--ui-type-xs);
+  line-height: 1.45;
+}
+
+.settings-status {
+  min-height: 18px;
+}
+
+.settings-status.saved {
+  color: var(--port-prompt);
+}
+
+.settings-status.failed {
+  color: var(--port-constraint);
+}
+
 @media (max-width: 1180px), (max-height: 760px) {
   .preview-modal {
     height: calc(100dvh - 24px);

@@ -11,12 +11,25 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   ".webp": "image/webp",
 };
 
+function decodeSourcePath(value: string | null) {
+  if (!value) return null;
+  try {
+    return Buffer.from(value, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ file: string }> },
 ) {
   const { file } = await params;
-  const filePath = getGalleryImagePath(file);
+  const sourcePath = decodeSourcePath(new URL(request.url).searchParams.get("source"));
+  const filePath =
+    sourcePath && path.basename(sourcePath) === path.basename(file)
+      ? sourcePath
+      : getGalleryImagePath(file);
 
   try {
     const buffer = await fs.readFile(filePath);

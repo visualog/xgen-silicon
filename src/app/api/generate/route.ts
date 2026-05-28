@@ -2,6 +2,9 @@
 // Codex worker 이미지 생성 파이프라인
 import { NextRequest, NextResponse } from "next/server";
 import { generateViaWorker } from "@/lib/codex-worker-client";
+import { saveGeneratedImageFromDataUrl } from "@/lib/gallery-store";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,11 +58,14 @@ export async function POST(req: NextRequest) {
       imageMixImages,
     });
 
+    const savedImage = await saveGeneratedImageFromDataUrl(result.url, result.title);
+
     console.log("✅ 이미지 생성 완료!");
     return NextResponse.json({
-      url: result.url,
+      url: savedImage.imageUrl,
       threadId: result.threadId,
       filePath: result.filePath,
+      imagePath: savedImage.imagePath,
       title: result.title,
       englishPrompt: result.englishPrompt,
       koreanPrompt: result.koreanPrompt,

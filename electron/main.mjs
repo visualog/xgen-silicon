@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import net from "node:net";
@@ -16,6 +16,26 @@ const children = new Set();
 let shuttingDown = false;
 
 app.setName("xGen");
+
+ipcMain.handle("xgen:select-output-directory", async () => {
+  const result = await dialog.showOpenDialog(mainWindow ?? undefined, {
+    properties: ["openDirectory", "createDirectory"],
+  });
+  if (result.canceled) return null;
+  return result.filePaths[0] ?? null;
+});
+
+ipcMain.handle("xgen:show-item-in-folder", (_event, filePath) => {
+  if (typeof filePath !== "string" || !filePath.trim()) return false;
+  shell.showItemInFolder(filePath);
+  return true;
+});
+
+ipcMain.handle("xgen:open-path", async (_event, filePath) => {
+  if (typeof filePath !== "string" || !filePath.trim()) return { error: "Invalid path" };
+  const error = await shell.openPath(filePath);
+  return { error: error || null };
+});
 
 function isPortOpen(port, host = "127.0.0.1") {
   return new Promise((resolve) => {

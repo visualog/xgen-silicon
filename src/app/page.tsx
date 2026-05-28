@@ -25,10 +25,13 @@ import {
   Copy,
   Download,
   Eye,
+  ExternalLink,
+  FolderOpen,
   Info,
   Moon,
   Palette as PaletteIcon,
   Plus,
+  Settings,
   Sparkles,
   Sun,
   Trash2,
@@ -282,6 +285,7 @@ type GeneratedResult = EditorSnapshot & {
   id: string;
   title: string;
   createdAt: string;
+  imagePath?: string;
   generationDurationSeconds?: number;
   consistency?: ConsistencyElements;
   consistencyStatus?: ConsistencyStatus;
@@ -1037,6 +1041,10 @@ function FlowContent() {
   const [previewPromptLanguage, setPreviewPromptLanguage] = useState<"ko" | "en">("ko");
   const [isPreviewKoreanPromptLoading, setIsPreviewKoreanPromptLoading] = useState(false);
   const [galleryColumnCount, setGalleryColumnCount] = useState(4);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [outputDirectory, setOutputDirectory] = useState("");
+  const [isDefaultOutputDirectory, setIsDefaultOutputDirectory] = useState(true);
+  const [settingsStatus, setSettingsStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
 
   const [editorTitle, setEditorTitle] = useState(DEFAULT_SNAPSHOT.title);
   const [isTitleUserEdited, setIsTitleUserEdited] = useState(Boolean(DEFAULT_SNAPSHOT.isTitleUserEdited));
@@ -1330,9 +1338,79 @@ function FlowContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isNodeAddMenuOpen]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSettings() {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          outputDirectory?: string;
+          isDefaultOutputDirectory?: boolean;
+        };
+        if (cancelled) return;
+        setOutputDirectory(data.outputDirectory || "");
+        setIsDefaultOutputDirectory(Boolean(data.isDefaultOutputDirectory));
+      } catch {
+        if (!cancelled) setSettingsStatus("failed");
+      }
+    }
+
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsSettingsOpen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSettingsOpen]);
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
+
+  const saveOutputDirectory = useCallback(async (nextOutputDirectory: string | null) => {
+    setSettingsStatus("saving");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outputDirectory: nextOutputDirectory }),
+      });
+      const data = (await res.json()) as {
+        outputDirectory?: string;
+        isDefaultOutputDirectory?: boolean;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "설정을 저장하지 못했습니다.");
+      setOutputDirectory(data.outputDirectory || "");
+      setIsDefaultOutputDirectory(Boolean(data.isDefaultOutputDirectory));
+      setSettingsStatus("saved");
+      window.setTimeout(() => setSettingsStatus("idle"), 1600);
+    } catch {
+      setSettingsStatus("failed");
+    }
+  }, []);
+
+  const chooseOutputDirectory = useCallback(async () => {
+    if (!window.xgen?.selectOutputDirectory) return;
+    const selectedDirectory = await window.xgen.selectOutputDirectory();
+    if (!selectedDirectory) return;
+    await saveOutputDirectory(selectedDirectory);
+  }, [saveOutputDirectory]);
+
+  const resetOutputDirectory = useCallback(() => {
+    void saveOutputDirectory(null);
+  }, [saveOutputDirectory]);
 
   const connectedState = useMemo(() => {
     const isPromptConnected = edges.some((e) => e.target === "output-node" && e.source === "prompt-node");
@@ -1987,6 +2065,7 @@ function FlowContent() {
 
       const data = (await res.json()) as {
         url?: string;
+        imagePath?: string;
         title?: string;
         englishPrompt?: string;
         koreanPrompt?: string;
@@ -2013,6 +2092,7 @@ function FlowContent() {
           id: resultId,
           title: nextTitle,
           createdAt: new Date().toISOString(),
+          imagePath: data.imagePath,
           generationDurationSeconds,
           consistencyStatus: "pending",
         };
@@ -2646,6 +2726,8 @@ function FlowContent() {
 
   const activePreviewPrompt = (previewPromptLanguage === "ko" ? previewKoreanPrompt : previewPrompt) ?? "";
   const activePreviewConsistency = activePreviewResult?.consistency ?? emptyConsistency();
+  const previewImagePath = activePreviewResult?.imagePath;
+  const canUseNativeFileActions = Boolean(typeof window !== "undefined" && window.xgen && previewImagePath);
   const canAnalyzePreviewConsistency = Boolean(
     activePreviewResult?.id &&
     previewImageUrl &&
@@ -2715,6 +2797,26 @@ function FlowContent() {
     document.body.removeChild(a);
     setIsPreviewImageDownloaded(true);
   }, [previewImageUrl]);
+
+  const showPreviewImageInFolder = useCallback(async () => {
+    if (!previewImagePath || !window.xgen?.showItemInFolder) return;
+    try {
+      await window.xgen.showItemInFolder(previewImagePath);
+      setIsPreviewImageDownloaded(true);
+    } catch {
+      setIsPreviewImageDownloaded(false);
+    }
+  }, [previewImagePath]);
+
+  const openPreviewImageFile = useCallback(async () => {
+    if (!previewImagePath || !window.xgen?.openPath) return;
+    try {
+      const result = await window.xgen.openPath(previewImagePath);
+      setIsPreviewImageDownloaded(!result.error);
+    } catch {
+      setIsPreviewImageDownloaded(false);
+    }
+  }, [previewImagePath]);
 
   const analyzePreviewConsistency = useCallback(() => {
     if (!activePreviewResult?.id || !previewImageUrl) return;
@@ -2796,6 +2898,68 @@ function FlowContent() {
     };
   }, [generatedResults]);
 
+  const canChooseOutputDirectory = Boolean(typeof window !== "undefined" && window.xgen?.selectOutputDirectory);
+  const settingsModal = isSettingsOpen ? (
+    <div className="settings-overlay" onClick={() => setIsSettingsOpen(false)}>
+      <div className="settings-modal" role="dialog" aria-modal="true" aria-label="저장 설정" onClick={(event) => event.stopPropagation()}>
+        <div className="settings-header">
+          <div>
+            <h2>저장 설정</h2>
+            <p>새로 생성되는 이미지는 선택한 폴더에 이미지 파일로 저장됩니다.</p>
+          </div>
+          <button
+            type="button"
+            className="icon-toggle compact"
+            onClick={() => setIsSettingsOpen(false)}
+            aria-label="설정 닫기"
+            title="설정 닫기"
+          >
+            <Check size={14} />
+          </button>
+        </div>
+
+        <div className="settings-field">
+          <div className="settings-field-label">
+            <span>이미지 저장 폴더</span>
+            <small>{isDefaultOutputDirectory ? "기본값" : "사용자 지정"}</small>
+          </div>
+          <div className="settings-path">{outputDirectory || "저장 폴더를 불러오는 중입니다."}</div>
+          <div className="settings-actions">
+            <button
+              type="button"
+              className="secondary-command"
+              onClick={chooseOutputDirectory}
+              disabled={!canChooseOutputDirectory || settingsStatus === "saving"}
+            >
+              <FolderOpen size={16} />
+              폴더 선택
+            </button>
+            <button
+              type="button"
+              className="secondary-command"
+              onClick={resetOutputDirectory}
+              disabled={settingsStatus === "saving"}
+            >
+              기본값
+            </button>
+          </div>
+          {!canChooseOutputDirectory && (
+            <div className="settings-note">폴더 선택은 Electron 앱에서 사용할 수 있습니다.</div>
+          )}
+          <div className={`settings-status ${settingsStatus}`}>
+            {settingsStatus === "saving"
+              ? "저장 중"
+              : settingsStatus === "saved"
+                ? "저장됨"
+                : settingsStatus === "failed"
+                  ? "설정을 처리하지 못했습니다."
+                  : " "}
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (viewMode === "gallery") {
     return (
       <main className="studio-shell">
@@ -2815,6 +2979,11 @@ function FlowContent() {
             </div>
 
             <div className="studio-actions">
+              <Link href="/xmark" className="secondary-command studio-action-plain">
+                <Sparkles size={16} />
+                xMark
+              </Link>
+              <span className="studio-action-divider" aria-hidden="true" />
               <Link href="/design-system" className="secondary-command studio-action-plain">
                 <PaletteIcon size={16} />
                 디자인 시스템
@@ -2828,6 +2997,16 @@ function FlowContent() {
               >
                 <Info size={16} />
               </Link>
+              <span className="studio-action-divider" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                className="icon-toggle studio-action-plain"
+                title="저장 설정"
+                aria-label="저장 설정"
+              >
+                <Settings size={16} />
+              </button>
               <span className="studio-action-divider" aria-hidden="true" />
               <button
                 type="button"
@@ -2975,6 +3154,7 @@ function FlowContent() {
             </div>
           )}
         </section>
+        {settingsModal}
       </main>
     );
   }
@@ -3041,6 +3221,14 @@ function FlowContent() {
           aria-label={theme === "dark" ? "Light theme" : "Dark theme"}
         >
           {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
+        </button>
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          title="저장 설정"
+          className="icon-toggle compact"
+          aria-label="저장 설정"
+        >
+          <Settings size={14} />
         </button>
       </div>
 
@@ -3300,30 +3488,83 @@ function FlowContent() {
                   )}
                 </div>
                 <div className="preview-actions">
-                  <button
-                    type="button"
-                    onClick={downloadPreviewImage}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      flex: 1,
-                      height: "38px",
-                      padding: "0 12px",
-                      borderRadius: "999px",
-                      border: "1px solid var(--border-node)",
-                      backgroundColor: "var(--bg-node-base)",
-                      color: "var(--text-primary)",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      transition: "all 0.18s ease",
-                    }}
-                  >
-                    {isPreviewImageDownloaded ? <Check size={14} /> : <Download size={14} />}
-                    이미지 다운로드
-                  </button>
+                  {canUseNativeFileActions ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={showPreviewImageInFolder}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          flex: 1,
+                          height: "38px",
+                          padding: "0 12px",
+                          borderRadius: "999px",
+                          border: "1px solid var(--border-node)",
+                          backgroundColor: "var(--bg-node-base)",
+                          color: "var(--text-primary)",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "all 0.18s ease",
+                        }}
+                      >
+                        {isPreviewImageDownloaded ? <Check size={14} /> : <FolderOpen size={14} />}
+                        Finder에서 보기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={openPreviewImageFile}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          flex: 1,
+                          height: "38px",
+                          padding: "0 12px",
+                          borderRadius: "999px",
+                          border: "1px solid var(--border-node)",
+                          backgroundColor: "var(--bg-node-base)",
+                          color: "var(--text-primary)",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "all 0.18s ease",
+                        }}
+                      >
+                        <ExternalLink size={14} />
+                        이미지 열기
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={downloadPreviewImage}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        flex: 1,
+                        height: "38px",
+                        padding: "0 12px",
+                        borderRadius: "999px",
+                        border: "1px solid var(--border-node)",
+                        backgroundColor: "var(--bg-node-base)",
+                        color: "var(--text-primary)",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all 0.18s ease",
+                      }}
+                    >
+                      {isPreviewImageDownloaded ? <Check size={14} /> : <Download size={14} />}
+                      이미지 다운로드
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={copyPreviewPrompt}
@@ -3355,6 +3596,7 @@ function FlowContent() {
           </div>
         </div>
       )}
+      {settingsModal}
     </main>
   );
 }
