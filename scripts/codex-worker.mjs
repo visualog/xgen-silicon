@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import http from "node:http";
 import { spawn } from "node:child_process";
+import sharp from "sharp";
 
 const PORT = Number(process.env.BRANDGEN_CODEX_WORKER_PORT || 4317);
 const CODEX_BIN = process.env.CODEX_BIN || "/usr/local/bin/codex";
@@ -61,6 +62,84 @@ function eventsContainCompletedTurn(events) {
   return events.some((event) => event.type === "turn.completed");
 }
 
+function normalizeTokenUsage(rawUsage) {
+  if (!rawUsage || typeof rawUsage !== "object") return null;
+  const readNumber = (...keys) => {
+    for (const key of keys) {
+      const value = rawUsage[key];
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+    }
+    return undefined;
+  };
+
+  const inputTokens = readNumber("input_tokens", "inputTokens", "prompt_tokens", "promptTokens");
+  const outputTokens = readNumber("output_tokens", "outputTokens", "completion_tokens", "completionTokens");
+  const cachedInputTokens = readNumber("cached_input_tokens", "cachedInputTokens", "cached_tokens", "cachedTokens");
+  const totalTokens = readNumber("total_tokens", "totalTokens");
+  const normalizedTotal =
+    totalTokens ?? [inputTokens, outputTokens].filter((value) => typeof value === "number").reduce((sum, value) => sum + value, 0);
+
+  if (
+    typeof inputTokens !== "number" &&
+    typeof outputTokens !== "number" &&
+    typeof cachedInputTokens !== "number" &&
+    typeof normalizedTotal !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    inputTokens: inputTokens ?? 0,
+    outputTokens: outputTokens ?? 0,
+    cachedInputTokens: cachedInputTokens ?? 0,
+    totalTokens: normalizedTotal ?? 0,
+  };
+}
+
+function extractTokenUsage(events) {
+  const candidates = [];
+  for (const event of events) {
+    if (!event || typeof event !== "object") continue;
+    candidates.push(
+      event.usage,
+      event.token_usage,
+      event.tokenUsage,
+      event.metrics?.usage,
+      event.metrics?.token_usage,
+      event.item?.usage,
+    );
+  }
+
+  return candidates.map(normalizeTokenUsage).filter(Boolean).at(-1) ?? null;
+}
+
+function emptyTokenUsage() {
+  return {
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedInputTokens: 0,
+    totalTokens: 0,
+  };
+}
+
+function addTokenUsage(left, right) {
+  if (!left && !right) return null;
+  const a = left ?? emptyTokenUsage();
+  const b = right ?? emptyTokenUsage();
+  return {
+    inputTokens: a.inputTokens + b.inputTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+    cachedInputTokens: a.cachedInputTokens + b.cachedInputTokens,
+    totalTokens: a.totalTokens + b.totalTokens,
+  };
+}
+
+function addLabeledUsage(totalUsage, labeledUsages, label, usage) {
+  if (!usage) return totalUsage;
+  labeledUsages.push({ label, ...usage });
+  return addTokenUsage(totalUsage, usage);
+}
+
 function stripCodeFences(text) {
   return text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
 }
@@ -97,7 +176,7 @@ function buildBaseImagePrompt(body) {
     .trim();
 }
 
-function buildImagePrompt(body, { preserveStyleReference = false } = {}) {
+function buildImagePrompt(body, { preserveStyleReference = false, useDefaultStyle = true } = {}) {
   if (preserveStyleReference) {
     return [
       "premium brand illustration",
@@ -109,6 +188,10 @@ function buildImagePrompt(body, { preserveStyleReference = false } = {}) {
       .replace(/\n/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  if (!useDefaultStyle) {
+    return body.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   }
 
   return buildBaseImagePrompt(body);
@@ -165,6 +248,116 @@ function imageExtensionFromMimeType(mimeType) {
   if (subtype === "jpeg") return "jpg";
   if (/^[a-z0-9]+$/i.test(subtype)) return subtype.toLowerCase();
   return "jpg";
+}
+
+async function writeOptimizedImageInput(tmpFileBase, imageData, options = {}) {
+  const {
+    maxEdge = 1024,
+    quality = 82,
+    format = "webp",
+  } = options;
+  const targetPath = `${tmpFileBase}.${format}`;
+
+  try {
+    await sharp(imageData.buffer, { failOn: "none" })
+      .rotate()
+      .resize({
+        width: maxEdge,
+        height: maxEdge,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      [format]({ quality })
+      .toFile(targetPath);
+    return targetPath;
+  } catch (error) {
+    logDebug("writeOptimizedImageInput:fallback", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    const ext = imageExtensionFromMimeType(imageData.mimeType || "image/png");
+    const fallbackPath = `${tmpFileBase}.${ext}`;
+    fs.writeFileSync(fallbackPath, imageData.buffer);
+    return fallbackPath;
+  }
+}
+
+function normalizeStyleReferenceWeight(weight) {
+  return weight === "subtle" || weight === "strong" ? weight : "medium";
+}
+
+function styleReferenceInfluenceLabel(weight) {
+  const normalized = normalizeStyleReferenceWeight(weight);
+  if (normalized === "strong") return "strong influence";
+  if (normalized === "subtle") return "subtle influence";
+  return "medium influence";
+}
+
+function normalizeStyleReferenceImages(styleReferenceImages) {
+  return Array.isArray(styleReferenceImages)
+    ? styleReferenceImages
+        .filter((item) => item && typeof item.imageUrl === "string" && item.imageUrl.trim())
+        .map((item, index) => ({
+          imageUrl: item.imageUrl.trim(),
+          prompt: typeof item.prompt === "string" ? item.prompt.trim() : "",
+          label: typeof item.label === "string" && item.label.trim() ? item.label.trim() : `style reference ${index + 1}`,
+          weight: normalizeStyleReferenceWeight(item.weight),
+          mode: "style-only",
+        }))
+    : [];
+}
+
+function buildStyleReferencePrompt(styleReferenceItems) {
+  if (!styleReferenceItems.length) return "";
+  return `STYLE REFERENCE IMAGES: ${styleReferenceItems.map((item, index) => {
+    const note = item.prompt || item.label || "use only visual style traits";
+    return `reference ${index + 1}: ${item.label}, ${styleReferenceInfluenceLabel(item.weight)}, style-only, ${note}`;
+  }).join(" | ")}. Use attached style reference images only for visual style: palette, medium, texture, lighting, rendering detail, atmosphere, and overall finish. Do not copy the reference image's subject, object identity, person identity, layout, pose, text, logo, or exact composition unless the user explicitly asks for it. The core prompt controls what appears in the final image.`;
+}
+
+function shouldAttachStyleReference(item, index) {
+  if (item.weight === "strong") return true;
+  return index === 0 && !item.prompt;
+}
+
+function isLayerEditReference(item) {
+  return item?.role === "composition" && /generated image layer|masked layer edit/i.test(`${item.label || ""} ${item.prompt || ""}`);
+}
+
+function shouldAttachImageMixReference(item) {
+  if (isLayerEditReference(item)) return true;
+  return item?.weight === "high";
+}
+
+function formatSkippedReferenceGuidance(label, items) {
+  if (!items.length) return "";
+  return `${label}: ${items.map((item, index) => {
+    const note = item.prompt || item.label || "visual guidance";
+    const weight = item.weight || "medium";
+    const role = item.role ? `${item.role}, ` : "";
+    return `${index + 1}) ${role}${weight}: ${compactText(note, 180)}`;
+  }).join(" | ")}`;
+}
+
+function compactText(value, maxLength = 520) {
+  const normalized = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trim()}…`;
+}
+
+function compactJoin(parts) {
+  return parts.map((part) => compactText(part)).filter(Boolean).join("\n");
+}
+
+function deterministicTitleFromPrompt(prompt) {
+  const source = compactText(prompt, 120);
+  if (!source) return "새 브랜드 이미지";
+  const cleaned = source
+    .replace(/^(xGen image brief\.|Subject:|Core prompt:)/i, "")
+    .replace(/[|,:;]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const words = cleaned.split(" ").filter(Boolean).slice(0, 5).join(" ");
+  return words || "새 브랜드 이미지";
 }
 
 function findLatestGeneratedImage(threadId) {
@@ -251,11 +444,12 @@ function runCodexExec(prompt, { timeoutMs = 60000, imagePaths = [] } = {}) {
         types: events.map((event) => event.type),
       });
       const finalMessage = extractLastAgentMessage(events);
+      const tokenUsage = extractTokenUsage(events);
       if (!finalMessage) {
         reject(new Error("Codex CLI가 비어 있는 최종 응답을 반환했습니다."));
         return;
       }
-      resolve(finalMessage);
+      resolve({ text: finalMessage, tokenUsage });
     });
 
     proc.on("error", (error) => {
@@ -345,7 +539,7 @@ function runCodexExecForImageGeneration(prompt, timeoutMs = 240000, imagePaths =
         reject(new Error("Codex CLI 이미지 생성 응답에 turn.completed 이벤트가 없습니다."));
         return;
       }
-      resolve({ threadId });
+      resolve({ threadId, tokenUsage: extractTokenUsage(events) });
     });
 
     proc.on("error", (error) => {
@@ -546,10 +740,13 @@ Return ONLY a valid JSON object with this exact structure, no markdown, no expla
 All returned string values must be written in natural English.
 `.trim();
 
-  const raw = await runCodexExec(instruction, { timeoutMs: 60000 });
+  const { text: raw, tokenUsage } = await runCodexExec(instruction, { timeoutMs: 60000 });
   const cleaned = stripCodeFences(raw);
   logDebug("buildPromptWithCodex:raw", { rawPreview: raw.slice(0, 300) });
-  return JSON.parse(cleaned);
+  return {
+    ...JSON.parse(cleaned),
+    tokenUsage,
+  };
 }
 
 function appendStructuredNodeSettings(promptBody, settings) {
@@ -571,6 +768,7 @@ function appendStructuredNodeSettings(promptBody, settings) {
   if (settings.gesture) parts.push(`Gesture/expression: ${settings.gesture}`);
   if (settings.propsPrompt) parts.push(`Props: ${settings.propsPrompt}`);
   if (settings.detailLevel) parts.push(`Detail density: ${settings.detailLevel}`);
+  if (settings.styleReferencePrompt) parts.push(settings.styleReferencePrompt);
   if (settings.imageMixPrompt) parts.push(settings.imageMixPrompt);
   if (parts.length === 0 || promptBody.includes("AUTHORITATIVE STRUCTURED INPUTS")) return promptBody;
   return `${promptBody}, AUTHORITATIVE STRUCTURED INPUTS: ${parts.join(" | ")}. These are the current connected node values and must override stale wording elsewhere.`;
@@ -590,7 +788,7 @@ Write it as a fixed consistency reference that can be reused in future prompts.
 No JSON. No bullets. No explanation.
 `.trim();
 
-  const raw = await runCodexExec(instruction, {
+  const { text: raw } = await runCodexExec(instruction, {
     timeoutMs: 45000,
     imagePaths: [imagePath],
   });
@@ -634,7 +832,7 @@ Rules:
 - No markdown. No explanation.
 `.trim();
 
-  const raw = await runCodexExec(instruction, {
+  const { text: raw } = await runCodexExec(instruction, {
     timeoutMs: 60000,
     imagePaths: [imagePath],
   });
@@ -679,7 +877,7 @@ PROMPT:
 ${englishPrompt}
 `.trim();
 
-  const raw = await runCodexExec(instruction, { timeoutMs: 45000 });
+  const { text: raw } = await runCodexExec(instruction, { timeoutMs: 45000 });
   return raw.replace(/\*\*/g, "").replace(/\*/g, "").replace(/\n+/g, " ").trim();
 }
 
@@ -701,7 +899,7 @@ SOURCE:
 ${source}
 `.trim();
 
-  const raw = await runCodexExec(instruction, { timeoutMs: 45000 });
+  const { text: raw } = await runCodexExec(instruction, { timeoutMs: 45000 });
   const cleaned = raw.replace(/\*\*/g, "").replace(/\*/g, "").replace(/\n+/g, " ").trim();
   return cleaned || "새 브랜드 이미지";
 }
@@ -729,22 +927,32 @@ SOURCE:
 ${source}
 `.trim();
 
-  const raw = await runCodexExec(instruction, { timeoutMs: 45000 });
+  const { text: raw, tokenUsage } = await runCodexExec(instruction, { timeoutMs: 45000 });
   const cleaned = stripCodeFences(raw);
   const parsed = JSON.parse(cleaned);
   return {
     koreanPrompt: typeof parsed.koreanPrompt === "string" ? parsed.koreanPrompt.replace(/\s+/g, " ").trim() : "",
     title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.replace(/\s+/g, " ").trim() : "새 브랜드 이미지",
+    tokenUsage,
   };
 }
 
-async function generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio = "1:1", resolution = "HD", composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages = [], imageMixImages = [] }) {
+async function generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio = "1:1", resolution = "HD", composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages = [], styleReferenceImages = [], imageMixImages = [] }) {
   const { width, height } = getPixelSize(resolution, ratio);
   let promptBody = prebuiltPrompt?.trim() || "";
+  const hasPrebuiltPrompt = Boolean(promptBody);
+  let tokenUsage = null;
+  const tokenUsageBreakdown = [];
   const sheetTmpFiles = [];
+  const styleReferenceItems = normalizeStyleReferenceImages(styleReferenceImages);
+  const styleReferencePrompt = buildStyleReferencePrompt(styleReferenceItems);
+  const attachedStyleReferenceItems = styleReferenceItems.filter((item, index) => shouldAttachStyleReference(item, index));
+  const skippedStyleReferenceItems = styleReferenceItems.filter((item, index) => !shouldAttachStyleReference(item, index));
   const imageMixItems = Array.isArray(imageMixImages)
     ? imageMixImages.filter((item) => item && typeof item.imageUrl === "string" && item.imageUrl.trim())
     : [];
+  const attachedImageMixItems = imageMixItems.filter(shouldAttachImageMixReference);
+  const skippedImageMixItems = imageMixItems.filter((item) => !shouldAttachImageMixReference(item));
   const imageMixPrompt = imageMixItems.length
     ? `IMAGE MIX REFERENCES: ${imageMixItems.map((item, index) => {
         const role = item.role || "style";
@@ -755,6 +963,7 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
     : "";
 
   if (
+    !hasPrebuiltPrompt &&
     promptBody &&
     objectAngle &&
     !promptBody.includes("OBJECT ORIENTATION LOCK") &&
@@ -762,16 +971,19 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
   ) {
     promptBody = `${promptBody}, ${objectAngle}`;
   }
-  if (promptBody && characterReference) {
+  if (!hasPrebuiltPrompt && promptBody && characterReference) {
     promptBody = `${promptBody}, CONSISTENCY LOCK - character identity must match exactly: ${characterReference}`;
   }
-  if (promptBody && objectReference) {
+  if (!hasPrebuiltPrompt && promptBody && objectReference) {
     promptBody = `${promptBody}, CONSISTENCY LOCK - object identity must match exactly: ${objectReference}`;
   }
-  if (promptBody && imageMixPrompt && !promptBody.includes("IMAGE MIX REFERENCES")) {
+  if (!hasPrebuiltPrompt && promptBody && imageMixPrompt && !promptBody.includes("IMAGE MIX REFERENCES")) {
     promptBody = `${promptBody}, ${imageMixPrompt}`;
   }
-  if (promptBody) {
+  if (!hasPrebuiltPrompt && promptBody && styleReferencePrompt && !promptBody.includes("STYLE REFERENCE IMAGES")) {
+    promptBody = `${promptBody}, ${styleReferencePrompt}`;
+  }
+  if (!hasPrebuiltPrompt && promptBody) {
     promptBody = appendStructuredNodeSettings(promptBody, {
       prompt,
       style,
@@ -790,99 +1002,126 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
       gesture,
       propsPrompt,
       detailLevel,
+      styleReferencePrompt,
       imageMixPrompt,
     });
   }
 
   if (!promptBody) {
-    const buildResult = await buildPromptWithCodex({
-      userInput: prompt || style || "",
-      style,
-      characterReference,
-      objectReference,
-      ratio,
-      resolution,
-      composition,
-      background,
-      constraints,
-      mood,
-      palette,
-      cameraAngle,
-      objectAngle,
-      lighting,
-      gesture,
-      propsPrompt,
-      detailLevel,
-      imageMixPrompt,
-    });
-    promptBody = [
-      buildResult.enhancedPrompt,
-      ...buildResult.styleKeywords,
-      ...buildResult.technicalTags,
-    ].join(", ");
+    promptBody = compactJoin([
+      "xGen image brief.",
+      prompt ? `Subject: ${prompt}` : "",
+      style ? `Style: ${style}` : "",
+      characterReference ? `Character lock: ${characterReference}` : "",
+      objectReference ? `Object lock: ${objectReference}` : "",
+      ratio ? `Aspect ratio: ${ratio}` : "",
+      resolution ? `Resolution: ${resolution}` : "",
+      composition ? `Composition: ${composition}` : "",
+      background ? `Background: ${background}` : "",
+      constraints ? `Constraints: ${constraints}` : "",
+      mood ? `Mood: ${mood}` : "",
+      palette ? `Palette: ${palette}` : "",
+      cameraAngle ? `Camera: ${cameraAngle}` : "",
+      objectAngle ? `Object orientation: ${objectAngle}` : "",
+      lighting ? `Lighting: ${lighting}` : "",
+      gesture ? `Gesture: ${gesture}` : "",
+      propsPrompt ? `Props: ${propsPrompt}` : "",
+      detailLevel ? `Detail: ${detailLevel}` : "",
+      styleReferenceItems.length ? `Style images: ${styleReferenceItems.length} style-only reference(s).` : "",
+      imageMixItems.length ? `Image mix: ${imageMixItems.length} role-weighted reference(s).` : "",
+      skippedStyleReferenceItems.length ? formatSkippedReferenceGuidance("Text-only style refs", skippedStyleReferenceItems) : "",
+      skippedImageMixItems.length ? formatSkippedReferenceGuidance("Text-only mix refs", skippedImageMixItems) : "",
+      "Quality: premium brand image, coherent composition, high detail, no readable text, no logo, no watermark.",
+    ]);
   }
 
   const fullPrompt = buildImagePrompt(promptBody, {
     preserveStyleReference: Boolean(style),
+    useDefaultStyle: Boolean(style || styleReferenceItems.length || imageMixItems.length),
   });
-  let metadata = { koreanPrompt: "", title: "새 브랜드 이미지" };
-  try {
-    metadata = await generateMetadataForPrompt(promptBody);
-  } catch (error) {
-    logDebug("generateImageWithCodex:metadataFallback", {
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
+  tokenUsageBreakdown.push(
+    { label: "노드 설정 프롬프트 구성", ...emptyTokenUsage() },
+    { label: "최종 프롬프트 구성", ...emptyTokenUsage() },
+  );
+  const metadata = {
+    koreanPrompt: typeof prompt === "string" ? prompt.replace(/\s+/g, " ").trim() : "",
+    title: deterministicTitleFromPrompt(prompt || promptBody),
+  };
   logDebug("generateImageWithCodex:prompt", {
     ratio,
     resolution,
     width,
     height,
     usedPrebuiltPrompt: Boolean(prebuiltPrompt),
+    styleReferenceCount: styleReferenceItems.length,
+    attachedStyleReferenceCount: attachedStyleReferenceItems.length,
     imageMixCount: imageMixItems.length,
+    attachedImageMixCount: attachedImageMixItems.length,
     promptPreview: fullPrompt.slice(0, 300),
   });
   const instruction = `
-Generate one image from this prompt.
+Generate one image.
 
-IMAGE PROMPT:
+PROMPT:
 ${fullPrompt}
 
-ATTACHED IMAGE MIX:
-${imageMixItems.length
-    ? imageMixItems.map((item, index) => `- image ${index + 1}: role=${item.role || "style"}, influence=${item.weight || "medium"}, note=${item.prompt || item.label || "visible traits"}`).join("\n")
+STYLE REFERENCES:
+${attachedStyleReferenceItems.length
+    ? attachedStyleReferenceItems.map((item, index) => `- ${index + 1}: ${item.label}; ${item.weight}; style only; ${compactText(item.prompt || "visual style traits only", 220)}`).join("\n")
     : "- none"}
+${formatSkippedReferenceGuidance("TEXT-ONLY STYLE GUIDANCE", skippedStyleReferenceItems)}
+
+IMAGE MIX:
+${attachedImageMixItems.length
+    ? attachedImageMixItems.map((item, index) => `- ${index + 1}: ${item.role || "style"}; ${item.weight || "medium"}; ${compactText(item.prompt || item.label || "visible traits", 220)}`).join("\n")
+    : "- none"}
+${formatSkippedReferenceGuidance("TEXT-ONLY MIX GUIDANCE", skippedImageMixItems)}
 
 REQUIREMENTS:
-- aspect ratio: ${ratio}
-- target size: ${width}x${height}
-- no text, watermark, or logo
-- if a CONSISTENCY LOCK is present, preserve those identity details over pose, scene, or composition variation
-- if IMAGE MIX REFERENCES are present, use attached mix images only for their assigned roles and influence levels
-- do not redesign, simplify, recolor, swap, or reinterpret locked character/object identity details
-- if an OBJECT ORIENTATION LOCK is present, make the final drawing visibly obey that orientation with foreshortening and changed silhouette, not a normal front or side profile
-- return the generated image as the normal Codex image-generation result
+- ${ratio} aspect, target ${width}x${height}; no readable text, logo, or watermark.
+- Style refs affect palette, medium, texture, lighting, finish only; do not copy subject/layout.
+- Preserve character/object locks and role-weighted image mix traits.
+- If orientation or mask edit is requested, make it visibly obeyed while preserving unaffected areas.
+- Return the generated image only.
 `.trim();
 
   try {
     for (const [index, imageInput] of (Array.isArray(elementSheetImages) ? elementSheetImages : []).entries()) {
       if (typeof imageInput !== "string" || !imageInput.trim()) continue;
       const imageData = await imageInputToBuffer(imageInput);
-      const ext = imageExtensionFromMimeType(imageData.mimeType || "image/png");
-      const tmpFile = path.join(os.tmpdir(), `xgen-element-reference-${Date.now()}-${index}.${ext}`);
-      fs.writeFileSync(tmpFile, imageData.buffer);
+      const tmpFile = await writeOptimizedImageInput(
+        path.join(os.tmpdir(), `xgen-element-reference-${Date.now()}-${index}`),
+        imageData,
+        { maxEdge: 1024, quality: 84 },
+      );
       sheetTmpFiles.push(tmpFile);
     }
-    for (const [index, item] of imageMixItems.entries()) {
+    for (const [index, item] of attachedStyleReferenceItems.entries()) {
       const imageData = await imageInputToBuffer(item.imageUrl);
-      const ext = imageExtensionFromMimeType(imageData.mimeType || "image/png");
-      const tmpFile = path.join(os.tmpdir(), `xgen-image-mix-${Date.now()}-${index}.${ext}`);
-      fs.writeFileSync(tmpFile, imageData.buffer);
+      const tmpFile = await writeOptimizedImageInput(
+        path.join(os.tmpdir(), `xgen-style-reference-${Date.now()}-${index}`),
+        imageData,
+        { maxEdge: item.weight === "strong" ? 640 : 512, quality: item.weight === "strong" ? 82 : 76 },
+      );
+      sheetTmpFiles.push(tmpFile);
+    }
+    for (const [index, item] of attachedImageMixItems.entries()) {
+      const imageData = await imageInputToBuffer(item.imageUrl);
+      const isLayerEdit = isLayerEditReference(item);
+      const tmpFile = await writeOptimizedImageInput(
+        path.join(os.tmpdir(), `xgen-image-mix-${Date.now()}-${index}`),
+        imageData,
+        {
+          maxEdge: isLayerEdit ? 1024 : item.weight === "high" ? 768 : 640,
+          quality: isLayerEdit ? 84 : item.weight === "high" ? 82 : 78,
+        },
+      );
       sheetTmpFiles.push(tmpFile);
     }
 
     const imageInputs = sheetTmpFiles.filter(Boolean);
-    const { threadId } = await runCodexExecForImageGeneration(instruction, 240000, imageInputs);
+    const { threadId, tokenUsage: imageTokenUsage } = await runCodexExecForImageGeneration(instruction, 240000, imageInputs);
+    tokenUsage = addLabeledUsage(tokenUsage, tokenUsageBreakdown, "최종 이미지 생성", imageTokenUsage);
     const filePath = findLatestGeneratedImage(threadId);
     logDebug("generateImageWithCodex:fileLookup", {
       threadId,
@@ -901,6 +1140,8 @@ REQUIREMENTS:
       englishPrompt: promptBody,
       koreanPrompt: metadata.koreanPrompt,
       title: metadata.title,
+      tokenUsage,
+      tokenUsageBreakdown,
     };
   } finally {
     for (const tmpFile of sheetTmpFiles) {
@@ -1010,53 +1251,30 @@ async function handleTranslate(payload) {
     return { englishPrompt: "" };
   }
 
-  const parts = [];
-  if (prompt) {
-    const result = await buildPromptWithCodex({
-      userInput: prompt,
-      style,
-      characterReference,
-      objectReference,
-      ratio,
-      resolution,
-      composition,
-      background,
-      constraints,
-      mood,
-      palette,
-      cameraAngle,
-      objectAngle,
-      lighting,
-      gesture,
-      propsPrompt,
-      detailLevel,
-      imageMixPrompt,
-    });
-    if (result.enhancedPrompt) parts.push(result.enhancedPrompt);
-    if (result.technicalTags?.length) parts.push(result.technicalTags.join(", "));
-  }
-  if (!prompt && composition) parts.push(composition);
-  if (characterReference) parts.push(`fixed character reference: ${characterReference}`);
-  if (objectReference) parts.push(`fixed object reference: ${objectReference}`);
-  if (!prompt && background) parts.push(background);
-  if (!prompt && constraints) parts.push(constraints);
-  if (!prompt && mood) parts.push(mood);
-  if (!prompt && palette) parts.push(palette);
-  if (!prompt && cameraAngle) parts.push(cameraAngle);
-  if (!prompt && objectAngle) parts.push(objectAngle);
-  if (!prompt && lighting) parts.push(lighting);
-  if (!prompt && gesture) parts.push(gesture);
-  if (!prompt && propsPrompt) parts.push(propsPrompt);
-  if (!prompt && detailLevel) parts.push(detailLevel);
-  if (imageMixPrompt) parts.push(imageMixPrompt);
-  if (style) parts.push(style);
-  if (!prompt) {
-    if (ratio) parts.push(`${ratio} aspect ratio`);
-    if (resolution) parts.push(`${resolution} resolution`);
-  }
+  const parts = [
+    "xGen image brief.",
+    prompt ? `Subject: ${prompt}` : "",
+    style ? `Style: ${style}` : "",
+    characterReference ? `Character lock: ${characterReference}` : "",
+    objectReference ? `Object lock: ${objectReference}` : "",
+    ratio ? `Aspect ratio: ${ratio}` : "",
+    resolution ? `Resolution: ${resolution}` : "",
+    composition ? `Composition: ${composition}` : "",
+    background ? `Background: ${background}` : "",
+    constraints ? `Constraints: ${constraints}` : "",
+    mood ? `Mood: ${mood}` : "",
+    palette ? `Palette: ${palette}` : "",
+    cameraAngle ? `Camera: ${cameraAngle}` : "",
+    objectAngle ? `Object orientation: ${objectAngle}` : "",
+    lighting ? `Lighting: ${lighting}` : "",
+    gesture ? `Gesture: ${gesture}` : "",
+    propsPrompt ? `Props: ${propsPrompt}` : "",
+    detailLevel ? `Detail: ${detailLevel}` : "",
+    imageMixPrompt || "",
+    "Quality: premium brand image, coherent composition, high detail, no readable text, no logo, no watermark.",
+  ];
 
-  const englishPrompt = parts.join(". ").trim();
-  return { englishPrompt };
+  return { englishPrompt: compactJoin(parts) };
 }
 
 async function handleTranslateKorean(payload) {
@@ -1112,16 +1330,105 @@ async function handleAnalyzeConsistency(payload) {
 }
 
 async function handleGenerate(payload) {
-  const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages, imageMixImages } = payload;
-  if (!prompt && !style && !prebuiltPrompt) {
+  const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages, styleReferenceImages, imageMixImages } = payload;
+  if (!prompt && !style && !prebuiltPrompt && !normalizeStyleReferenceImages(styleReferenceImages).length) {
     throw new Error("프롬프트 또는 스타일이 필요합니다.");
   }
-  return generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages, imageMixImages });
+  return generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages, styleReferenceImages, imageMixImages });
 }
 
 async function handleGenerateElementSheet(payload) {
   const { element, sourceImage, sourcePrompt, style } = payload;
   return generateElementSheetWithCodex({ element, sourceImage, sourcePrompt, style });
+}
+
+async function runStyleReferenceDryRun() {
+  const styleReferenceImages = normalizeStyleReferenceImages([
+    {
+      imageUrl: "data:image/png;base64,iVBORw0KGgo=",
+      label: "pure style reference 001",
+      prompt: "Preserve palette, texture, lighting, and finish from the reference image.",
+      weight: "strong",
+      mode: "style-only",
+    },
+  ]);
+  const styleReferencePrompt = buildStyleReferencePrompt(styleReferenceImages);
+  const imageMixImages = [{
+    imageUrl: "data:image/png;base64,iVBORw0KGgo=",
+    role: "palette",
+    weight: "medium",
+    prompt: "Use only color mood from this mix reference.",
+    label: "palette mix",
+  }];
+  const attachedStyleReferenceImages = styleReferenceImages.filter((item, index) => shouldAttachStyleReference(item, index));
+  const skippedStyleReferenceImages = styleReferenceImages.filter((item, index) => !shouldAttachStyleReference(item, index));
+  const attachedImageMixImages = imageMixImages.filter(shouldAttachImageMixReference);
+  const skippedImageMixImages = imageMixImages.filter((item) => !shouldAttachImageMixReference(item));
+  const textOnlyStyleGuidance = formatSkippedReferenceGuidance("TEXT-ONLY STYLE GUIDANCE", skippedStyleReferenceImages);
+  const textOnlyMixGuidance = formatSkippedReferenceGuidance("TEXT-ONLY MIX GUIDANCE", skippedImageMixImages);
+  const imageMixPrompt = `IMAGE MIX REFERENCES: ${imageMixImages.map((item, index) => {
+    const role = item.role || "style";
+    const weight = item.weight || "medium";
+    const promptText = item.prompt || item.label || "use visible traits from this reference";
+    return `reference ${index + 1}: ${role}, ${weight} influence, ${promptText}`;
+  }).join(" | ")}. Use attached mix images as controlled references by role; combine their intended traits into one coherent new image, not a collage.`;
+  const promptBody = appendStructuredNodeSettings(
+    [
+      "Core prompt: generate a premium desk organizer for a design studio",
+      styleReferencePrompt,
+      imageMixPrompt,
+    ].join(", "),
+    {
+      prompt: "generate a premium desk organizer for a design studio",
+      style: "polished design-led mood",
+      styleReferencePrompt,
+      imageMixPrompt,
+    },
+  );
+  const instruction = `
+Generate one image from this prompt.
+
+IMAGE PROMPT:
+${buildImagePrompt(promptBody, { preserveStyleReference: true })}
+
+ATTACHED STYLE REFERENCES:
+${attachedStyleReferenceImages.length
+    ? attachedStyleReferenceImages.map((item, index) => `- image ${index + 1}: label=${item.label}, influence=${item.weight}, mode=style-only, note=${item.prompt || "visual style traits only"}`).join("\n")
+    : "- none"}
+${textOnlyStyleGuidance}
+
+ATTACHED IMAGE MIX:
+${attachedImageMixImages.length
+    ? attachedImageMixImages.map((item, index) => `- image ${index + 1}: role=${item.role || "style"}, influence=${item.weight || "medium"}, note=${item.prompt || item.label || "visible traits"}`).join("\n")
+    : "- none"}
+${textOnlyMixGuidance}
+
+REQUIREMENTS:
+- if STYLE REFERENCE IMAGES are present, use attached style reference images only for visual style: palette, medium, texture, lighting, rendering detail, atmosphere, and overall finish
+- do not copy the style reference image's subject, object identity, person identity, layout, pose, text, logo, or exact composition unless explicitly requested
+- the core prompt controls what appears in the final image
+- if IMAGE MIX REFERENCES are present, use attached mix images only for their assigned roles and influence levels
+`.trim();
+
+  const result = {
+    styleReferenceCount: styleReferenceImages.length,
+    attachedStyleReferenceCount: attachedStyleReferenceImages.length,
+    imageMixCount: imageMixImages.length,
+    attachedImageMixCount: attachedImageMixImages.length,
+    textOnlyStyleGuidance,
+    textOnlyMixGuidance,
+    styleReferencePrompt,
+    hasStyleOnlyGuard: instruction.includes("Use attached style reference images only for visual style") && instruction.includes("The core prompt controls what appears in the final image"),
+    hasImageMixGuard: instruction.includes("IMAGE MIX REFERENCES") && instruction.includes("assigned roles and influence levels"),
+    instruction,
+  };
+
+  console.log(JSON.stringify(result, null, 2));
+}
+
+if (process.argv.includes("--dry-run-style-reference")) {
+  await runStyleReferenceDryRun();
+  process.exit(0);
 }
 
 const server = http.createServer(async (req, res) => {

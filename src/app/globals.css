@@ -248,6 +248,51 @@ button {
   white-space: nowrap;
 }
 
+.style-modal-scrollarea {
+  scrollbar-gutter: stable;
+  scrollbar-width: none;
+}
+
+.style-modal-scrollarea-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.style-modal-scrollarea-y {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.style-modal-scrollarea.is-scrolling {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-secondary) 45%, transparent) transparent;
+}
+
+.style-modal-scrollarea::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.style-modal-scrollarea.is-scrolling::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.style-modal-scrollarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.style-modal-scrollarea::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--ui-radius-pill);
+}
+
+.style-modal-scrollarea.is-scrolling::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-secondary) 45%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
 /* ===================================================
    Studio Redesign — Gallery, Motion, Data Visuals
    =================================================== */

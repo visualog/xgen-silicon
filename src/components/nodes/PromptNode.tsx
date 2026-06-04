@@ -88,10 +88,11 @@ const exampleHeaderStyle = {
 
 const categoryRowStyle = {
   display: 'flex',
-  flexWrap: 'wrap' as const,
+  flexWrap: 'nowrap' as const,
   gap: 'calc(var(--ui-space-unit) * 1.5)',
   padding: 'var(--ui-space-10) var(--ui-space-10) var(--ui-space-6)',
   borderTop: '1px solid var(--border-node)',
+  overflowX: 'auto' as const,
 };
 
 const exampleListStyle = {
@@ -111,6 +112,41 @@ const exampleCardStyle = {
   border: '1px solid var(--border-node)',
   borderRadius: 'var(--ui-space-10)',
   backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 42%, transparent)',
+};
+
+const expandedPromptNodeStyle = {
+  ...nodeStyle,
+  height: '420px',
+};
+
+const expandedBodyStyle = {
+  ...bodyStyle,
+  display: 'grid',
+  gridTemplateRows: 'auto minmax(0, 1fr) auto',
+  height: '383px',
+  minHeight: 0,
+  overflow: 'hidden',
+};
+
+const expandedTextareaStyle = {
+  ...textareaStyle,
+  minHeight: '64px',
+  maxHeight: '72px',
+  resize: 'none' as const,
+};
+
+const expandedExamplePanelStyle = {
+  ...examplePanelStyle,
+  minHeight: 0,
+  display: 'flex',
+  flexDirection: 'column' as const,
+};
+
+const expandedExampleListStyle = {
+  ...exampleListStyle,
+  flex: 1,
+  minHeight: 0,
+  maxHeight: 'none',
 };
 
 const smallButtonStyle = {
@@ -191,22 +227,22 @@ export function PromptNode({ id, data }: { id: string; data: PromptNodeData }) {
   const isConnected = connections.length > 0;
 
   return (
-    <div style={nodeStyle}>
+    <div style={isExampleOpen ? expandedPromptNodeStyle : nodeStyle}>
       <div style={headerStyle}>
         <MessageSquareText size={16} color="var(--text-secondary)" />
         <span style={titleStyle}>설명</span>
       </div>
       
-      <div style={bodyStyle}>
+      <div style={isExampleOpen ? expandedBodyStyle : bodyStyle}>
         <textarea
-          style={textareaStyle}
+          style={isExampleOpen ? expandedTextareaStyle : textareaStyle}
           value={data.prompt || ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder="무엇을 만들지 적거나, 아래 예시 프롬프트에서 시작하세요."
           className="nodrag"
         />
 
-        <div style={examplePanelStyle} className="nodrag">
+        <div style={isExampleOpen ? expandedExamplePanelStyle : examplePanelStyle} className="nodrag">
           <button
             type="button"
             style={exampleHeaderStyle}
@@ -252,14 +288,14 @@ export function PromptNode({ id, data }: { id: string; data: PromptNodeData }) {
                 ))}
               </div>
 
-              <div style={exampleListStyle}>
+              <div style={isExampleOpen ? expandedExampleListStyle : exampleListStyle}>
                 {visibleExamples.map((example) => (
                   <div key={example.id} style={exampleCardStyle}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ui-space-4)' }}>
                       <strong style={{ color: 'var(--text-primary)', fontSize: 'var(--ui-type-xs-2-size)' }}>{example.title}</strong>
                       <span style={{ color: 'var(--text-muted)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.45 }}>{example.summary}</span>
                     </div>
-                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.55 }}>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>
                       {example.prompt}
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'calc(var(--ui-space-unit) * 1.5)' }}>

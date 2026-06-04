@@ -71,6 +71,17 @@ export interface WorkerConsistencyResponse {
   rules: string[];
 }
 
+export type WorkerTokenUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  totalTokens: number;
+};
+
+export type WorkerLabeledTokenUsage = WorkerTokenUsage & {
+  label: string;
+};
+
 export interface WorkerGenerateResponse {
   url: string;
   threadId: string;
@@ -78,6 +89,8 @@ export interface WorkerGenerateResponse {
   title: string;
   englishPrompt: string;
   koreanPrompt: string;
+  tokenUsage?: WorkerTokenUsage | null;
+  tokenUsageBreakdown?: WorkerLabeledTokenUsage[];
 }
 
 export interface WorkerElementSheetResponse {
@@ -160,6 +173,13 @@ export function generateViaWorker(payload: {
   detailLevel?: string | null;
   prebuiltPrompt?: string | null;
   elementSheetImages?: string[];
+  styleReferenceImages?: {
+    imageUrl: string;
+    weight?: "subtle" | "medium" | "strong";
+    prompt?: string;
+    label?: string;
+    mode?: "style-only";
+  }[];
   imageMixImages?: {
     imageUrl: string;
     role?: string;

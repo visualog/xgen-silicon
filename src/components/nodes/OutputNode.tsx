@@ -54,6 +54,11 @@ type OutputNodeData = {
   isGenerating?: boolean;
   generateElapsedLabel?: string | null;
   lastGenerateDurationLabel?: string | null;
+  styleReferenceSummary?: {
+    label: string;
+    weight: "subtle" | "medium" | "strong";
+    hasImage: boolean;
+  } | null;
 };
 
 export function OutputNode({ data }: { data: OutputNodeData }) {
@@ -75,6 +80,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
     canGenerate = false,
     isGenerating = false,
     generateElapsedLabel = null,
+    styleReferenceSummary = null,
   } = data;
 
   const edges = useEdges();
@@ -96,7 +102,8 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
   const isGestureConnected = edges.some(e => e.target === id && e.source === 'gesture-node');
   const isPropsConnected = edges.some(e => e.target === id && e.source === 'props-node');
   const isDetailConnected = edges.some(e => e.target === id && e.source === 'detail-node');
-  const isAnyConnected     = isPromptConnected || isStyleConnected || isCharacterReferenceConnected || isObjectReferenceConnected || isOutputSettingsConnected || isCompositionConnected || isBackgroundConnected || isConstraintConnected || isMoodConnected || isPaletteConnected || isCameraAngleConnected || isObjectAngleConnected || isLightingConnected || isGestureConnected || isPropsConnected || isDetailConnected;
+  const isMaskEditConnected = edges.some(e => e.target === id && e.source === 'mask-edit-node');
+  const isAnyConnected     = isPromptConnected || isStyleConnected || isCharacterReferenceConnected || isObjectReferenceConnected || isOutputSettingsConnected || isCompositionConnected || isBackgroundConnected || isConstraintConnected || isMoodConnected || isPaletteConnected || isCameraAngleConnected || isObjectAngleConnected || isLightingConnected || isGestureConnected || isPropsConnected || isDetailConnected || isMaskEditConnected;
   const isCanvasConnected  = edges.some(e => e.source === id);
 
   const getMixedColor = () => {
@@ -117,6 +124,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
     if (isGestureConnected) colors.push('var(--port-gesture)');
     if (isPropsConnected) colors.push('var(--port-props)');
     if (isDetailConnected) colors.push('var(--port-detail)');
+    if (isMaskEditConnected) colors.push('var(--port-constraint)');
     if (colors.length === 0) return 'transparent';
     if (colors.length === 1) return colors[0];
     let mixed = colors[0];
@@ -148,6 +156,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
     isGestureConnected && { label: '제스처', color: 'var(--port-gesture)', nodeId: 'gesture-node' },
     isPropsConnected && { label: '소품', color: 'var(--port-props)', nodeId: 'props-node' },
     isDetailConnected && { label: '밀도', color: 'var(--port-detail)', nodeId: 'detail-node' },
+    isMaskEditConnected && { label: '마스크', color: 'var(--port-constraint)', nodeId: 'mask-edit-node' },
   ].filter(Boolean) as { label: string; color: string; nodeId: string }[];
 
   const focusNode = (nodeId: string) => {
@@ -387,6 +396,30 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
                   </button>
                 ) : null}
               </div>
+              {styleReferenceSummary ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gap: 'var(--ui-space-4)',
+                    border: '1px solid color-mix(in srgb, var(--port-style) 36%, var(--border-node))',
+                    borderRadius: 'var(--ui-space-10)',
+                    backgroundColor: 'color-mix(in srgb, var(--port-style) 8%, transparent)',
+                    padding: 'var(--ui-space-8) var(--ui-space-10)',
+                  }}
+                >
+                  <span style={{ color: 'var(--text-primary)', fontSize: 'var(--ui-type-xs-size)', fontWeight: 850 }}>
+                    스타일 참조 이미지: {styleReferenceSummary.label}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.55 }}>
+                    영향도: {styleReferenceSummary.weight === 'strong' ? '강하게' : styleReferenceSummary.weight === 'subtle' ? '약하게' : '보통'} · 스타일만 반영, 주제와 구도는 설명/설정 노드가 우선합니다.
+                  </span>
+                  {!styleReferenceSummary.hasImage ? (
+                    <span style={{ color: 'var(--port-constraint)', fontSize: 'var(--ui-type-xs-size)', fontWeight: 800 }}>
+                      참조 이미지가 없어 텍스트 스타일만 전달됩니다.
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
               {!showExecutionPrompt ? (
                 <textarea
                   ref={koreanPromptTextareaRef}
@@ -397,9 +430,10 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
                   style={{
                     width: '100%',
                     minHeight: 'var(--size-output-text-min-height)',
+                    maxHeight: '180px',
                     boxSizing: 'border-box',
                     resize: 'none',
-                    overflow: 'hidden',
+                    overflow: 'auto',
                     border: '1px solid var(--border-node)',
                     borderRadius: 'var(--ui-space-10)',
                     backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 42%, transparent)',
@@ -422,6 +456,8 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
                     style={{
                       margin: 0,
                       minHeight: "var(--size-output-text-min-height)",
+                      maxHeight: "240px",
+                      overflow: 'auto',
                       padding: '10px 10px 48px',
                       borderRadius: 'var(--ui-space-8)',
                       backgroundColor: 'var(--bg-node-base)',

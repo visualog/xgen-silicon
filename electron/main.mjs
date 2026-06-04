@@ -87,6 +87,31 @@ async function findAvailablePort(preferredPort, host = "127.0.0.1") {
   throw new Error(`No available port found near ${preferredPort}`);
 }
 
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveStyleReferenceRoot(resourcesDir) {
+  const candidates = [
+    process.env.XGEN_STYLE_REFERENCE_ROOT,
+    path.join(app.getPath("userData"), "style-references"),
+    path.join(resourcesDir, "style-references"),
+    path.resolve(resourcesDir, "..", "..", "..", "..", "..", "style-references"),
+    path.join(process.cwd(), "style-references"),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    if (await pathExists(resolved)) return resolved;
+  }
+  return null;
+}
+
 function spawnNode(label, scriptPath, env = {}) {
   const child = spawn(process.execPath, [scriptPath], {
     stdio: "inherit",
@@ -128,6 +153,7 @@ async function startPackagedServices() {
   const nextPort = await findAvailablePort(DEFAULT_NEXT_PORT);
   const workerScriptPath = path.join(resourcesDir, "codex-worker.mjs");
   const nextServerPath = path.join(resourcesDir, "next", "server.js");
+  const styleReferenceRoot = await resolveStyleReferenceRoot(resourcesDir);
 
   await fs.mkdir(dataDir, { recursive: true });
   await fs.mkdir(codexWorkdir, { recursive: true });
@@ -144,6 +170,7 @@ async function startPackagedServices() {
     HOSTNAME: "127.0.0.1",
     BRANDGEN_CODEX_WORKER_URL: `http://127.0.0.1:${workerPort}`,
     BRANDGEN_DATA_DIR: dataDir,
+    ...(styleReferenceRoot ? { XGEN_STYLE_REFERENCE_ROOT: styleReferenceRoot } : {}),
   });
   await waitForHttp(nextPort);
 

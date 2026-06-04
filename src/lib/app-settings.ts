@@ -8,12 +8,12 @@ export type AppSettings = {
 
 export function getDefaultDataDir() {
   if (process.platform === "darwin") {
-    return path.join(os.homedir(), "Library", "Application Support", "BrandGen", "data");
+    return path.join(os.homedir(), "Library", "Application Support", "xGen", "data");
   }
   if (process.platform === "win32") {
-    return path.join(process.env.APPDATA || os.homedir(), "BrandGen", "data");
+    return path.join(process.env.APPDATA || os.homedir(), "xGen", "data");
   }
-  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"), "BrandGen", "data");
+  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"), "xGen", "data");
 }
 
 export function getDataDir() {

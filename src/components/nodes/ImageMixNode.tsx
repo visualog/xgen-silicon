@@ -8,7 +8,7 @@ import { StyleAddModal, type StyleEntry } from "@/components/StyleAddModal";
 export type ImageMixRole = "character" | "object" | "style" | "palette" | "composition" | "background";
 export type ImageMixWeight = "low" | "medium" | "high";
 
-export type ImageMixItem = StyleEntry & {
+export type ImageMixItem = Omit<StyleEntry, "weight"> & {
   role: ImageMixRole;
   weight: ImageMixWeight;
   enabled?: boolean;

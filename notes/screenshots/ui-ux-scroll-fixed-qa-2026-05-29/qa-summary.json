@@ -1,0 +1,106 @@
+{
+  "baseUrl": "http://127.0.0.1:3851",
+  "viewports": [
+    "1440x1000",
+    "1280x800",
+    "1024x768",
+    "820x720",
+    "1280x620"
+  ],
+  "results": [
+    {
+      "viewport": {
+        "name": "large",
+        "width": 1440,
+        "height": 1000
+      },
+      "promptOverlapsStyleAfterOpen": false,
+      "promptExampleListScrollable": true,
+      "promptValueLength": 292,
+      "modalFitsUpload": true,
+      "libraryVisibleCards": 80,
+      "libraryBrokenImages": 0,
+      "searchText": "80개 표시 · 검색 결과 126개 · 전체 314개. 카드를 선택하면 스타일 참조 노드에 바로 추가됩니다.",
+      "emptyState": true,
+      "styleSelected": true,
+      "outputHasStyle": true
+    },
+    {
+      "viewport": {
+        "name": "medium",
+        "width": 1280,
+        "height": 800
+      },
+      "promptOverlapsStyleAfterOpen": false,
+      "promptExampleListScrollable": true,
+      "promptValueLength": 292,
+      "modalFitsUpload": true,
+      "libraryVisibleCards": 80,
+      "libraryBrokenImages": 0,
+      "searchText": "80개 표시 · 검색 결과 126개 · 전체 314개. 카드를 선택하면 스타일 참조 노드에 바로 추가됩니다.",
+      "emptyState": true,
+      "styleSelected": true,
+      "outputHasStyle": true
+    },
+    {
+      "viewport": {
+        "name": "compact",
+        "width": 1024,
+        "height": 768
+      },
+      "promptOverlapsStyleAfterOpen": false,
+      "promptExampleListScrollable": true,
+      "promptValueLength": 292,
+      "modalFitsUpload": true,
+      "libraryVisibleCards": 80,
+      "libraryBrokenImages": 0,
+      "searchText": "80개 표시 · 검색 결과 126개 · 전체 314개. 카드를 선택하면 스타일 참조 노드에 바로 추가됩니다.",
+      "emptyState": true,
+      "styleSelected": true,
+      "outputHasStyle": true
+    },
+    {
+      "viewport": {
+        "name": "narrow",
+        "width": 820,
+        "height": 720
+      },
+      "promptOverlapsStyleAfterOpen": false,
+      "promptExampleListScrollable": true,
+      "promptValueLength": 292,
+      "modalFitsUpload": true,
+      "libraryVisibleCards": 80,
+      "libraryBrokenImages": 0,
+      "searchText": "80개 표시 · 검색 결과 126개 · 전체 314개. 카드를 선택하면 스타일 참조 노드에 바로 추가됩니다.",
+      "emptyState": true,
+      "styleSelected": true,
+      "outputHasStyle": true
+    },
+    {
+      "viewport": {
+        "name": "short",
+        "width": 1280,
+        "height": 620
+      },
+      "promptOverlapsStyleAfterOpen": false,
+      "promptExampleListScrollable": true,
+      "promptValueLength": 292,
+      "modalFitsUpload": true,
+      "libraryVisibleCards": 80,
+      "libraryBrokenImages": 0,
+      "searchText": "80개 표시 · 검색 결과 126개 · 전체 314개. 카드를 선택하면 스타일 참조 노드에 바로 추가됩니다.",
+      "emptyState": true,
+      "styleSelected": true,
+      "outputHasStyle": true
+    }
+  ],
+  "promptOpenStyleModal": {
+    "modalOpened": true,
+    "promptOverlapsStyle": false
+  },
+  "manyStyles": {
+    "addedCount": 6,
+    "styleListScrollable": true,
+    "styleSelected": true
+  }
+}

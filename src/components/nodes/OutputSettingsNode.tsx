@@ -2,7 +2,7 @@
 
 import { Handle, Position, useNodeConnections, useReactFlow } from "@xyflow/react";
 import React from "react";
-import { Monitor, RectangleHorizontal, RectangleVertical, Square, SlidersHorizontal, X } from "lucide-react";
+import { RectangleHorizontal, RectangleVertical, Square, SlidersHorizontal, X } from "lucide-react";
 
 type OutputSettingsNodeData = {
   ratio: string;
@@ -114,6 +114,12 @@ export function OutputSettingsNode({ id, data }: { id: string; data: OutputSetti
             <button type="button" style={toolbarButtonStyle(data.ratio === "9:16")} onClick={() => data.setRatio("9:16")} title="9:16">
               <RectangleVertical size={16} />
             </button>
+            <button type="button" style={toolbarButtonStyle(data.ratio === "4:3")} onClick={() => data.setRatio("4:3")} title="4:3 가로형">
+              4:3
+            </button>
+            <button type="button" style={toolbarButtonStyle(data.ratio === "3:4")} onClick={() => data.setRatio("3:4")} title="4:3 세로형">
+              3:4
+            </button>
           </div>
         </div>
 
@@ -128,7 +134,7 @@ export function OutputSettingsNode({ id, data }: { id: string; data: OutputSetti
                 onClick={() => data.setResolution(value)}
                 title={`${value} 해상도`}
               >
-                {value === "HD" ? <Monitor size={14} /> : value}
+                {value}
               </button>
             ))}
           </div>

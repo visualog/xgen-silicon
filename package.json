@@ -11,6 +11,8 @@
     "electron:dev": "node electron/dev.mjs",
     "electron": "electron ./electron",
     "codex-worker": "node scripts/codex-worker.mjs",
+    "collect:style-reference": "node scripts/collect-style-reference.mjs",
+    "build:style-reference-library": "node scripts/build-style-reference-library.mjs",
     "prebuild": "npm run sync:design",
     "prebuild:next": "npm run sync:design",
     "build:next": "next build && node scripts/prepare-electron-package.mjs",
@@ -26,7 +28,8 @@
     "lucide-react": "^1.14.0",
     "next": "16.2.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/animejs": "^3.1.13",

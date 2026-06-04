@@ -21,6 +21,15 @@ type BackgroundModel = {
   extra: string;
 };
 
+type EnvironmentPreset = {
+  defaults: Omit<BackgroundModel, "environment" | "extra">;
+  surfaces: SurfaceKey[];
+  depths: DepthKey[];
+  details: DetailKey[];
+  treatments: TreatmentKey[];
+  cleanliness: CleanlinessKey[];
+};
+
 type BackgroundNodeData = {
   backgroundPrompt: string;
   setBackgroundPrompt: (value: string) => void;
@@ -117,6 +126,65 @@ const CLEANLINESS_LABEL: Record<CleanlinessKey, string> = {
   "lived-in": "생활감",
   "curated-props": "소품",
   busy: "복잡함",
+};
+
+const ENVIRONMENT_PRESETS: Record<EnvironmentKey, EnvironmentPreset> = {
+  pure: {
+    defaults: { surface: "none", depth: "flat", detail: "none", treatment: "solid", cleanliness: "clean" },
+    surfaces: ["none", "paper", "glass"],
+    depths: ["flat", "shallow"],
+    details: ["none", "low"],
+    treatments: ["solid", "gradient", "shadow"],
+    cleanliness: ["clean"],
+  },
+  studio: {
+    defaults: { surface: "floor", depth: "shallow", detail: "low", treatment: "shadow", cleanliness: "clean" },
+    surfaces: ["floor", "wall", "paper", "fabric", "tabletop"],
+    depths: ["flat", "shallow", "medium"],
+    details: ["none", "low", "medium"],
+    treatments: ["solid", "gradient", "shadow", "blur"],
+    cleanliness: ["clean", "curated-props"],
+  },
+  workspace: {
+    defaults: { surface: "tabletop", depth: "medium", detail: "medium", treatment: "blur", cleanliness: "curated-props" },
+    surfaces: ["tabletop", "paper", "fabric", "wall", "metal"],
+    depths: ["shallow", "medium", "deep"],
+    details: ["low", "medium", "high"],
+    treatments: ["blur", "shadow", "bokeh"],
+    cleanliness: ["clean", "lived-in", "curated-props"],
+  },
+  interior: {
+    defaults: { surface: "floor", depth: "medium", detail: "medium", treatment: "blur", cleanliness: "clean" },
+    surfaces: ["floor", "wall", "fabric", "tabletop", "glass"],
+    depths: ["shallow", "medium", "deep"],
+    details: ["low", "medium", "high"],
+    treatments: ["blur", "shadow", "bokeh"],
+    cleanliness: ["clean", "lived-in", "curated-props"],
+  },
+  outdoor: {
+    defaults: { surface: "none", depth: "medium", detail: "low", treatment: "blur", cleanliness: "clean" },
+    surfaces: ["none", "floor", "concrete", "tabletop"],
+    depths: ["medium", "deep"],
+    details: ["low", "medium"],
+    treatments: ["blur", "bokeh", "shadow"],
+    cleanliness: ["clean", "curated-props"],
+  },
+  urban: {
+    defaults: { surface: "concrete", depth: "deep", detail: "medium", treatment: "blur", cleanliness: "clean" },
+    surfaces: ["concrete", "metal", "glass", "wall", "floor"],
+    depths: ["medium", "deep"],
+    details: ["low", "medium", "high"],
+    treatments: ["blur", "bokeh", "shadow", "pattern"],
+    cleanliness: ["clean", "lived-in", "curated-props", "busy"],
+  },
+  abstract: {
+    defaults: { surface: "none", depth: "shallow", detail: "low", treatment: "gradient", cleanliness: "clean" },
+    surfaces: ["none", "paper", "glass", "metal"],
+    depths: ["flat", "shallow", "medium"],
+    details: ["none", "low", "medium"],
+    treatments: ["gradient", "pattern", "solid", "shadow"],
+    cleanliness: ["clean"],
+  },
 };
 
 const ENVIRONMENT_PROMPT: Record<EnvironmentKey, string> = {
@@ -273,16 +341,31 @@ function formatBackgroundPrompt(model: BackgroundModel) {
   ].filter(Boolean).join(" ");
 }
 
+function toControlItems<T extends string>(keys: T[], labels: Record<T, string>) {
+  return keys.map((key) => ({ key, label: labels[key] }));
+}
+
 export function BackgroundNode({ id, data }: { id: string; data: BackgroundNodeData }) {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   const model = useMemo(() => parseBackgroundPrompt(data.backgroundPrompt), [data.backgroundPrompt]);
+  const preset = ENVIRONMENT_PRESETS[model.environment];
 
   const connections = useNodeConnections({ handleType: "source", handleId: "background-out" });
   const isConnected = connections.length > 0;
 
   const updateModel = useCallback((patch: Partial<BackgroundModel>) => {
     data.setBackgroundPrompt(formatBackgroundPrompt({ ...model, ...patch }));
+  }, [data, model]);
+
+  const handleEnvironmentChange = useCallback((environment: EnvironmentKey) => {
+    const nextPreset = ENVIRONMENT_PRESETS[environment];
+    data.setBackgroundPrompt(formatBackgroundPrompt({
+      ...model,
+      ...nextPreset.defaults,
+      environment,
+      extra: model.extra,
+    }));
   }, [data, model]);
 
   const handleDisconnect = () => {
@@ -322,42 +405,42 @@ export function BackgroundNode({ id, data }: { id: string; data: BackgroundNodeD
           label="환경"
           items={(Object.keys(ENVIRONMENT_LABEL) as EnvironmentKey[]).map((key) => ({ key, label: ENVIRONMENT_LABEL[key] }))}
           activeKey={model.environment}
-          onChange={(key) => updateModel({ environment: key as EnvironmentKey })}
+          onChange={(key) => handleEnvironmentChange(key as EnvironmentKey)}
         />
 
         <ControlGroup
-          label="표면"
+          label="표면 프리셋"
           columns={3}
-          items={(Object.keys(SURFACE_LABEL) as SurfaceKey[]).map((key) => ({ key, label: SURFACE_LABEL[key] }))}
+          items={toControlItems(preset.surfaces, SURFACE_LABEL)}
           activeKey={model.surface}
           onChange={(key) => updateModel({ surface: key as SurfaceKey })}
         />
 
         <ControlGroup
           label="공간 깊이"
-          items={(Object.keys(DEPTH_LABEL) as DepthKey[]).map((key) => ({ key, label: DEPTH_LABEL[key] }))}
+          items={toControlItems(preset.depths, DEPTH_LABEL)}
           activeKey={model.depth}
           onChange={(key) => updateModel({ depth: key as DepthKey })}
         />
 
         <ControlGroup
           label="디테일"
-          items={(Object.keys(DETAIL_LABEL) as DetailKey[]).map((key) => ({ key, label: DETAIL_LABEL[key] }))}
+          items={toControlItems(preset.details, DETAIL_LABEL)}
           activeKey={model.detail}
           onChange={(key) => updateModel({ detail: key as DetailKey })}
         />
 
         <ControlGroup
-          label="처리"
+          label="처리 프리셋"
           columns={3}
-          items={(Object.keys(TREATMENT_LABEL) as TreatmentKey[]).map((key) => ({ key, label: TREATMENT_LABEL[key] }))}
+          items={toControlItems(preset.treatments, TREATMENT_LABEL)}
           activeKey={model.treatment}
           onChange={(key) => updateModel({ treatment: key as TreatmentKey })}
         />
 
         <ControlGroup
           label="정돈감"
-          items={(Object.keys(CLEANLINESS_LABEL) as CleanlinessKey[]).map((key) => ({ key, label: CLEANLINESS_LABEL[key] }))}
+          items={toControlItems(preset.cleanliness, CLEANLINESS_LABEL)}
           activeKey={model.cleanliness}
           onChange={(key) => updateModel({ cleanliness: key as CleanlinessKey })}
         />

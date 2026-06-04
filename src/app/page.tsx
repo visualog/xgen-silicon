@@ -56,6 +56,8 @@ import { DetailNode } from "@/components/nodes/DetailNode";
 import { OutputNode } from "@/components/nodes/OutputNode";
 import { CanvasNode } from "@/components/nodes/CanvasNode";
 import { ImageMixNode, type ImageMixItem, type ImageMixRole, type ImageMixWeight } from "@/components/nodes/ImageMixNode";
+import { ImageLayerNode } from "@/components/nodes/ImageLayerNode";
+import { MaskEditNode, type MaskEditSettings, type MaskRegion } from "@/components/nodes/MaskEditNode";
 
 import type { StyleEntry } from "@/components/StyleAddModal";
 
@@ -260,6 +262,7 @@ type EditorSnapshot = {
   activeObjectReferenceId: string | null;
   elementBoard: ElementBoard;
   imageMixItems: ImageMixItem[];
+  maskEdit: MaskEditSettings;
   ratio: string;
   resolution: string;
   composition: string;
@@ -287,8 +290,21 @@ type GeneratedResult = EditorSnapshot & {
   createdAt: string;
   imagePath?: string;
   generationDurationSeconds?: number;
+  tokenUsage?: GenerationTokenUsage | null;
+  tokenUsageBreakdown?: GenerationTokenUsageBreakdownItem[];
   consistency?: ConsistencyElements;
   consistencyStatus?: ConsistencyStatus;
+};
+
+type GenerationTokenUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  totalTokens: number;
+};
+
+type GenerationTokenUsageBreakdownItem = GenerationTokenUsage & {
+  label: string;
 };
 
 type PersistedState = {
@@ -308,6 +324,8 @@ const NODE_SIZE_BY_TYPE: Record<string, { width: number; height: number }> = {
   referenceNode: { width: 280, height: 260 },
   imageMixNode: { width: 300, height: 360 },
   elementItemNode: { width: 260, height: 180 },
+  imageLayerNode: { width: 300, height: 220 },
+  maskEditNode: { width: 330, height: 470 },
   outputSettingsNode: { width: 240, height: 220 },
   objectAngleNode: { width: 260, height: 290 },
   outputNode: { width: 380, height: 320 },
@@ -463,6 +481,37 @@ function normalizeImageMixWeight(weight: unknown): ImageMixWeight {
   return weight === "low" || weight === "medium" || weight === "high" ? weight : "medium";
 }
 
+function normalizeStyleWeight(weight: unknown): NonNullable<StyleEntry["weight"]> {
+  return weight === "subtle" || weight === "strong" ? weight : "medium";
+}
+
+function normalizeStyleEntry(entry: Partial<StyleEntry>, index: number): StyleEntry | null {
+  const imageUrl = typeof entry.imageUrl === "string" ? entry.imageUrl.trim() : "";
+  const prompt = typeof entry.prompt === "string" ? entry.prompt.trim() : "";
+  if (!imageUrl && !prompt) return null;
+
+  return {
+    id: typeof entry.id === "string" && entry.id.trim() ? entry.id : `style-${Date.now()}-${index}`,
+    imageUrl,
+    prompt,
+    label: typeof entry.label === "string" && entry.label.trim()
+      ? entry.label.trim()
+      : prompt.slice(0, 30) || `스타일 참조 ${index + 1}`,
+    weight: normalizeStyleWeight(entry.weight),
+    mode: "style-only",
+    requiresImage: Boolean(entry.requiresImage),
+    source: entry.source,
+  };
+}
+
+function normalizeStyleEntries(entries?: Partial<StyleEntry>[] | null): StyleEntry[] {
+  return Array.isArray(entries)
+    ? entries
+        .map((entry, index) => normalizeStyleEntry(entry, index))
+        .filter((entry): entry is StyleEntry => Boolean(entry))
+    : [];
+}
+
 function normalizeImageMixItem(item: Partial<ImageMixItem>, index: number): ImageMixItem | null {
   const imageUrl = typeof item.imageUrl === "string" ? item.imageUrl.trim() : "";
   if (!imageUrl) return null;
@@ -489,6 +538,26 @@ function normalizeImageMixItems(items?: Partial<ImageMixItem>[] | null): ImageMi
         .map((item, index) => normalizeImageMixItem(item, index))
         .filter((item): item is ImageMixItem => Boolean(item))
     : [];
+}
+
+function normalizeMaskRegion(region: unknown): MaskRegion {
+  return region === "center" ||
+    region === "subject" ||
+    region === "background" ||
+    region === "top" ||
+    region === "bottom" ||
+    region === "left" ||
+    region === "right"
+    ? region
+    : "subject";
+}
+
+function normalizeMaskEdit(settings?: Partial<MaskEditSettings> | null): MaskEditSettings {
+  return {
+    enabled: Boolean(settings?.enabled),
+    region: normalizeMaskRegion(settings?.region),
+    instruction: typeof settings?.instruction === "string" ? settings.instruction : "",
+  };
 }
 
 function fallbackElementsFromConsistency(consistency: ConsistencyElements): ElementBoardItem[] {
@@ -556,6 +625,11 @@ const DEFAULT_SNAPSHOT: EditorSnapshot = {
   activeObjectReferenceId: null,
   elementBoard: emptyElementBoard(),
   imageMixItems: [],
+  maskEdit: {
+    enabled: false,
+    region: "subject",
+    instruction: "",
+  },
   ratio: "1:1",
   resolution: "HD",
   composition: "full-body composition with visible limbs and clear silhouette",
@@ -607,16 +681,17 @@ function normalizeEditorSnapshot(snapshot: Partial<EditorSnapshot>): EditorSnaps
     title: typeof snapshot.title === "string" ? snapshot.title : DEFAULT_SNAPSHOT.title,
     isTitleUserEdited: Boolean(snapshot.isTitleUserEdited),
     prompt: typeof snapshot.prompt === "string" ? snapshot.prompt : DEFAULT_SNAPSHOT.prompt,
-    styles: Array.isArray(snapshot.styles) ? snapshot.styles : DEFAULT_SNAPSHOT.styles,
+    styles: normalizeStyleEntries(snapshot.styles),
     activeStyleId: typeof snapshot.activeStyleId === "string" ? snapshot.activeStyleId : null,
-    characterReferences: Array.isArray(snapshot.characterReferences) ? snapshot.characterReferences : [],
+    characterReferences: normalizeStyleEntries(snapshot.characterReferences),
     activeCharacterReferenceId:
       typeof snapshot.activeCharacterReferenceId === "string" ? snapshot.activeCharacterReferenceId : null,
-    objectReferences: Array.isArray(snapshot.objectReferences) ? snapshot.objectReferences : [],
+    objectReferences: normalizeStyleEntries(snapshot.objectReferences),
     activeObjectReferenceId:
       typeof snapshot.activeObjectReferenceId === "string" ? snapshot.activeObjectReferenceId : null,
     elementBoard: normalizeElementBoard(snapshot.elementBoard),
     imageMixItems: normalizeImageMixItems(snapshot.imageMixItems),
+    maskEdit: normalizeMaskEdit(snapshot.maskEdit),
     ratio: typeof snapshot.ratio === "string" ? snapshot.ratio : DEFAULT_SNAPSHOT.ratio,
     resolution: typeof snapshot.resolution === "string" ? snapshot.resolution : DEFAULT_SNAPSHOT.resolution,
     composition: typeof snapshot.composition === "string" ? snapshot.composition : DEFAULT_SNAPSHOT.composition,
@@ -670,8 +745,8 @@ const MANDATORY_EDGES = [
 function buildEditorNodes(optionalKeys: OptionalNodeKey[], includeCanvas: boolean): FlowNode[] {
   const baseNodes: FlowNode[] = [
     { id: "prompt-node", type: "promptNode", position: { x: 50, y: 50 }, data: {} },
-    { id: "style-node", type: "styleNode", position: { x: 50, y: 300 }, data: {} },
-    { id: "output-settings-node", type: "outputSettingsNode", position: { x: 50, y: 550 }, data: {} },
+    { id: "style-node", type: "styleNode", position: { x: 50, y: 500 }, data: {} },
+    { id: "output-settings-node", type: "outputSettingsNode", position: { x: 50, y: 800 }, data: {} },
     { id: "output-node", type: "outputNode", position: { x: 450, y: 150 }, data: {} },
   ];
 
@@ -688,6 +763,8 @@ function buildEditorNodes(optionalKeys: OptionalNodeKey[], includeCanvas: boolea
   const canvasNodes: FlowNode[] = includeCanvas
     ? [
         { id: "canvas-node", type: "canvasNode", position: { x: 850, y: 150 }, data: {} },
+        { id: "image-layer-node", type: "imageLayerNode", position: { x: 1380, y: 150 }, data: {} },
+        { id: "mask-edit-node", type: "maskEditNode", position: { x: 1740, y: 150 }, data: {} },
       ]
     : [];
 
@@ -740,6 +817,30 @@ function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanva
           style: { stroke: "var(--text-primary)", strokeWidth: 3 },
           animated: false,
         },
+        {
+          id: "e-canvas-image-layer",
+          source: "canvas-node",
+          sourceHandle: "canvas-out",
+          target: "image-layer-node",
+          targetHandle: "layer-in",
+          style: { stroke: "var(--port-image-mix)", strokeWidth: 3 },
+        },
+        {
+          id: "e-image-layer-mask",
+          source: "image-layer-node",
+          sourceHandle: "layer-out",
+          target: "mask-edit-node",
+          targetHandle: "mask-in",
+          style: { stroke: "var(--port-constraint)", strokeWidth: 3 },
+        },
+        {
+          id: "e-mask-output",
+          source: "mask-edit-node",
+          sourceHandle: "mask-out",
+          target: "output-node",
+          targetHandle: "general-in",
+          style: { stroke: "var(--port-constraint)", strokeWidth: 3 },
+        },
       ]
     : [];
 
@@ -778,6 +879,15 @@ function formatDurationLabel(totalSeconds: number | null) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return seconds === 0 ? `${minutes}분` : `${minutes}분 ${seconds}초`;
+}
+
+function formatTokenCount(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value.toLocaleString("ko-KR") : "0";
+}
+
+function formatTokenUsageSummary(usage?: GenerationTokenUsage | null) {
+  if (!usage) return null;
+  return `${formatTokenCount(usage.totalTokens)} tokens`;
 }
 
 function getActiveStylePrompt(result: GeneratedResult) {
@@ -948,6 +1058,29 @@ function appendImageMixPrompt(englishPrompt: string, items: ImageMixItem[]) {
   return [englishPrompt.trim(), imageMixPrompt].filter(Boolean).join(", ");
 }
 
+function formatMaskEditPrompt(settings: MaskEditSettings) {
+  if (!settings.enabled || !settings.instruction.trim()) return "";
+
+  const regionLabel: Record<MaskRegion, string> = {
+    center: "center area",
+    subject: "main subject area",
+    background: "background area",
+    top: "top area",
+    bottom: "bottom area",
+    left: "left area",
+    right: "right area",
+  };
+
+  return `MASKED LAYER EDIT: Use the attached generated layer as the source image. Change only the ${regionLabel[settings.region]}: ${settings.instruction.trim()}. Preserve all unmasked areas, composition, identity, lighting continuity, and camera perspective unless the edit instruction explicitly overrides them.`;
+}
+
+function appendMaskEditPrompt(englishPrompt: string, settings: MaskEditSettings) {
+  const maskEditPrompt = formatMaskEditPrompt(settings);
+  if (!maskEditPrompt) return englishPrompt;
+  if (englishPrompt.includes("MASKED LAYER EDIT")) return englishPrompt;
+  return [englishPrompt.trim(), maskEditPrompt].filter(Boolean).join(", ");
+}
+
 function appendAuthoritativeNodeSettings(englishPrompt: string, settings: string[]) {
   const normalized = settings.map((setting) => setting.trim()).filter(Boolean);
   if (normalized.length === 0) return englishPrompt;
@@ -957,6 +1090,34 @@ function appendAuthoritativeNodeSettings(englishPrompt: string, settings: string
     englishPrompt.trim(),
     `${marker}: ${normalized.join(" | ")}. These connected node settings are current and must override weaker or stale wording elsewhere in the prompt. Preserve every explicit setting unless it directly conflicts with a stricter consistency lock.`,
   ].filter(Boolean).join(", ");
+}
+
+function compactPromptValue(value: string, maxLength = 420) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trim()}…`;
+}
+
+function buildCompactExecutionPrompt({
+  corePrompt,
+  settings,
+  imageMixCount,
+  styleReferenceSummary,
+}: {
+  corePrompt: string;
+  settings: string[];
+  imageMixCount: number;
+  styleReferenceSummary: { label: string; weight: "subtle" | "medium" | "strong"; hasImage: boolean } | null;
+}) {
+  const lines = ["xGen image brief."];
+  if (corePrompt.trim()) lines.push(`Subject: ${compactPromptValue(corePrompt, 520)}`);
+  for (const setting of settings) lines.push(compactPromptValue(setting, 520));
+  if (styleReferenceSummary?.hasImage) {
+    lines.push(`Style image: use ${styleReferenceSummary.label} as ${styleReferenceSummary.weight} style-only reference; copy palette, texture, lighting, finish, not subject/layout.`);
+  }
+  if (imageMixCount > 0) lines.push(`Image mix: use ${imageMixCount} attached role-weighted references only for declared traits.`);
+  lines.push("Quality: premium brand image, coherent composition, high detail, no readable text, no logo, no watermark.");
+  return Array.from(new Set(lines.filter(Boolean))).join("\n");
 }
 
 function mergeGeneratedResults(
@@ -1057,6 +1218,7 @@ function FlowContent() {
   const [activeObjectReferenceId, setActiveObjectReferenceId] = useState<string | null>(DEFAULT_SNAPSHOT.activeObjectReferenceId);
   const [elementBoard, setElementBoard] = useState<ElementBoard>(DEFAULT_SNAPSHOT.elementBoard);
   const [imageMixItems, setImageMixItems] = useState<ImageMixItem[]>(DEFAULT_SNAPSHOT.imageMixItems);
+  const [maskEdit, setMaskEdit] = useState<MaskEditSettings>(DEFAULT_SNAPSHOT.maskEdit);
   const [ratio, setRatio] = useState(DEFAULT_SNAPSHOT.ratio);
   const [resolution, setResolution] = useState(DEFAULT_SNAPSHOT.resolution);
   const [composition, setComposition] = useState(DEFAULT_SNAPSHOT.composition);
@@ -1073,6 +1235,7 @@ function FlowContent() {
   const [englishPrompt, setEnglishPrompt] = useState(DEFAULT_SNAPSHOT.englishPrompt);
   const [koreanPrompt, setKoreanPrompt] = useState(DEFAULT_SNAPSHOT.koreanPrompt);
   const [imageUrl, setImageUrl] = useState<string | null>(DEFAULT_SNAPSHOT.imageUrl);
+  const [generationErrorMessage, setGenerationErrorMessage] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(false);
@@ -1081,6 +1244,8 @@ function FlowContent() {
   const [lastTranslateDurationSeconds, setLastTranslateDurationSeconds] = useState<number | null>(null);
   const [generateElapsedSeconds, setGenerateElapsedSeconds] = useState(0);
   const [lastGenerateDurationSeconds, setLastGenerateDurationSeconds] = useState<number | null>(null);
+  const [lastGenerationTokenUsage, setLastGenerationTokenUsage] = useState<GenerationTokenUsage | null>(null);
+  const [lastGenerationTokenUsageBreakdown, setLastGenerationTokenUsageBreakdown] = useState<GenerationTokenUsageBreakdownItem[]>([]);
   const [nodes, setNodes] = useState<FlowNode[]>(
     buildEditorNodes(DEFAULT_SNAPSHOT.visibleOptionalNodes, false),
   );
@@ -1111,6 +1276,7 @@ function FlowContent() {
     setActiveObjectReferenceId(normalizedSnapshot.activeObjectReferenceId);
     setElementBoard(normalizedSnapshot.elementBoard);
     setImageMixItems(normalizedSnapshot.imageMixItems);
+    setMaskEdit(normalizedSnapshot.maskEdit);
     setRatio(normalizedSnapshot.ratio);
     setResolution(normalizedSnapshot.resolution);
     setComposition(normalizedSnapshot.composition);
@@ -1127,7 +1293,14 @@ function FlowContent() {
     setEnglishPrompt(normalizedSnapshot.englishPrompt);
     setKoreanPrompt(options?.preserveKoreanPrompt ? normalizedSnapshot.koreanPrompt : "");
     setImageUrl(normalizedSnapshot.imageUrl);
+    const snapshotWithUsage = snapshot as EditorSnapshot & {
+      tokenUsage?: GenerationTokenUsage | null;
+      tokenUsageBreakdown?: GenerationTokenUsageBreakdownItem[];
+    };
+    setLastGenerationTokenUsage(snapshotWithUsage.tokenUsage ?? null);
+    setLastGenerationTokenUsageBreakdown(Array.isArray(snapshotWithUsage.tokenUsageBreakdown) ? snapshotWithUsage.tokenUsageBreakdown : []);
     setError(false);
+    setGenerationErrorMessage("");
     setNodes(
       applyNodePositions(
         buildEditorNodes(normalizedSnapshot.visibleOptionalNodes, Boolean(normalizedSnapshot.imageUrl)),
@@ -1165,6 +1338,7 @@ function FlowContent() {
         activeObjectReferenceId,
         elementBoard,
         imageMixItems,
+        maskEdit,
         ratio,
         resolution,
         composition,
@@ -1198,6 +1372,7 @@ function FlowContent() {
       activeObjectReferenceId,
       elementBoard,
       imageMixItems,
+      maskEdit,
       ratio,
       resolution,
       composition,
@@ -1464,6 +1639,30 @@ function FlowContent() {
     () => styles.find((styleEntry) => styleEntry.id === activeStyleId) ?? null,
     [styles, activeStyleId],
   );
+  const activeStyleReferenceImages = useMemo(
+    () =>
+      connectedState.isStyleConnected && activeStyleEntry?.imageUrl?.trim()
+        ? [{
+            imageUrl: activeStyleEntry.imageUrl.trim(),
+            prompt: activeStyleEntry.prompt.trim(),
+            label: activeStyleEntry.label || "스타일 참조",
+            weight: normalizeStyleWeight(activeStyleEntry.weight),
+            mode: "style-only" as const,
+          }]
+        : [],
+    [activeStyleEntry, connectedState.isStyleConnected],
+  );
+  const activeStyleReferenceSummary = useMemo(
+    () =>
+      connectedState.isStyleConnected && activeStyleEntry
+        ? {
+            label: activeStyleEntry.label || "스타일 참조",
+            weight: normalizeStyleWeight(activeStyleEntry.weight),
+            hasImage: Boolean(activeStyleEntry.imageUrl?.trim()),
+          }
+        : null,
+    [activeStyleEntry, connectedState.isStyleConnected],
+  );
   const enabledElementCount = useMemo(
     () => elementBoard.elements.filter((element) => element.enabled !== false).length,
     [elementBoard.elements],
@@ -1473,6 +1672,7 @@ function FlowContent() {
       JSON.stringify({
         prompt,
         activeStyleId,
+        activeStyleWeight: activeStyleEntry?.weight || "medium",
         activeCharacterReferenceId,
         activeObjectReferenceId,
         ratio,
@@ -1494,11 +1694,13 @@ function FlowContent() {
         imageMixIds: imageMixItems
           .filter((item) => item.enabled !== false)
           .map((item) => `${item.id}:${item.role}:${item.weight}`),
+        maskEdit: `${maskEdit.enabled}:${maskEdit.region}:${maskEdit.instruction}`,
         connectedState,
       }),
     [
       prompt,
       activeStyleId,
+      activeStyleEntry,
       activeCharacterReferenceId,
       activeObjectReferenceId,
       ratio,
@@ -1516,6 +1718,7 @@ function FlowContent() {
       detailLevel,
       elementBoard.elements,
       imageMixItems,
+      maskEdit,
       connectedState,
     ],
   );
@@ -1527,10 +1730,26 @@ function FlowContent() {
     () => formatImageMixPrompt(connectedImageMixItems),
     [connectedImageMixItems],
   );
+  const maskEditLayerReference = useMemo(
+    () =>
+      imageUrl && maskEdit.enabled && maskEdit.instruction.trim()
+        ? {
+            imageUrl,
+            role: "composition" as ImageMixRole,
+            weight: "high" as ImageMixWeight,
+            prompt: formatMaskEditPrompt(maskEdit),
+            label: "Generated image layer",
+          }
+        : null,
+    [imageUrl, maskEdit],
+  );
   const authoritativeNodeSettings = useMemo(() => {
     const settings: string[] = [];
     if (connectedState.isPromptConnected && prompt.trim()) settings.push(`Core prompt: ${prompt.trim()}`);
     if (connectedState.isStyleConnected && activeStyleEntry?.prompt?.trim()) settings.push(`Style reference: ${activeStyleEntry.prompt.trim()}`);
+    if (connectedState.isStyleConnected && activeStyleEntry?.imageUrl?.trim()) {
+      settings.push(`Style reference image: ${activeStyleEntry.label || "active style"} (${normalizeStyleWeight(activeStyleEntry.weight)} influence, style-only)`);
+    }
     if (connectedState.characterReference && activeCharacterReferencePrompt.trim()) settings.push(`Character lock: ${activeCharacterReferencePrompt.trim()}`);
     if (connectedState.objectReference && activeObjectReferencePrompt.trim()) settings.push(`Object lock: ${activeObjectReferencePrompt.trim()}`);
     if (connectedState.isRatioConnected && ratio.trim()) settings.push(`Aspect ratio: ${ratio.trim()}`);
@@ -1548,6 +1767,7 @@ function FlowContent() {
     if (connectedState.detail && detailLevel.trim()) settings.push(`Detail density: ${detailLevel.trim()}`);
     if (connectedState.elementBoard && enabledElementCount > 0) settings.push(`Element board: ${enabledElementCount} enabled consistency elements`);
     if (connectedState.imageMix && connectedImageMixItems.length > 0) settings.push(`Image mix: ${connectedImageMixItems.length} role-weighted visual references`);
+    if (imageUrl && maskEdit.enabled && maskEdit.instruction.trim()) settings.push(`Mask edit: ${maskEdit.region} region on the generated image layer`);
     return settings;
   }, [
     activeCharacterReferencePrompt,
@@ -1562,7 +1782,9 @@ function FlowContent() {
     detailLevel,
     enabledElementCount,
     gesture,
+    imageUrl,
     lighting,
+    maskEdit,
     mood,
     objectAngle,
     palette,
@@ -1572,20 +1794,12 @@ function FlowContent() {
     resolution,
   ]);
   const visibleEnglishPrompt = hasAnyConnection
-    ? appendAuthoritativeNodeSettings(
-        appendImageMixPrompt(
-          appendElementBoardPrompt(
-            appendConsistencyReferences(
-              appendObjectAnglePrompt(englishPrompt, connectedState.objectAngle ? objectAngle : null),
-              connectedState.characterReference ? activeCharacterReferencePrompt : null,
-              connectedState.objectReference ? activeObjectReferencePrompt : null,
-            ),
-            connectedState.elementBoard ? elementBoard : null,
-          ),
-          connectedImageMixItems,
-        ),
-        authoritativeNodeSettings,
-      )
+    ? buildCompactExecutionPrompt({
+        corePrompt: connectedState.isPromptConnected ? prompt : englishPrompt,
+        settings: authoritativeNodeSettings,
+        imageMixCount: connectedImageMixItems.length + (maskEditLayerReference ? 1 : 0),
+        styleReferenceSummary: activeStyleReferenceSummary,
+      })
     : "";
   const generationEnglishPrompt = visibleEnglishPrompt;
   const visibleKoreanPrompt = useMemo(() => {
@@ -1598,7 +1812,9 @@ function FlowContent() {
       primaryLines.push(prompt.trim());
     }
     if (connectedState.isStyleConnected && activeStyleEntry?.label) {
-      detailLines.push(`스타일: ${activeStyleEntry.label}`);
+      detailLines.push(`스타일 참조 이미지: ${activeStyleEntry.label}`);
+      detailLines.push(`스타일 영향도: ${normalizeStyleWeight(activeStyleEntry.weight) === "strong" ? "강하게" : normalizeStyleWeight(activeStyleEntry.weight) === "subtle" ? "약하게" : "보통"}`);
+      detailLines.push("스타일 전용 가드: 참조 이미지의 피사체/구도는 복사하지 않고 색, 질감, 조명, 마감감만 반영");
     }
     if (connectedState.characterReference && activeCharacterReferenceId) {
       const label = characterReferences.find((entry) => entry.id === activeCharacterReferenceId)?.label;
@@ -1627,6 +1843,10 @@ function FlowContent() {
     if (connectedState.imageMix && connectedImageMixItems.length > 0) {
       detailLines.push(`이미지 믹스: ${connectedImageMixItems.length}개 참조를 역할별로 혼합`);
     }
+    if (imageUrl && maskEdit.enabled && maskEdit.instruction.trim()) {
+      detailLines.push(`마스크 편집: 생성 이미지 레이어의 ${maskEdit.region} 영역만 변경 - ${maskEdit.instruction.trim()}`);
+      detailLines.push("마스크 밖 영역은 최대한 보존");
+    }
 
     const automaticBrief = [...primaryLines, ...detailLines].join("\n");
     return koreanPrompt.trim() || automaticBrief || "연결된 노드를 기준으로 생성 브리프를 준비 중입니다.";
@@ -1654,6 +1874,8 @@ function FlowContent() {
     detailLevel,
     enabledElementCount,
     connectedImageMixItems,
+    imageUrl,
+    maskEdit,
     koreanPrompt,
   ]);
 
@@ -2006,18 +2228,29 @@ function FlowContent() {
 
     setIsGenerating(true);
     setError(false);
+    setGenerationErrorMessage("");
+    setLastGenerationTokenUsage(null);
+    setLastGenerationTokenUsageBreakdown([]);
     const generationStartedAt = Date.now();
 
     setNodes((prevNodes) => {
-      if (prevNodes.some((node) => node.id === "canvas-node")) return prevNodes;
-      return [...prevNodes, { id: "canvas-node", type: "canvasNode", position: { x: 850, y: 150 }, data: {} }];
+      const nextNodes = [...prevNodes];
+      if (!nextNodes.some((node) => node.id === "canvas-node")) {
+        nextNodes.push({ id: "canvas-node", type: "canvasNode", position: { x: 850, y: 150 }, data: {} });
+      }
+      if (!nextNodes.some((node) => node.id === "image-layer-node")) {
+        nextNodes.push({ id: "image-layer-node", type: "imageLayerNode", position: { x: 1380, y: 150 }, data: {} });
+      }
+      if (!nextNodes.some((node) => node.id === "mask-edit-node")) {
+        nextNodes.push({ id: "mask-edit-node", type: "maskEditNode", position: { x: 1740, y: 150 }, data: {} });
+      }
+      return nextNodes.length === prevNodes.length ? prevNodes : nextNodes;
     });
 
     setEdges((prevEdges) => {
-      if (prevEdges.some((edge) => edge.id === "e-prompt-canvas")) return prevEdges;
-      return [
-        ...prevEdges,
-        {
+      const nextEdges = [...prevEdges];
+      if (!nextEdges.some((edge) => edge.id === "e-prompt-canvas")) {
+        nextEdges.push({
           id: "e-prompt-canvas",
           source: "output-node",
           sourceHandle: "output-out",
@@ -2025,8 +2258,39 @@ function FlowContent() {
           targetHandle: "canvas-in",
           style: { stroke: "var(--text-primary)", strokeWidth: 3 },
           animated: false,
-        },
-      ];
+        });
+      }
+      if (!nextEdges.some((edge) => edge.id === "e-canvas-image-layer")) {
+        nextEdges.push({
+          id: "e-canvas-image-layer",
+          source: "canvas-node",
+          sourceHandle: "canvas-out",
+          target: "image-layer-node",
+          targetHandle: "layer-in",
+          style: { stroke: "var(--port-image-mix)", strokeWidth: 3 },
+        });
+      }
+      if (!nextEdges.some((edge) => edge.id === "e-image-layer-mask")) {
+        nextEdges.push({
+          id: "e-image-layer-mask",
+          source: "image-layer-node",
+          sourceHandle: "layer-out",
+          target: "mask-edit-node",
+          targetHandle: "mask-in",
+          style: { stroke: "var(--port-constraint)", strokeWidth: 3 },
+        });
+      }
+      if (!nextEdges.some((edge) => edge.id === "e-mask-output")) {
+        nextEdges.push({
+          id: "e-mask-output",
+          source: "mask-edit-node",
+          sourceHandle: "mask-out",
+          target: "output-node",
+          targetHandle: "general-in",
+          style: { stroke: "var(--port-constraint)", strokeWidth: 3 },
+        });
+      }
+      return nextEdges.length === prevEdges.length ? prevEdges : nextEdges;
     });
 
     try {
@@ -2053,13 +2317,17 @@ function FlowContent() {
           detailLevel: connectedState.detail ? detailLevel : null,
           prebuiltPrompt: generationEnglishPrompt || null,
           elementSheetImages: connectedElementSheetImages,
-          imageMixImages: connectedImageMixItems.map((item) => ({
-            imageUrl: item.imageUrl,
-            role: item.role,
-            weight: item.weight,
-            prompt: item.prompt,
-            label: item.label,
-          })),
+          styleReferenceImages: activeStyleReferenceImages,
+          imageMixImages: [
+            ...connectedImageMixItems.map((item) => ({
+              imageUrl: item.imageUrl,
+              role: item.role,
+              weight: item.weight,
+              prompt: item.prompt,
+              label: item.label,
+            })),
+            ...(maskEditLayerReference ? [maskEditLayerReference] : []),
+          ],
         }),
       });
 
@@ -2069,10 +2337,12 @@ function FlowContent() {
         title?: string;
         englishPrompt?: string;
         koreanPrompt?: string;
+        tokenUsage?: GenerationTokenUsage | null;
+        tokenUsageBreakdown?: GenerationTokenUsageBreakdownItem[];
+        error?: string;
       };
-      if (!data.url) {
-        setError(true);
-        return;
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "이미지 생성 결과를 받지 못했습니다.");
       }
 
       setImageUrl(data.url);
@@ -2086,6 +2356,10 @@ function FlowContent() {
       const generatedTitle = data.title?.trim() || createFallbackDisplayTitle(snapshot.prompt, snapshot.englishPrompt, snapshot.koreanPrompt);
       const nextTitle = snapshot.isTitleUserEdited ? snapshot.title : generatedTitle;
       const generationDurationSeconds = Math.max(1, Math.round((Date.now() - generationStartedAt) / 1000));
+      const tokenUsage = data.tokenUsage ?? null;
+      const tokenUsageBreakdown = Array.isArray(data.tokenUsageBreakdown) ? data.tokenUsageBreakdown : [];
+      setLastGenerationTokenUsage(tokenUsage);
+      setLastGenerationTokenUsageBreakdown(tokenUsageBreakdown);
       setGeneratedResults((prev) => {
         const nextResult: GeneratedResult = {
           ...snapshot,
@@ -2094,6 +2368,8 @@ function FlowContent() {
           createdAt: new Date().toISOString(),
           imagePath: data.imagePath,
           generationDurationSeconds,
+          tokenUsage,
+          tokenUsageBreakdown,
           consistencyStatus: "pending",
         };
 
@@ -2110,8 +2386,13 @@ function FlowContent() {
       } else if (visibleKoreanPrompt.trim()) {
         setKoreanPrompt(visibleKoreanPrompt.trim());
       }
-    } catch {
+    } catch (generationError) {
+      const message =
+        generationError instanceof Error
+          ? generationError.message
+          : "이미지 생성 중 알 수 없는 오류가 발생했습니다.";
       setError(true);
+      setGenerationErrorMessage(message);
     } finally {
       setIsGenerating(false);
     }
@@ -2125,6 +2406,8 @@ function FlowContent() {
     connectedState,
     connectedElementSheetImages,
     connectedImageMixItems,
+    maskEditLayerReference,
+    activeStyleReferenceImages,
     constraints,
     detailLevel,
     gesture,
@@ -2415,6 +2698,8 @@ function FlowContent() {
       detailNode: DetailNode,
       outputNode: OutputNode,
       canvasNode: CanvasNode,
+      imageLayerNode: ImageLayerNode,
+      maskEditNode: MaskEditNode,
     }),
     [],
   );
@@ -2446,6 +2731,8 @@ function FlowContent() {
       if (params.sourceHandle === "style-out") style = { stroke: "var(--port-style)", strokeWidth: 3 };
       if (params.sourceHandle === "output-settings-out") style = { stroke: "var(--port-resolution)", strokeWidth: 3 };
       if (params.sourceHandle === "canvas-out") style = { stroke: "var(--text-primary)", strokeWidth: 3 };
+      if (params.sourceHandle === "layer-out") style = { stroke: "var(--port-image-mix)", strokeWidth: 3 };
+      if (params.sourceHandle === "mask-out") style = { stroke: "var(--port-constraint)", strokeWidth: 3 };
       if (params.sourceHandle === "element-out") style = { stroke: "var(--port-element-board)", strokeWidth: 3 };
       for (const key of OPTIONAL_NODE_KEYS) {
         if (params.sourceHandle === OPTIONAL_NODE_CONFIG[key].sourceHandle) {
@@ -2578,6 +2865,31 @@ function FlowContent() {
           },
         };
       }
+      if (node.id === "image-layer-node") {
+        return {
+          ...node,
+          data: {
+            ...baseData,
+            imageUrl,
+            title: "이미지 레이어",
+            layerName: editorTitle || "Generated layer",
+            onPreviewImage: openPreviewImage,
+          },
+        };
+      }
+      if (node.id === "mask-edit-node") {
+        return {
+          ...node,
+          data: {
+            ...baseData,
+            settings: maskEdit,
+            setSettings: setMaskEdit,
+            sourceImageUrl: imageUrl,
+            onGenerateMaskEdit: handleGenerate,
+            isGenerating,
+          },
+        };
+      }
       if (node.id === "output-node") {
         return {
           ...node,
@@ -2598,6 +2910,7 @@ function FlowContent() {
             isGenerating,
             generateElapsedLabel: formatDurationLabel(generateElapsedSeconds),
             lastGenerateDurationLabel: formatDurationLabel(lastGenerateDurationSeconds),
+            styleReferenceSummary: activeStyleReferenceSummary,
           },
         };
       }
@@ -2608,11 +2921,14 @@ function FlowContent() {
             ...baseData,
             imageUrl,
             error,
+            errorMessage: generationErrorMessage,
             isGenerating,
             ratio,
             title: "캔버스",
             generateElapsedLabel: formatDurationLabel(generateElapsedSeconds),
             lastGenerateDurationLabel: formatDurationLabel(lastGenerateDurationSeconds),
+            tokenUsage: lastGenerationTokenUsage,
+            tokenUsageBreakdown: lastGenerationTokenUsageBreakdown,
             onPreviewImage: openPreviewImage,
           },
         };
@@ -2630,6 +2946,7 @@ function FlowContent() {
     activeObjectReferenceId,
     imageMixItems,
     elementBoard,
+    editorTitle,
     generateElementSheet,
     updateElementBoardItem,
     ratio,
@@ -2647,11 +2964,13 @@ function FlowContent() {
     detailLevel,
     isTranslating,
     handleGenerate,
+    maskEdit,
     generationEnglishPrompt,
     regenerateEnglishPromptFromBrief,
     isGenerating,
     imageUrl,
     error,
+    generationErrorMessage,
     openPreviewImage,
     removeOptionalNode,
     visibleKoreanPrompt,
@@ -2659,6 +2978,9 @@ function FlowContent() {
     lastTranslateDurationSeconds,
     generateElapsedSeconds,
     lastGenerateDurationSeconds,
+    lastGenerationTokenUsage,
+    lastGenerationTokenUsageBreakdown,
+    activeStyleReferenceSummary,
   ]);
 
   const startNewGeneration = useCallback(() => {
@@ -3079,6 +3401,7 @@ function FlowContent() {
                     const status = result.consistencyStatus || "pending";
                     const title = getDisplayTitle(result);
                     const cardPrompt = result.koreanPrompt || getActiveStylePrompt(result) || result.englishPrompt;
+                    const tokenSummary = formatTokenUsageSummary(result.tokenUsage);
                     return (
                       <div
                         key={result.id}
@@ -3128,6 +3451,7 @@ function FlowContent() {
                           <span>{result.ratio}</span>
                           <span>{result.resolution}</span>
                           <span>{result.elementBoard?.elements?.length || 0} elements</span>
+                          {tokenSummary ? <span>{tokenSummary}</span> : null}
                         </div>
                         <div className="gallery-card-overlay">
                           <div className="gallery-card-copy">

@@ -21,6 +21,11 @@
 # BrandGen local app data
 /.brandgen/
 
+# BrandGen local reference/source assets
+/codex/
+/sample/
+/style-references/
+
 # production
 /build
 

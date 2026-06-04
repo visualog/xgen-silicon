@@ -94,22 +94,43 @@ type CanvasNodeData = {
   imageUrl?: string | null;
   isGenerating?: boolean;
   error?: boolean;
+  errorMessage?: string;
   ratio?: string;
   title?: string;
   generateElapsedLabel?: string | null;
   lastGenerateDurationLabel?: string | null;
+  tokenUsage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cachedInputTokens: number;
+    totalTokens: number;
+  } | null;
+  tokenUsageBreakdown?: {
+    label: string;
+    inputTokens: number;
+    outputTokens: number;
+    cachedInputTokens: number;
+    totalTokens: number;
+  }[];
   onPreviewImage?: (imageUrl: string) => void;
 };
+
+function formatTokenCount(value: number | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ko-KR') : '0';
+}
 
 export function CanvasNode({ data }: { data: CanvasNodeData }) {
   const {
     imageUrl,
     isGenerating = false,
     error = false,
+    errorMessage = "",
     ratio = '1:1',
     title = '캔버스',
     generateElapsedLabel = null,
     lastGenerateDurationLabel = null,
+    tokenUsage = null,
+    tokenUsageBreakdown = [],
     onPreviewImage,
   } = data;
   const aspectRatio = toAspectRatioValue(ratio);
@@ -219,8 +240,11 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
           )}
 
           {error && !isGenerating && (
-            <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-node-base)', opacity: 0.9, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-              <span style={{ fontSize: 'var(--ui-type-sm-size)', color: 'var(--port-constraint)' }}>생성 실패</span>
+            <div style={{ position: 'absolute', inset: 0, background: 'color-mix(in srgb, var(--bg-node-base) 94%, transparent)', display: 'flex', flexDirection: 'column', gap: 'var(--ui-space-8)', alignItems: 'center', justifyContent: 'center', zIndex: 10, padding: 'var(--ui-space-20)', textAlign: 'center' }}>
+              <span style={{ fontSize: 'var(--ui-type-sm-size)', fontWeight: 850, color: 'var(--port-constraint)' }}>생성 실패</span>
+              <span style={{ maxWidth: '28ch', fontSize: 'var(--ui-type-xs-2-size)', lineHeight: 1.6, color: 'var(--text-secondary)', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                {errorMessage || '원인을 알 수 없는 오류가 발생했습니다.'}
+              </span>
             </div>
           )}
 
@@ -252,58 +276,105 @@ export function CanvasNode({ data }: { data: CanvasNodeData }) {
         </div>
 
         {imageUrl && !isGenerating && !error && (
-          <div style={{ display: 'flex', alignItems: 'center', marginTop: '4px', gap: 'var(--ui-space-8)' }}>
-            <button
-              onClick={handlePreview}
-              title="원본 크기로 보기"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'var(--bg-node-base)',
-                color: 'var(--text-primary)',
-                flex: '0 0 auto',
-                width: 'max-content',
-                height: 'var(--size-control-input-lg)',
-                borderRadius: 'var(--ui-radius-pill)',
-                border: '1px solid var(--border-node)',
-                cursor: 'pointer',
-                transition: 'all 0.18s ease',
-                gap: 'var(--ui-space-8)',
-                fontSize: 'var(--ui-type-sm-6-size)',
-                fontWeight: 600,
-                padding: '0 var(--ui-space-16)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Expand size={16} /> 크게 보기
-            </button>
-            <button
-              onClick={handleDownload}
-              title="다운로드"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'var(--bg-node-base)',
-                color: 'var(--text-primary)',
-                flex: '1 1 auto',
-                minWidth: 0,
-                height: 'var(--size-control-input-lg)',
-                borderRadius: 'var(--ui-radius-pill)',
-                border: '1px solid var(--border-node)',
-                cursor: 'pointer',
-                transition: 'all 0.18s ease',
-                gap: 'var(--ui-space-8)',
-                fontSize: 'var(--ui-type-sm-6-size)',
-                fontWeight: 600,
-                padding: '0 var(--ui-space-16)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Download size={18} /> 이미지 다운로드
-            </button>
-          </div>
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: '4px', gap: 'var(--ui-space-8)' }}>
+              <button
+                onClick={handlePreview}
+                title="원본 크기로 보기"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'var(--bg-node-base)',
+                  color: 'var(--text-primary)',
+                  flex: '0 0 auto',
+                  width: 'max-content',
+                  height: 'var(--size-control-input-lg)',
+                  borderRadius: 'var(--ui-radius-pill)',
+                  border: '1px solid var(--border-node)',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  gap: 'var(--ui-space-8)',
+                  fontSize: 'var(--ui-type-sm-6-size)',
+                  fontWeight: 600,
+                  padding: '0 var(--ui-space-16)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Expand size={16} /> 크게 보기
+              </button>
+              <button
+                onClick={handleDownload}
+                title="다운로드"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'var(--bg-node-base)',
+                  color: 'var(--text-primary)',
+                  flex: '1 1 auto',
+                  minWidth: 0,
+                  height: 'var(--size-control-input-lg)',
+                  borderRadius: 'var(--ui-radius-pill)',
+                  border: '1px solid var(--border-node)',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  gap: 'var(--ui-space-8)',
+                  fontSize: 'var(--ui-type-sm-6-size)',
+                  fontWeight: 600,
+                  padding: '0 var(--ui-space-16)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Download size={18} /> 이미지 다운로드
+              </button>
+            </div>
+
+            {tokenUsage ? (
+              <div
+                style={{
+                  border: '1px solid var(--border-node)',
+                  borderRadius: 'var(--ui-radius-xl)',
+                  backgroundColor: 'var(--bg-canvas)',
+                  padding: 'var(--ui-space-10)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--ui-space-8)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 'var(--ui-space-8)' }}>
+                  <span style={{ fontSize: 'var(--ui-type-xs-size)', color: 'var(--text-secondary)', fontWeight: 850 }}>
+                    사용 토큰
+                  </span>
+                  <strong style={{ fontSize: 'var(--ui-type-sm-6-size)', color: 'var(--text-primary)' }}>
+                    {formatTokenCount(tokenUsage.totalTokens)}
+                  </strong>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'calc(var(--ui-space-unit) * 1.5)' }}>
+                  {[
+                    ['입력', tokenUsage.inputTokens],
+                    ['출력', tokenUsage.outputTokens],
+                    ['캐시', tokenUsage.cachedInputTokens],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ borderRadius: 'var(--ui-radius-lg)', backgroundColor: 'var(--bg-node-base)', padding: 'var(--ui-space-6) var(--ui-space-8)' }}>
+                      <div style={{ fontSize: 'var(--ui-type-xs-size)', color: 'var(--text-muted)', fontWeight: 700 }}>{label}</div>
+                      <div style={{ fontSize: 'var(--ui-type-xs-2-size)', color: 'var(--text-primary)', fontWeight: 850 }}>{formatTokenCount(value as number)}</div>
+                    </div>
+                  ))}
+                </div>
+                {tokenUsageBreakdown.length ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ui-space-4)' }}>
+                    {tokenUsageBreakdown.map((item) => (
+                      <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--ui-space-10)', color: 'var(--text-secondary)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.45 }}>
+                        <span>{item.label}</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{formatTokenCount(item.totalTokens)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </div>

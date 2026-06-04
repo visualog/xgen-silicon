@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,6 +78,24 @@ async function findAvailablePort(preferredPort, host = "127.0.0.1") {
   throw new Error(`No available port found near ${preferredPort}`);
 }
 
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveStyleReferenceRoot() {
+  const candidates = [process.env.XGEN_STYLE_REFERENCE_ROOT, path.join(rootDir, "style-references")].filter(Boolean);
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    if (await pathExists(resolved)) return resolved;
+  }
+  return null;
+}
+
 function spawnChild(label, command, args, options = {}) {
   const child = spawn(command, args, {
     cwd: rootDir,
@@ -119,6 +138,7 @@ process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
 async function main() {
+  const styleReferenceRoot = await resolveStyleReferenceRoot();
   let activeWorkerPort = workerPort;
   if (shouldReuseWorker && (await isPortOpen(workerPort))) {
     console.log(`[electron:dev] using existing codex-worker on 127.0.0.1:${workerPort}`);
@@ -150,6 +170,7 @@ async function main() {
         PORT: String(activeNextPort),
         HOSTNAME: "127.0.0.1",
         BRANDGEN_CODEX_WORKER_URL: `http://127.0.0.1:${activeWorkerPort}`,
+        ...(styleReferenceRoot ? { XGEN_STYLE_REFERENCE_ROOT: styleReferenceRoot } : {}),
       },
     });
     await waitForHttp(activeNextPort);

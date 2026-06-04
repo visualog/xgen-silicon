@@ -60,11 +60,14 @@ const toolbarButtonStyle = (isActive: boolean) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: 'var(--ui-space-8)',
+  minHeight: 'var(--size-control-toolbar)',
+  padding: 'var(--ui-space-6)',
   borderRadius: 'var(--ui-space-8)',
   border: 'none',
   backgroundColor: isActive ? 'var(--bg-node-base)' : 'transparent',
   color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+  fontSize: 'var(--ui-type-xs-size)',
+  fontWeight: 800,
   cursor: 'pointer',
   transition: 'all 0.15s ease',
   boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
@@ -121,6 +124,8 @@ export function RatioNode({ id, data }: { id: string; data: RatioNodeData }) {
           <button style={toolbarButtonStyle(ratio === '1:1')} onClick={() => setRatio('1:1')} title="1:1 화면비"><Square size={16} /></button>
           <button style={toolbarButtonStyle(ratio === '16:9')} onClick={() => setRatio('16:9')} title="16:9 화면비"><RectangleHorizontal size={16} /></button>
           <button style={toolbarButtonStyle(ratio === '9:16')} onClick={() => setRatio('9:16')} title="9:16 화면비"><RectangleVertical size={16} /></button>
+          <button style={toolbarButtonStyle(ratio === '4:3')} onClick={() => setRatio('4:3')} title="4:3 가로형 화면비">4:3</button>
+          <button style={toolbarButtonStyle(ratio === '3:4')} onClick={() => setRatio('3:4')} title="4:3 세로형 화면비">3:4</button>
         </div>
 
         <div 

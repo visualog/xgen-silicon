@@ -26,6 +26,12 @@ const nodeStyle = {
   overflow: 'visible' as const,
 };
 
+const populatedNodeStyle = {
+  ...nodeStyle,
+  maxHeight: '360px',
+  overflow: 'hidden' as const,
+};
+
 const headerStyle = {
   backgroundColor: 'var(--bg-node-header)',
   padding: 'var(--ui-space-8) var(--ui-space-12)',
@@ -51,6 +57,20 @@ const bodyStyle = {
   gap: 'var(--ui-space-8)',
 };
 
+const populatedBodyStyle = {
+  ...bodyStyle,
+  minHeight: 0,
+};
+
+const styleListStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: 'calc(var(--ui-space-unit) * 1.5)',
+  maxHeight: '178px',
+  overflowY: 'auto' as const,
+  paddingRight: 'var(--ui-space-4)',
+};
+
 const chipStyle = {
   display: 'flex',
   alignItems: 'center',
@@ -60,6 +80,12 @@ const chipStyle = {
   border: '1px solid var(--border-node)',
   gap: 'calc(var(--ui-space-unit) * 1.5)',
 };
+
+const weightOptions: { value: NonNullable<StyleEntry['weight']>; label: string }[] = [
+  { value: 'subtle', label: '약하게' },
+  { value: 'medium', label: '보통' },
+  { value: 'strong', label: '강하게' },
+];
 
 export function StyleNode({ id, data }: { id: string; data: StyleNodeData }) {
   const { setEdges } = useReactFlow();
@@ -90,6 +116,14 @@ export function StyleNode({ id, data }: { id: string; data: StyleNodeData }) {
     setActiveStyleId(activeStyleId === styleId ? null : styleId);
   };
 
+  const handleWeightChange = (event: React.MouseEvent, styleId: string, weight: NonNullable<StyleEntry['weight']>) => {
+    event.stopPropagation();
+    setStyles((prev: StyleEntry[]) => prev.map((styleEntry) => (
+      styleEntry.id === styleId ? { ...styleEntry, weight } : styleEntry
+    )));
+    setActiveStyleId(styleId);
+  };
+
   const activeStyle = styles.find((s: StyleEntry) => s.id === activeStyleId);
 
   return (
@@ -98,10 +132,11 @@ export function StyleNode({ id, data }: { id: string; data: StyleNodeData }) {
         <StyleAddModal
           onAdd={handleAdd}
           onClose={() => setShowModal(false)}
+          initialTab="library"
         />
       )}
 
-      <div style={nodeStyle}>
+      <div style={styles.length > 0 ? populatedNodeStyle : nodeStyle}>
         {/* 헤더 */}
         <div style={headerStyle}>
           <Palette size={16} color="var(--text-secondary)" />
@@ -118,10 +153,10 @@ export function StyleNode({ id, data }: { id: string; data: StyleNodeData }) {
           )}
         </div>
 
-        <div style={bodyStyle}>
+        <div style={styles.length > 0 ? populatedBodyStyle : bodyStyle}>
           {/* 스타일 카드 목록 */}
           {styles.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 'calc(var(--ui-space-unit) * 1.5)' }} className="nodrag">
+            <div style={styleListStyle} className="nodrag">
               {styles.map((s: StyleEntry) => {
                 const isActive = s.id === activeStyleId;
                 return (
@@ -157,7 +192,19 @@ export function StyleNode({ id, data }: { id: string; data: StyleNodeData }) {
                     </div>
 
                     {/* 프롬프트 텍스트 */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: 'var(--ui-space-14)' }}>
+                      <strong style={{
+                        display: 'block',
+                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        fontSize: 'var(--ui-type-xs-size)',
+                        fontWeight: 850,
+                        marginBottom: 'var(--ui-space-4)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {s.label || '스타일 참조'}
+                      </strong>
                       <p style={{
                         fontSize: 'var(--ui-type-xs-size)', lineHeight: '1.5',
                         color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -169,6 +216,72 @@ export function StyleNode({ id, data }: { id: string; data: StyleNodeData }) {
                       }}>
                         {s.prompt || '스타일 프롬프트 없음'}
                       </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--ui-space-4)', marginTop: 'var(--ui-space-6)', flexWrap: 'wrap' as const }}>
+                        {isActive ? (
+                          <span style={{
+                            borderRadius: 'var(--ui-radius-pill)',
+                            backgroundColor: 'color-mix(in srgb, var(--port-style) 16%, transparent)',
+                            color: 'var(--port-style)',
+                            fontSize: '10px',
+                            fontWeight: 850,
+                            padding: '2px var(--ui-space-6)',
+                          }}>
+                            생성에 사용
+                          </span>
+                        ) : (
+                          <span style={{
+                            borderRadius: 'var(--ui-radius-pill)',
+                            border: '1px solid var(--border-node)',
+                            color: 'var(--text-muted)',
+                            fontSize: '10px',
+                            fontWeight: 750,
+                            padding: '2px var(--ui-space-6)',
+                          }}>
+                            보관됨
+                          </span>
+                        )}
+                        {s.requiresImage ? (
+                          <span style={{
+                            borderRadius: 'var(--ui-radius-pill)',
+                            border: '1px solid color-mix(in srgb, var(--port-style) 40%, transparent)',
+                            color: 'var(--port-style)',
+                            fontSize: '10px',
+                            fontWeight: 750,
+                            padding: '2px var(--ui-space-6)',
+                          }}>
+                            이미지 필수
+                          </span>
+                        ) : null}
+                      </div>
+                      {isActive ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--ui-space-4)', marginTop: 'var(--ui-space-8)' }}>
+                          {weightOptions.map((option) => {
+                            const isSelected = (s.weight || 'medium') === option.value;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                className="nodrag"
+                                onClick={(event) => handleWeightChange(event, s.id, option.value)}
+                                style={{
+                                  minWidth: 0,
+                                  height: 22,
+                                  borderRadius: 'var(--ui-radius-pill)',
+                                  border: `1px solid ${isSelected ? 'var(--port-style)' : 'var(--border-node)'}`,
+                                  backgroundColor: isSelected ? 'color-mix(in srgb, var(--port-style) 14%, transparent)' : 'transparent',
+                                  color: isSelected ? 'var(--port-style)' : 'var(--text-secondary)',
+                                  fontSize: '10px',
+                                  fontWeight: 850,
+                                  cursor: 'pointer',
+                                }}
+                                title={`스타일 영향 ${option.label}`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* 삭제 버튼 */}
