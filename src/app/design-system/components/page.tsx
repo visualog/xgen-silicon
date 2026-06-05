@@ -74,7 +74,7 @@ export default function ComponentsPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b">
-        <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4">
+        <div className="flex h-14 w-full items-center justify-between gap-4 px-4">
           <nav
             className="flex items-center gap-1 text-sm font-medium"
             aria-label="Design system navigation"
