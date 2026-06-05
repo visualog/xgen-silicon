@@ -1,15 +1,25 @@
 import Link from "next/link";
 
 import {
+  Avatar,
+  AvatarFallback,
   Badge,
   Button,
+  ButtonGroup,
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
+  Checkbox,
   Input,
+  Progress,
+  Separator,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   ToggleGroup,
   ToggleGroupItem,
 } from "@/components/ui";
@@ -113,9 +123,11 @@ export default function ComponentsPage() {
           <RenderActivityCard />
           <OutputPresetCard />
           <StyleReferencesCard />
+          <NavigationCard />
           <ComponentBlocksCard />
           <GenerationQueueCard />
           <GalleryActionCard />
+          <NotificationsCard />
           <HandoffCard />
         </div>
       </section>
@@ -152,20 +164,17 @@ function PromptBuilderCard() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge>Prompt</Badge>
-          <Badge variant="secondary">Secondary</Badge>
-          <Badge variant="outline">Outline</Badge>
-        </div>
+        <CardTitle>Prompt builder</CardTitle>
+        <CardDescription>Build a generation brief from small controls.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
         <Input placeholder="Name" aria-label="Prompt name" />
         <Input placeholder="Prompt message" aria-label="Prompt message" />
-        <div className="flex flex-wrap items-center gap-2">
+        <ButtonGroup className="gap-2">
           <Button size="sm">Generate</Button>
           <Button size="sm" variant="secondary">Preview</Button>
           <Button size="sm" variant="outline">Export</Button>
-        </div>
+        </ButtonGroup>
       </CardContent>
       <CardFooter>
         <ToggleGroup type="single" defaultValue="ratio" size="sm" className="w-full justify-between">
@@ -185,15 +194,21 @@ function RenderActivityCard() {
         <CardTitle>Render activity</CardTitle>
         <CardDescription>Last 6 local generations</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="flex h-40 items-end gap-3">
-          {["h-16", "h-24", "h-20", "h-28", "h-16", "h-24"].map((height, index) => (
-            <div key={index} className="flex flex-1 flex-col items-center gap-2">
-              <div className={`w-full rounded-md bg-foreground/55 ${height}`} />
-              <span className="text-xs text-muted-foreground">{["M", "T", "W", "T", "F", "S"][index]}</span>
+      <CardContent className="grid gap-4">
+        {[
+          ["Prompt", 72],
+          ["Style", 56],
+          ["Output", 84],
+          ["Gallery", 64],
+        ].map(([label, value]) => (
+          <div key={label} className="grid gap-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">{label}</span>
+              <span className="text-muted-foreground">{value}%</span>
             </div>
-          ))}
-        </div>
+            <Progress value={Number(value)} />
+          </div>
+        ))}
       </CardContent>
       <CardFooter>
         <Button className="w-full" size="sm">View report</Button>
@@ -234,9 +249,9 @@ function StyleReferencesCard() {
       <CardContent className="grid gap-4">
         <div className="grid grid-cols-3 gap-3">
           {["Warm light", "Soft grain", "Studio", "Editorial", "Product", "Clean set"].map((label, index) => (
-            <div key={label} className="grid aspect-square place-items-end rounded-xl border bg-muted/40 p-2">
-              <span className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted-foreground">{index + 1}</span>
-            </div>
+            <Avatar key={label} className="size-full aspect-square rounded-xl border">
+              <AvatarFallback className="rounded-xl">{index + 1}</AvatarFallback>
+            </Avatar>
           ))}
         </div>
         <div className="rounded-xl border bg-muted/30 p-4">
@@ -244,14 +259,39 @@ function StyleReferencesCard() {
             <span className="font-medium">Reference strength</span>
             <Badge variant="secondary">Balanced</Badge>
           </div>
-          <div className="h-2 rounded-full bg-muted">
-            <div className="h-full w-2/3 rounded-full bg-foreground" />
-          </div>
+          <Progress value={66} />
         </div>
       </CardContent>
       <CardFooter>
         <Button className="w-full" variant="outline">Open library</Button>
       </CardFooter>
+    </Card>
+  );
+}
+
+function NavigationCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Workspace navigation</CardTitle>
+        <CardDescription>Expose core xGen flows as a compact menu.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger data-state="active">Create</TabsTrigger>
+            <TabsTrigger>Library</TabsTrigger>
+          </TabsList>
+          <TabsContent className="grid gap-3 pt-4">
+            {["Prompt board", "Style references", "Output settings", "Gallery"].map((item) => (
+              <div key={item} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                <span>{item}</span>
+                <Badge variant="outline">Open</Badge>
+              </div>
+            ))}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
     </Card>
   );
 }
@@ -290,12 +330,18 @@ function GenerationQueueCard() {
       </CardHeader>
       <CardContent className="grid gap-3">
         {generationRows.map(([title, type, status]) => (
-          <div key={title} className="flex items-center justify-between rounded-xl border bg-muted/20 p-3">
-            <div>
-              <div className="text-sm font-medium">{title}</div>
-              <div className="text-xs text-muted-foreground">{type}</div>
+          <div key={title} className="grid gap-3 rounded-xl border p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">{title}</div>
+                <div className="text-xs text-muted-foreground">{type}</div>
+              </div>
+              <Badge variant={status === "Ready" ? "secondary" : "outline"}>{status}</Badge>
             </div>
-            <Badge variant={status === "Ready" ? "secondary" : "outline"}>{status}</Badge>
+            <Separator />
+            <div>
+              <Progress value={status === "Ready" ? 100 : status === "Queued" ? 24 : 64} />
+            </div>
           </div>
         ))}
       </CardContent>
@@ -314,11 +360,37 @@ function GalleryActionCard() {
         <div className="aspect-video rounded-xl border bg-muted/40 p-3">
           <div className="h-full rounded-lg bg-background/70" />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <ButtonGroup className="gap-2">
           <Button size="sm">Open canvas</Button>
           <Button size="sm" variant="secondary">Reuse prompt</Button>
           <Button size="sm" variant="outline">Export</Button>
-        </div>
+        </ButtonGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+function NotificationsCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Notifications</CardTitle>
+        <CardDescription>Choose which generation updates should interrupt you.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {[
+          ["Render complete", "Generated assets and previews."],
+          ["Reference analysis", "Style and consistency updates."],
+          ["Gallery milestones", "Batch status and export notices."],
+        ].map(([title, description], index) => (
+          <label key={title} className="flex items-start gap-3 text-sm">
+            <Checkbox defaultChecked={index < 2} aria-label={title} />
+            <span className="grid gap-1">
+              <span className="font-medium">{title}</span>
+              <span className="text-muted-foreground">{description}</span>
+            </span>
+          </label>
+        ))}
       </CardContent>
     </Card>
   );
