@@ -508,19 +508,27 @@ export default function ComponentsPage() {
     <main className="min-h-screen overflow-hidden bg-background text-foreground">
       <div className="pb-20">
         <header className="mx-auto flex h-14 w-full max-w-[1536px] items-center justify-between gap-5 px-4 text-sm sm:px-6 lg:px-8" aria-label="xGen 디자인 시스템 컴포넌트">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-foreground no-underline">
-            <span className="grid size-6 place-items-center rounded-md bg-foreground text-background text-xs">×</span>
-            xGen
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex" aria-label="디자인 시스템 내비게이션">
-            <Link className="transition-colors hover:text-foreground" href="/design-system">Docs</Link>
+          <div className="flex min-w-0 items-center gap-6">
+            <Link href="/" className="flex items-center gap-2 font-semibold text-foreground no-underline">
+              <span className="grid size-6 place-items-center rounded-md bg-foreground text-background text-xs">×</span>
+              xGen
+            </Link>
+            <nav className="hidden items-center gap-5 text-sm font-medium text-foreground md:flex" aria-label="디자인 시스템 내비게이션">
+            <Link className="transition-colors hover:text-muted-foreground" href="/">Home</Link>
+            <Link className="transition-colors hover:text-muted-foreground" href="/design-system">Docs</Link>
             <a className="font-medium text-foreground" href="#components">Components</a>
-            <a className="transition-colors hover:text-foreground" href="#blocks">Blocks</a>
-            <Link className="transition-colors hover:text-foreground" href="/design-system/templates">Templates</Link>
-          </nav>
-          <Button asChild size="sm">
-            <Link href="/">New board</Link>
-          </Button>
+            <a className="transition-colors hover:text-muted-foreground" href="#blocks">Blocks</a>
+            <a className="transition-colors hover:text-muted-foreground" href="#catalog">Charts</a>
+            <Link className="transition-colors hover:text-muted-foreground" href="/design-system/templates">Directory</Link>
+            <Link className="transition-colors hover:text-muted-foreground" href="/">Create</Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden h-9 w-48 items-center rounded-lg bg-muted px-3 text-sm text-muted-foreground lg:flex">Search...</div>
+            <Button asChild size="sm">
+              <Link href="/">New</Link>
+            </Button>
+          </div>
         </header>
 
         <section id="components" className="grid gap-0">
@@ -542,15 +550,15 @@ export default function ComponentsPage() {
             </div>
           </section>
 
-          <section id="blocks" className="relative left-1/2 grid w-screen -translate-x-1/2 gap-8 overflow-hidden border-y bg-muted/20 py-10 md:py-14">
-            <div className="mx-auto grid w-[min(1180px,calc(100vw-32px))] gap-2 text-center">
-              <h2 className="text-2xl font-semibold tracking-normal">Composable blocks</h2>
-              <p className="mx-auto max-w-2xl text-balance text-muted-foreground">shadcn/ui의 Card, Button, Badge, ToggleGroup을 실제 화면 블록으로 조합합니다.</p>
+          <section id="blocks" className="relative left-1/2 grid w-screen -translate-x-1/2 gap-0 overflow-hidden bg-background pb-20 pt-4 md:pb-24">
+            <div className="sr-only">
+              <h2>Composable blocks</h2>
+              <p>xGen의 생성, 참조, 출력, 갤러리 흐름을 shadcn/ui block 구성으로 보여줍니다.</p>
             </div>
             <ShadcnShowcase />
           </section>
 
-          <section id="catalog" className="mx-auto grid w-full max-w-[1180px] gap-5 px-4 pt-16 sm:px-6 lg:px-8">
+          <section id="catalog" className="mx-auto grid w-full max-w-[1180px] gap-5 px-4 pt-24 sm:px-6 lg:px-8">
             <div className="grid gap-2">
               <Badge variant="outline" className="w-fit rounded-full">xGen catalog</Badge>
               <h2 className="text-2xl font-semibold tracking-normal">Component catalog</h2>
@@ -592,11 +600,11 @@ export default function ComponentsPage() {
 
 function ShadcnShowcase() {
   return (
-    <div className="mx-auto flex w-[min(1480px,calc(100vw-32px))] flex-wrap justify-center gap-6">
-      <Card className="min-h-[260px] w-full max-w-[300px] p-6 shadow-none">
+    <div className="mx-auto grid w-[min(1580px,calc(100vw-32px))] auto-rows-[minmax(112px,auto)] grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-12">
+      <Card className="h-full p-6 shadow-none 2xl:col-span-4 2xl:row-span-2">
         <CardHeader className="px-0 pt-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge>Button</Badge>
+            <Badge>Prompt</Badge>
             <Badge variant="secondary">Secondary</Badge>
             <Badge variant="outline">Outline</Badge>
           </div>
@@ -619,14 +627,14 @@ function ShadcnShowcase() {
         </CardFooter>
       </Card>
 
-      <Card className="min-h-[260px] w-full max-w-[300px] p-6 shadow-none">
+      <Card className="h-full p-6 shadow-none 2xl:col-span-4 2xl:row-span-2">
         <CardHeader className="px-0 pt-0">
           <CardTitle>Render activity</CardTitle>
           <CardDescription>Last 6 local generations</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
-          <div className="flex h-36 items-end gap-3">
-            {[42, 68, 56, 78, 48, 74].map((height, index) => (
+          <div className="flex h-44 items-end gap-3">
+            {[56, 92, 74, 108, 66, 104].map((height, index) => (
               <div key={index} className="flex flex-1 flex-col items-center gap-2">
                 <div className="w-full rounded-md bg-foreground/55" style={{ height }} />
                 <span className="text-xs text-muted-foreground">{["M", "T", "W", "T", "F", "S"][index]}</span>
@@ -639,7 +647,7 @@ function ShadcnShowcase() {
         </CardFooter>
       </Card>
 
-      <Card className="min-h-[260px] w-full max-w-[300px] p-6 shadow-none">
+      <Card className="h-full p-6 shadow-none 2xl:col-span-4 2xl:row-span-2">
         <CardHeader className="px-0 pt-0">
           <CardTitle>Output preset</CardTitle>
           <CardDescription>Reusable settings block</CardDescription>
@@ -657,7 +665,33 @@ function ShadcnShowcase() {
         </CardContent>
       </Card>
 
-      <Card className="min-h-[260px] w-full max-w-[624px] p-6 shadow-none">
+      <Card className="h-full p-6 shadow-none xl:row-span-2 2xl:col-span-4 2xl:row-span-3">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle>Style references</CardTitle>
+          <CardDescription>Source images connected to prompt intent.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 px-0 pb-0">
+          <div className="grid grid-cols-3 gap-3">
+            {["Warm light", "Soft grain", "Studio", "Editorial", "Product", "Clean set"].map((label, index) => (
+              <div key={label} className="grid aspect-square place-items-end rounded-xl border bg-muted/40 p-2">
+                <span className="rounded-md bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground">{index + 1}</span>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium">Reference strength</span>
+              <Badge variant="secondary" className="rounded-md">Balanced</Badge>
+            </div>
+            <div className="h-2 rounded-full bg-muted">
+              <div className="h-full w-2/3 rounded-full bg-foreground" />
+            </div>
+          </div>
+          <Button className="w-full" variant="outline">Open library</Button>
+        </CardContent>
+      </Card>
+
+      <Card className="h-full p-6 shadow-none md:col-span-2 xl:col-span-2 2xl:col-span-4 2xl:row-span-2">
         <CardHeader className="px-0 pt-0">
           <CardTitle>Component blocks</CardTitle>
           <CardDescription>Small primitives combine into production-facing controls.</CardDescription>
@@ -673,7 +707,51 @@ function ShadcnShowcase() {
         </CardContent>
       </Card>
 
-      <Card className="min-h-[260px] w-full max-w-[300px] p-6 shadow-none">
+      <Card className="h-full p-6 shadow-none 2xl:col-span-4 2xl:row-span-2">
+        <CardHeader className="px-0 pt-0">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Generation queue</CardTitle>
+              <CardDescription>Preview and final jobs stay visible.</CardDescription>
+            </div>
+            <Badge variant="secondary" className="rounded-md">3 active</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 px-0 pb-0">
+          {[
+            ["Character sheet", "Preview", "64%"],
+            ["Product poster", "Final", "Queued"],
+            ["Gallery cover", "Analysis", "Ready"],
+          ].map(([title, type, status]) => (
+            <div key={title} className="flex items-center justify-between rounded-xl border bg-muted/20 p-3">
+              <div>
+                <div className="text-sm font-medium">{title}</div>
+                <div className="text-xs text-muted-foreground">{type}</div>
+              </div>
+              <Badge variant={status === "Ready" ? "secondary" : "outline"} className="rounded-md">{status}</Badge>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="h-full p-6 shadow-none xl:col-span-2 2xl:col-span-6 2xl:row-span-2">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle>Gallery action</CardTitle>
+          <CardDescription>Review output and branch from a result.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 px-0 pb-0">
+          <div className="aspect-[4/3] rounded-xl border bg-muted/40 p-3">
+            <div className="h-full rounded-lg bg-background/70" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm">Open canvas</Button>
+            <Button size="sm" variant="secondary">Reuse prompt</Button>
+            <Button size="sm" variant="outline">Export</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="h-full p-6 shadow-none 2xl:col-span-6 2xl:row-span-2">
         <CardHeader className="px-0 pt-0">
           <CardTitle>Handoff ready</CardTitle>
           <CardDescription>Local design-system state</CardDescription>
