@@ -505,14 +505,14 @@ const codeStyle: CSSProperties = {
 
 export default function ComponentsPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-[min(1120px,calc(100vw-48px))] py-4 pb-20">
-        <header className="mb-20 flex h-9 items-center justify-between gap-5 text-sm" aria-label="xGen 디자인 시스템 컴포넌트">
+    <main className="min-h-screen overflow-hidden bg-background text-foreground">
+      <div className="pb-20">
+        <header className="mx-auto flex h-14 w-full max-w-[1536px] items-center justify-between gap-5 px-4 text-sm sm:px-6 lg:px-8" aria-label="xGen 디자인 시스템 컴포넌트">
           <Link href="/" className="flex items-center gap-2 font-semibold text-foreground no-underline">
             <span className="grid size-6 place-items-center rounded-md bg-foreground text-background text-xs">×</span>
             xGen
           </Link>
-          <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex" aria-label="디자인 시스템 내비게이션">
+          <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex" aria-label="디자인 시스템 내비게이션">
             <Link className="transition-colors hover:text-foreground" href="/design-system">Docs</Link>
             <a className="font-medium text-foreground" href="#components">Components</a>
             <a className="transition-colors hover:text-foreground" href="#blocks">Blocks</a>
@@ -523,13 +523,13 @@ export default function ComponentsPage() {
           </Button>
         </header>
 
-        <section id="components" className="grid gap-12">
-          <section className="mx-auto grid max-w-4xl justify-items-center gap-5 text-center">
+        <section id="components" className="grid gap-0">
+          <section className="mx-auto flex min-h-[360px] w-full max-w-[980px] flex-col items-center justify-center gap-5 px-4 py-14 text-center sm:px-6 md:min-h-[430px] md:py-20">
             <Badge variant="secondary" className="rounded-md px-3 py-1">shadcn/ui primitives</Badge>
-            <h1 className="max-w-4xl text-4xl font-semibold leading-tight tracking-normal md:text-6xl">
+            <h1 className="max-w-4xl text-balance text-4xl font-semibold leading-tight tracking-normal md:text-5xl lg:text-6xl">
               The foundation for xGen design system
             </h1>
-            <p className="max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
+            <p className="max-w-2xl text-balance text-base leading-7 text-muted-foreground md:text-lg">
               컴포넌트는 복잡한 시각 장식을 줄이고, 조합 가능한 shadcn/ui primitive와 block 패턴 위에서 확장합니다.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
@@ -542,15 +542,15 @@ export default function ComponentsPage() {
             </div>
           </section>
 
-          <section id="blocks" className="mx-auto grid w-full max-w-[980px] gap-5 pt-4">
-            <div className="grid gap-2 text-center">
+          <section id="blocks" className="relative left-1/2 grid w-screen -translate-x-1/2 gap-8 overflow-hidden border-y bg-muted/20 py-10 md:py-14">
+            <div className="mx-auto grid w-[min(1180px,calc(100vw-32px))] gap-2 text-center">
               <h2 className="text-2xl font-semibold tracking-normal">Composable blocks</h2>
-              <p className="text-muted-foreground">shadcn/ui의 Card, Button, Badge, ToggleGroup을 실제 화면 블록으로 조합합니다.</p>
+              <p className="mx-auto max-w-2xl text-balance text-muted-foreground">shadcn/ui의 Card, Button, Badge, ToggleGroup을 실제 화면 블록으로 조합합니다.</p>
             </div>
             <ShadcnShowcase />
           </section>
 
-          <section id="catalog" className="mx-auto grid w-full max-w-[980px] gap-5 pt-8">
+          <section id="catalog" className="mx-auto grid w-full max-w-[1180px] gap-5 px-4 pt-16 sm:px-6 lg:px-8">
             <div className="grid gap-2">
               <Badge variant="outline" className="w-fit rounded-full">xGen catalog</Badge>
               <h2 className="text-2xl font-semibold tracking-normal">Component catalog</h2>
@@ -559,7 +559,7 @@ export default function ComponentsPage() {
               </p>
             </div>
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,280px))] justify-center gap-4">
             {componentGroups.map((group) => (
               <Card key={group.id} className="group overflow-hidden p-5 shadow-none transition-colors hover:bg-muted/20">
                 <Link href={`#${group.id}`} className="grid h-full gap-4 text-inherit no-underline">
@@ -592,8 +592,8 @@ export default function ComponentsPage() {
 
 function ShadcnShowcase() {
   return (
-    <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] lg:grid-cols-[1fr_1fr_0.86fr]">
-      <Card className="p-6 shadow-none">
+    <div className="mx-auto flex w-[min(1480px,calc(100vw-32px))] flex-wrap justify-center gap-6">
+      <Card className="min-h-[260px] w-full max-w-[300px] p-6 shadow-none">
         <CardHeader className="px-0 pt-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge>Button</Badge>
@@ -619,7 +619,7 @@ function ShadcnShowcase() {
         </CardFooter>
       </Card>
 
-      <Card className="p-6 shadow-none">
+      <Card className="min-h-[260px] w-full max-w-[300px] p-6 shadow-none">
         <CardHeader className="px-0 pt-0">
           <CardTitle>Render activity</CardTitle>
           <CardDescription>Last 6 local generations</CardDescription>
@@ -639,7 +639,7 @@ function ShadcnShowcase() {
         </CardFooter>
       </Card>
 
-      <Card className="p-6 shadow-none md:col-span-2 lg:col-span-1">
+      <Card className="min-h-[260px] w-full max-w-[300px] p-6 shadow-none">
         <CardHeader className="px-0 pt-0">
           <CardTitle>Output preset</CardTitle>
           <CardDescription>Reusable settings block</CardDescription>
@@ -657,7 +657,7 @@ function ShadcnShowcase() {
         </CardContent>
       </Card>
 
-      <Card className="p-6 shadow-none lg:col-span-2">
+      <Card className="min-h-[260px] w-full max-w-[624px] p-6 shadow-none">
         <CardHeader className="px-0 pt-0">
           <CardTitle>Component blocks</CardTitle>
           <CardDescription>Small primitives combine into production-facing controls.</CardDescription>
@@ -673,7 +673,7 @@ function ShadcnShowcase() {
         </CardContent>
       </Card>
 
-      <Card className="p-6 shadow-none">
+      <Card className="min-h-[260px] w-full max-w-[300px] p-6 shadow-none">
         <CardHeader className="px-0 pt-0">
           <CardTitle>Handoff ready</CardTitle>
           <CardDescription>Local design-system state</CardDescription>
