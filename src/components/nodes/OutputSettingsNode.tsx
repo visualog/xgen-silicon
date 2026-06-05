@@ -3,6 +3,7 @@
 import { Handle, Position, useNodeConnections, useReactFlow } from "@xyflow/react";
 import React from "react";
 import { RectangleHorizontal, RectangleVertical, Square, SlidersHorizontal, X } from "lucide-react";
+import { XgenSegmentedControl } from "@/components/ui";
 
 type OutputSettingsNodeData = {
   ratio: string;
@@ -59,30 +60,19 @@ const labelStyle = {
   fontWeight: 800,
 };
 
-const toolbarStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: "var(--ui-space-4)",
-  backgroundColor: "var(--bg-canvas)",
-  borderRadius: "var(--ui-radius-xl)",
-  padding: "var(--ui-space-4)",
-};
+const ratioOptions = [
+  { value: "1:1", label: <Square size={15} />, ariaLabel: "1:1 화면 비율" },
+  { value: "16:9", label: <RectangleHorizontal size={16} />, ariaLabel: "16:9 화면 비율" },
+  { value: "9:16", label: <RectangleVertical size={16} />, ariaLabel: "9:16 화면 비율" },
+  { value: "4:3", label: "4:3", ariaLabel: "4:3 가로형 화면 비율" },
+  { value: "3:4", label: "3:4", ariaLabel: "3:4 세로형 화면 비율" },
+];
 
-const toolbarButtonStyle = (isActive: boolean) => ({
-  flex: 1,
-  height: "var(--size-control-toolbar)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: "var(--ui-space-8)",
-  border: "none",
-  backgroundColor: isActive ? "var(--bg-node-base)" : "transparent",
-  color: isActive ? "var(--text-primary)" : "var(--text-muted)",
-  cursor: "pointer",
-  fontSize: "var(--ui-type-xs-size)",
-  fontWeight: 800,
-  transition: "background-color 0.15s ease, color 0.15s ease",
-});
+const resolutionOptions = ["SD", "HD", "4K", "8K"].map((value) => ({
+  value,
+  label: value,
+  ariaLabel: `${value} 해상도`,
+}));
 
 export function OutputSettingsNode({ id, data }: { id: string; data: OutputSettingsNodeData }) {
   const { setEdges } = useReactFlow();
@@ -104,40 +94,26 @@ export function OutputSettingsNode({ id, data }: { id: string; data: OutputSetti
       <div style={bodyStyle}>
         <div style={groupStyle} className="nodrag">
           <span style={labelStyle}>화면 비율</span>
-          <div style={toolbarStyle}>
-            <button type="button" style={toolbarButtonStyle(data.ratio === "1:1")} onClick={() => data.setRatio("1:1")} title="1:1">
-              <Square size={15} />
-            </button>
-            <button type="button" style={toolbarButtonStyle(data.ratio === "16:9")} onClick={() => data.setRatio("16:9")} title="16:9">
-              <RectangleHorizontal size={16} />
-            </button>
-            <button type="button" style={toolbarButtonStyle(data.ratio === "9:16")} onClick={() => data.setRatio("9:16")} title="9:16">
-              <RectangleVertical size={16} />
-            </button>
-            <button type="button" style={toolbarButtonStyle(data.ratio === "4:3")} onClick={() => data.setRatio("4:3")} title="4:3 가로형">
-              4:3
-            </button>
-            <button type="button" style={toolbarButtonStyle(data.ratio === "3:4")} onClick={() => data.setRatio("3:4")} title="4:3 세로형">
-              3:4
-            </button>
-          </div>
+          <XgenSegmentedControl
+            aria-label="화면 비율"
+            value={data.ratio}
+            onChange={data.setRatio}
+            options={ratioOptions}
+            size="xs"
+            block
+          />
         </div>
 
         <div style={groupStyle} className="nodrag">
           <span style={labelStyle}>해상도</span>
-          <div style={toolbarStyle}>
-            {["SD", "HD", "4K", "8K"].map((value) => (
-              <button
-                key={value}
-                type="button"
-                style={toolbarButtonStyle(data.resolution === value)}
-                onClick={() => data.setResolution(value)}
-                title={`${value} 해상도`}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
+          <XgenSegmentedControl
+            aria-label="해상도"
+            value={data.resolution}
+            onChange={data.setResolution}
+            options={resolutionOptions}
+            size="xs"
+            block
+          />
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>

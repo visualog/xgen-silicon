@@ -1,10 +1,291 @@
-/* ===================================================
-   Awesomic Design System — xGen Global Styles
-   =================================================== */
+@import "tailwindcss";
 
-@import "../../design-md/variables.css";
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
 
 :root {
+  --radius: 0.625rem;
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  /* === xGen compatibility tokens backed by shadcn/ui theme === */
+  --surface-cloud-white-canvas: var(--card);
+  --surface-canvas-white-panel: var(--background);
+  --surface-whisper-gray-card: var(--muted);
+
+  --ui-ink-primary: var(--foreground);
+  --ui-ink-secondary: var(--muted-foreground);
+  --ui-ink-tertiary: color-mix(in srgb, var(--muted-foreground) 78%, transparent);
+  --ui-ink-muted: color-mix(in srgb, var(--muted-foreground) 64%, transparent);
+  --ui-ink-strong: var(--foreground);
+  --ui-ink-link: var(--primary);
+  --ui-ink-inverse: var(--primary-foreground);
+  --ui-border-subtle: var(--border);
+  --ui-surface-white: var(--card);
+  --ui-surface-page: var(--background);
+  --ui-surface-card: var(--muted);
+  --ui-accent-magenta: oklch(0.62 0.22 328);
+  --ui-accent-ember: oklch(0.69 0.19 45);
+
+  --ui-space-unit: var(--spacing);
+  --ui-space-4: calc(var(--spacing) * 1);
+  --ui-space-8: calc(var(--spacing) * 2);
+  --ui-space-10: calc(var(--spacing) * 2.5);
+  --ui-space-12: calc(var(--spacing) * 3);
+  --ui-space-16: calc(var(--spacing) * 4);
+  --ui-space-18: calc(var(--spacing) * 4.5);
+  --ui-space-20: calc(var(--spacing) * 5);
+  --ui-space-24: calc(var(--spacing) * 6);
+  --ui-space-28: calc(var(--spacing) * 7);
+  --ui-space-32: calc(var(--spacing) * 8);
+  --ui-space-36: calc(var(--spacing) * 9);
+  --ui-space-40: calc(var(--spacing) * 10);
+  --ui-space-48: calc(var(--spacing) * 12);
+  --ui-space-56: calc(var(--spacing) * 14);
+  --ui-space-64: calc(var(--spacing) * 16);
+  --ui-space-68: calc(var(--spacing) * 17);
+  --ui-space-80: calc(var(--spacing) * 20);
+  --ui-space-120: calc(var(--spacing) * 30);
+
+  --ui-radius-md: var(--radius-md);
+  --ui-radius-xl: var(--radius-xl);
+  --ui-radius-2xl: var(--radius-2xl);
+  --ui-radius-2xl-2: var(--radius-3xl);
+  --ui-radius-3xl: var(--radius-4xl);
+  --ui-radius-3xl-2: var(--radius-4xl);
+  --ui-radius-3xl-3: var(--radius-4xl);
+  --ui-radius-3xl-4: var(--radius-4xl);
+  --ui-radius-full: var(--radius-full);
+  --ui-radius-full-2: var(--radius-full);
+  --ui-radius-full-3: var(--radius-full);
+  --ui-radius-full-4: var(--radius-full);
+  --ui-radius-full-5: var(--radius-full);
+  --ui-radius-full-6: var(--radius-full);
+  --ui-radius-card: var(--radius-2xl);
+  --ui-radius-pill: var(--radius-full);
+
+  --ui-shadow-subtle: 0 1px 2px color-mix(in srgb, var(--foreground) 8%, transparent);
+  --ui-shadow-subtle-2: 0 1px 0 color-mix(in srgb, var(--foreground) 8%, transparent);
+  --ui-shadow-subtle-3: 0 0 0 1px color-mix(in srgb, var(--foreground) 6%, transparent);
+  --ui-shadow-subtle-4: inset 0 1px 0 color-mix(in srgb, var(--card) 80%, transparent);
+  --ui-shadow-subtle-5: inset 0 -1px 0 color-mix(in srgb, var(--foreground) 6%, transparent);
+  --ui-shadow-md: 0 8px 24px color-mix(in srgb, var(--foreground) 8%, transparent);
+  --ui-shadow-node: var(--ui-shadow-md);
+  --ui-shadow-button: var(--ui-shadow-subtle);
+  --ui-shadow-card: var(--ui-shadow-md);
+  --ui-font-sans: var(--font-sans);
+
+  --ui-type-xs: var(--font-weight-normal) 0.75rem / 1.125rem var(--font-sans);
+  --ui-type-xs-size: 0.75rem;
+  --ui-type-xs-weight: var(--font-weight-normal);
+  --ui-type-xs-line: 1.125rem;
+  --ui-type-xs-2: var(--font-weight-semibold) 0.75rem / 1.125rem var(--font-sans);
+  --ui-type-xs-2-size: 0.75rem;
+  --ui-type-xs-2-weight: var(--font-weight-semibold);
+  --ui-type-xs-2-line: 1.125rem;
+  --ui-type-sm: var(--font-weight-normal) 0.875rem / 1.25rem var(--font-sans);
+  --ui-type-sm-size: 0.875rem;
+  --ui-type-sm-weight: var(--font-weight-normal);
+  --ui-type-sm-line: 1.25rem;
+  --ui-type-sm-2: var(--font-weight-medium) 0.875rem / 1.25rem var(--font-sans);
+  --ui-type-sm-2-size: 0.875rem;
+  --ui-type-sm-2-weight: var(--font-weight-medium);
+  --ui-type-sm-2-line: 1.25rem;
+  --ui-type-sm-3: var(--ui-type-sm-2);
+  --ui-type-sm-3-size: 0.875rem;
+  --ui-type-sm-3-weight: var(--font-weight-medium);
+  --ui-type-sm-3-line: 1.25rem;
+  --ui-type-sm-4: var(--ui-type-sm-2);
+  --ui-type-sm-4-size: 0.875rem;
+  --ui-type-sm-4-weight: var(--font-weight-medium);
+  --ui-type-sm-4-line: 1.25rem;
+  --ui-type-sm-5: var(--ui-type-sm-2);
+  --ui-type-sm-5-size: 0.875rem;
+  --ui-type-sm-5-weight: var(--font-weight-medium);
+  --ui-type-sm-5-line: 1.25rem;
+  --ui-type-sm-6: var(--ui-type-sm-2);
+  --ui-type-sm-6-size: 0.875rem;
+  --ui-type-sm-6-weight: var(--font-weight-medium);
+  --ui-type-sm-6-line: 1.25rem;
+  --ui-type-sm-7: var(--font-weight-semibold) 0.875rem / 1.25rem var(--font-sans);
+  --ui-type-sm-7-size: 0.875rem;
+  --ui-type-sm-7-weight: var(--font-weight-semibold);
+  --ui-type-sm-7-line: 1.25rem;
+  --ui-type-sm-8: var(--ui-type-sm-7);
+  --ui-type-sm-8-size: 0.875rem;
+  --ui-type-sm-8-weight: var(--font-weight-semibold);
+  --ui-type-sm-8-line: 1.25rem;
+  --ui-type-sm-9: var(--ui-type-sm-7);
+  --ui-type-sm-9-size: 0.875rem;
+  --ui-type-sm-9-weight: var(--font-weight-semibold);
+  --ui-type-sm-9-line: 1.25rem;
+  --ui-type-sm-10: var(--ui-type-sm-7);
+  --ui-type-sm-10-size: 0.875rem;
+  --ui-type-sm-10-weight: var(--font-weight-semibold);
+  --ui-type-sm-10-line: 1.25rem;
+  --ui-type-base: var(--font-weight-normal) 1rem / 1.5rem var(--font-sans);
+  --ui-type-base-size: 1rem;
+  --ui-type-base-weight: var(--font-weight-normal);
+  --ui-type-base-line: 1.5rem;
+  --ui-type-base-2: var(--font-weight-medium) 1rem / 1.5rem var(--font-sans);
+  --ui-type-base-2-size: 1rem;
+  --ui-type-base-2-weight: var(--font-weight-medium);
+  --ui-type-base-2-line: 1.5rem;
+  --ui-type-base-3: var(--ui-type-base-2);
+  --ui-type-base-3-size: 1rem;
+  --ui-type-base-3-weight: var(--font-weight-medium);
+  --ui-type-base-3-line: 1.5rem;
+  --ui-type-base-4: var(--ui-type-base-2);
+  --ui-type-base-4-size: 1rem;
+  --ui-type-base-4-weight: var(--font-weight-medium);
+  --ui-type-base-4-line: 1.5rem;
+  --ui-type-base-5: var(--font-weight-semibold) 1rem / 1.5rem var(--font-sans);
+  --ui-type-base-5-size: 1rem;
+  --ui-type-base-5-weight: var(--font-weight-semibold);
+  --ui-type-base-5-line: 1.5rem;
+  --ui-type-base-6: var(--ui-type-base-5);
+  --ui-type-base-6-size: 1rem;
+  --ui-type-base-6-weight: var(--font-weight-semibold);
+  --ui-type-base-6-line: 1.5rem;
+  --ui-type-base-7: var(--ui-type-base-5);
+  --ui-type-base-7-size: 1rem;
+  --ui-type-base-7-weight: var(--font-weight-semibold);
+  --ui-type-base-7-line: 1.5rem;
+  --ui-type-lg: var(--font-weight-semibold) 1rem / 1.5rem var(--font-sans);
+  --ui-type-lg-size: 1rem;
+  --ui-type-lg-weight: var(--font-weight-semibold);
+  --ui-type-lg-line: 1.5rem;
+  --ui-type-xl: var(--font-weight-semibold) 1.25rem / 1.75rem var(--font-sans);
+  --ui-type-xl-size: 1.25rem;
+  --ui-type-xl-weight: var(--font-weight-semibold);
+  --ui-type-xl-line: 1.75rem;
+  --ui-type-xl-2: var(--font-weight-semibold) 1.5rem / 2rem var(--font-sans);
+  --ui-type-xl-2-size: 1.5rem;
+  --ui-type-xl-2-weight: var(--font-weight-semibold);
+  --ui-type-xl-2-line: 2rem;
+  --ui-type-xl-3: var(--font-weight-semibold) 2rem / 2.375rem var(--font-sans);
+  --ui-type-xl-3-size: 2rem;
+  --ui-type-xl-3-weight: var(--font-weight-semibold);
+  --ui-type-xl-3-line: 2.375rem;
+  --ui-type-xl-4: var(--font-weight-semibold) 2.25rem / 2.625rem var(--font-sans);
+  --ui-type-xl-4-size: 2.25rem;
+  --ui-type-xl-4-weight: var(--font-weight-semibold);
+  --ui-type-xl-4-line: 2.625rem;
+  --ui-type-section-title: var(--ui-type-xl-2);
+  --ui-type-section-title-size: 1.5rem;
+  --ui-type-section-title-weight: var(--font-weight-semibold);
+  --ui-type-section-title-line: 2rem;
+  --ui-type-3xl: var(--font-weight-semibold) 2rem / 2.375rem var(--font-sans);
+  --ui-type-3xl-size: 2rem;
+  --ui-type-3xl-weight: var(--font-weight-semibold);
+  --ui-type-3xl-line: 2.375rem;
+  --ui-type-4xl: var(--font-weight-semibold) 2.25rem / 2.625rem var(--font-sans);
+  --ui-type-4xl-size: 2.25rem;
+  --ui-type-4xl-weight: var(--font-weight-semibold);
+  --ui-type-4xl-line: 2.625rem;
+  --ui-type-5xl: var(--font-weight-semibold) 3rem / 3.25rem var(--font-sans);
+  --ui-type-5xl-size: 3rem;
+  --ui-type-5xl-weight: var(--font-weight-semibold);
+  --ui-type-5xl-line: 3.25rem;
+  --ui-type-5xl-2: var(--font-weight-semibold) 3.75rem / 3.75rem var(--font-sans);
+  --ui-type-5xl-2-size: 3.75rem;
+  --ui-type-5xl-2-weight: var(--font-weight-semibold);
+  --ui-type-5xl-2-line: 3.75rem;
+
+  --size-node-sm: 180px;
+  --size-node-md: 220px;
+  --size-node-output-settings: 240px;
+  --size-node-lg: 260px;
+  --size-node-reference: 280px;
+  --size-node-board: 300px;
+  --size-node-canvas: 320px;
+  --size-node-output: 380px;
+  --size-modal-style-width: 480px;
+  --size-control-xs: 1.375rem;
+  --size-control-sm: 1.5rem;
+  --size-control-md: 2rem;
+  --size-control-lg: 2.25rem;
+  --size-control-toolbar: 2rem;
+  --size-control-input-lg: 2.5rem;
+  --size-port-dot: 12px;
+  --size-status-dot: 6px;
+  --size-dial-handle: 18px;
+  --size-icon-container: 48px;
+  --size-empty-icon: 56px;
+  --size-modal-preview-height: 200px;
+  --size-preview-height: 196px;
+  --size-prompt-min-height: 120px;
+  --size-output-text-min-height: 132px;
+  --size-element-card-min-height: 78px;
+  --size-element-thumb-width: 62px;
+  --size-element-board-max-height: 360px;
+
+  --component-action-height: 2.5rem;
+  --component-action-height-lg: 3rem;
+  --component-action-radius: var(--radius-full);
+  --component-action-primary-bg: var(--primary);
+  --component-action-primary-fg: var(--primary-foreground);
+  --component-action-secondary-bg: var(--secondary);
+  --component-action-secondary-fg: var(--secondary-foreground);
+  --component-action-label-type: var(--ui-type-sm-8);
+  --component-card-bg: var(--card);
+  --component-card-radius: var(--radius-2xl);
+  --component-card-shadow: var(--ui-shadow-md);
+  --component-panel-bg: var(--card);
+  --component-panel-radius: var(--radius-2xl);
+  --component-panel-shadow: var(--ui-shadow-md);
+  --component-node-bg: color-mix(in srgb, var(--card) 88%, transparent);
+  --component-node-header-bg: var(--bg-node-header);
+  --component-node-radius: var(--radius-xl);
+  --component-node-shadow: var(--ui-shadow-md);
+  --component-node-title-type: var(--ui-type-xs-2);
+  --component-chip-radius: var(--radius-full);
+  --component-chip-type: var(--ui-type-xs);
+  --component-popover-bg: var(--popover);
+  --component-popover-radius: var(--radius-xl);
+  --component-template-home-max-width: 1440px;
+  --component-template-editor-top-offset: 20px;
+
   /* === UI Tokens (Light Mode Default) === */
   --bg-canvas: var(--surface-canvas-white-panel);
   --bg-node-base: var(--surface-cloud-white-canvas);
@@ -27,13 +308,29 @@
   --brand-mint: color-mix(in srgb, var(--port-element-board) 55%, var(--ui-surface-white));
   --brand-mint-deep: color-mix(in srgb, var(--port-camera-angle) 60%, var(--ui-surface-white));
   --brand-tan: color-mix(in srgb, var(--port-background) 36%, var(--ui-surface-white));
-  --port-image-mix: #0ea5e9;
-
-  /* === App Compatibility Aliases === */
-  --radius-sm: var(--ui-radius-md);
-  --radius-lg: var(--ui-radius-2xl);
-  --radius-card: var(--ui-radius-card);
-  --radius-pill: var(--ui-radius-full-5);
+  --node-accent-unified: color-mix(in srgb, var(--text-primary) 72%, var(--bg-canvas));
+  --port-prompt: var(--node-accent-unified);
+  --port-style: var(--node-accent-unified);
+  --port-character-reference: var(--node-accent-unified);
+  --port-object-reference: var(--node-accent-unified);
+  --port-element-board: var(--node-accent-unified);
+  --port-ratio: var(--node-accent-unified);
+  --port-resolution: var(--node-accent-unified);
+  --port-composition: var(--node-accent-unified);
+  --port-background: var(--node-accent-unified);
+  --port-constraint: var(--node-accent-unified);
+  --port-mood: var(--node-accent-unified);
+  --port-palette: var(--node-accent-unified);
+  --port-camera-angle: var(--node-accent-unified);
+  --port-object-angle: var(--node-accent-unified);
+  --port-lighting: var(--node-accent-unified);
+  --port-gesture: var(--node-accent-unified);
+  --port-props: var(--node-accent-unified);
+  --port-detail: var(--node-accent-unified);
+  --port-image-mix: var(--node-accent-unified);
+  --flow-line-input: color-mix(in srgb, var(--muted-foreground) 72%, var(--bg-canvas));
+  --flow-line-output: color-mix(in srgb, var(--foreground) 84%, var(--primary));
+  --flow-line-pending: color-mix(in srgb, var(--muted-foreground) 82%, transparent);
 
   --space-4: var(--ui-space-4);
   --space-8: var(--ui-space-8);
@@ -51,17 +348,45 @@
 
   /* === Shadow Tokens === */
   --shadow-xs: var(--ui-shadow-subtle-3);
-  --shadow-sm: var(--ui-shadow-md);
   --shadow-button: var(--ui-shadow-subtle);
   --shadow-card: var(--ui-shadow-subtle-2);
 
-  --font-sans: var(--ui-font-sans);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
 /* === Dark Mode Overrides === */
+.dark,
 [data-theme='dark'] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+
   --bg-canvas: color-mix(in srgb, var(--ui-ink-primary) 88%, var(--ui-ink-strong));
   --bg-node-base: color-mix(in srgb, var(--ui-ink-strong) 86%, var(--ui-ink-secondary));
   --bg-node-header: color-mix(in srgb, var(--ui-ink-strong) 76%, var(--ui-ink-secondary));
@@ -72,6 +397,9 @@
   --text-tertiary: var(--ui-ink-muted);
   --text-muted: var(--ui-ink-tertiary);
   --shadow-node: color-mix(in srgb, var(--ui-ink-primary) 50%, transparent) 0px 8px 24px;
+  --flow-line-input: color-mix(in srgb, var(--muted-foreground) 76%, transparent);
+  --flow-line-output: color-mix(in srgb, var(--foreground) 84%, var(--primary));
+  --flow-line-pending: color-mix(in srgb, var(--muted-foreground) 72%, transparent);
 }
 
 /* ===================================================
@@ -236,7 +564,7 @@ html, body {
 /* ===================================================
    Button System — Awesomic Style
    =================================================== */
-button {
+button:not([data-slot]) {
   cursor: pointer;
   border: none;
   font: var(--ui-type-base-2);
@@ -1644,10 +1972,6 @@ button {
   width: min(1120px, calc(100vw - 48px));
   max-height: min(840px, calc(100vh - 48px));
   overflow: auto;
-  padding: var(--ui-space-24);
-  border: 1px solid var(--border-node);
-  border-radius: var(--component-panel-radius);
-  background: var(--bg-node-base);
   box-shadow: var(--ui-shadow-float);
 }
 
@@ -1656,56 +1980,24 @@ button {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--ui-space-20);
-  margin-bottom: var(--ui-space-20);
-}
-
-.component-detail-header h2 {
-  margin-top: var(--ui-space-8);
-  font: var(--ui-type-4xl);
-  line-height: var(--ui-type-4xl-line);
-}
-
-.component-detail-header p:not(.kicker) {
-  max-width: 720px;
-  margin-top: var(--ui-space-10);
-  color: var(--text-secondary);
-  line-height: 1.7;
 }
 
 .component-state-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--ui-space-10);
-  margin-bottom: var(--ui-space-24);
+  padding: 0 var(--ui-space-24) var(--ui-space-24);
 }
 
 .component-detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--ui-space-20);
+  padding: 0 var(--ui-space-24) var(--ui-space-24);
 }
 
 .component-variant-card {
-  padding: var(--ui-space-20);
-  border: 1px solid var(--border-node);
-  border-radius: var(--component-panel-radius);
-  background: var(--bg-canvas);
-}
-
-.component-variant-card h3 {
-  margin: var(--ui-space-8) 0 var(--ui-space-12);
-  font: var(--ui-type-xl);
-}
-
-.component-variant-card p {
-  color: var(--text-secondary);
-  line-height: 1.65;
-}
-
-.component-variant-card strong {
-  display: block;
-  margin-top: var(--ui-space-12);
-  color: var(--text-primary);
+  min-width: 0;
 }
 
 @keyframes studio-rise {
@@ -1883,3 +2175,7 @@ button {
 /* Legacy button classes (for compatibility) */
 .button-primary { composes: btn-primary; }
 .button-secondary { composes: btn-secondary; }
+
+.xgen-segmented-control {
+  min-width: 0;
+}

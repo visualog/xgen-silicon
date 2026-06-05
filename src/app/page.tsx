@@ -63,6 +63,9 @@ import type { StyleEntry } from "@/components/StyleAddModal";
 
 const STORAGE_KEY = "brandgen_state";
 const LOCAL_STORAGE_MAX_BYTES = 500_000;
+const FLOW_INPUT_EDGE_STYLE: CSSProperties = { stroke: "var(--flow-line-input)", strokeWidth: 2.5 };
+const FLOW_OUTPUT_EDGE_STYLE: CSSProperties = { stroke: "var(--flow-line-output)", strokeWidth: 3 };
+const FLOW_PENDING_EDGE_STYLE: CSSProperties = { stroke: "var(--flow-line-pending)", strokeWidth: 2.5 };
 
 const OPTIONAL_NODE_CONFIG = {
   composition: {
@@ -722,7 +725,7 @@ const MANDATORY_EDGES = [
     sourceHandle: "prompt-out",
     target: "output-node",
     targetHandle: "general-in",
-    style: { stroke: "var(--port-prompt)", strokeWidth: 3 },
+    style: FLOW_INPUT_EDGE_STYLE,
   },
   {
     id: "e-style-output",
@@ -730,7 +733,7 @@ const MANDATORY_EDGES = [
     sourceHandle: "style-out",
     target: "output-node",
     targetHandle: "general-in",
-    style: { stroke: "var(--port-style)", strokeWidth: 3 },
+    style: FLOW_INPUT_EDGE_STYLE,
   },
   {
     id: "e-output-settings-output",
@@ -738,7 +741,7 @@ const MANDATORY_EDGES = [
     sourceHandle: "output-settings-out",
     target: "output-node",
     targetHandle: "general-in",
-    style: { stroke: "var(--port-resolution)", strokeWidth: 3 },
+    style: FLOW_INPUT_EDGE_STYLE,
   },
 ];
 
@@ -802,7 +805,7 @@ function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanva
         sourceHandle: config.sourceHandle,
         target: "output-node",
         targetHandle: "general-in",
-        style: { stroke: config.color, strokeWidth: 3 },
+        style: FLOW_INPUT_EDGE_STYLE,
       };
     });
 
@@ -814,7 +817,7 @@ function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanva
           sourceHandle: "output-out",
           target: "canvas-node",
           targetHandle: "canvas-in",
-          style: { stroke: "var(--text-primary)", strokeWidth: 3 },
+          style: FLOW_OUTPUT_EDGE_STYLE,
           animated: false,
         },
         {
@@ -823,7 +826,7 @@ function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanva
           sourceHandle: "canvas-out",
           target: "image-layer-node",
           targetHandle: "layer-in",
-          style: { stroke: "var(--port-image-mix)", strokeWidth: 3 },
+          style: FLOW_OUTPUT_EDGE_STYLE,
         },
         {
           id: "e-image-layer-mask",
@@ -831,7 +834,7 @@ function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanva
           sourceHandle: "layer-out",
           target: "mask-edit-node",
           targetHandle: "mask-in",
-          style: { stroke: "var(--port-constraint)", strokeWidth: 3 },
+          style: FLOW_OUTPUT_EDGE_STYLE,
         },
         {
           id: "e-mask-output",
@@ -839,7 +842,7 @@ function buildEditorEdges(connectedOptionalKeys: OptionalNodeKey[], includeCanva
           sourceHandle: "mask-out",
           target: "output-node",
           targetHandle: "general-in",
-          style: { stroke: "var(--port-constraint)", strokeWidth: 3 },
+          style: FLOW_OUTPUT_EDGE_STYLE,
         },
       ]
     : [];
@@ -2256,7 +2259,7 @@ function FlowContent() {
           sourceHandle: "output-out",
           target: "canvas-node",
           targetHandle: "canvas-in",
-          style: { stroke: "var(--text-primary)", strokeWidth: 3 },
+          style: FLOW_OUTPUT_EDGE_STYLE,
           animated: false,
         });
       }
@@ -2267,7 +2270,7 @@ function FlowContent() {
           sourceHandle: "canvas-out",
           target: "image-layer-node",
           targetHandle: "layer-in",
-          style: { stroke: "var(--port-image-mix)", strokeWidth: 3 },
+          style: FLOW_OUTPUT_EDGE_STYLE,
         });
       }
       if (!nextEdges.some((edge) => edge.id === "e-image-layer-mask")) {
@@ -2277,7 +2280,7 @@ function FlowContent() {
           sourceHandle: "layer-out",
           target: "mask-edit-node",
           targetHandle: "mask-in",
-          style: { stroke: "var(--port-constraint)", strokeWidth: 3 },
+          style: FLOW_OUTPUT_EDGE_STYLE,
         });
       }
       if (!nextEdges.some((edge) => edge.id === "e-mask-output")) {
@@ -2287,7 +2290,7 @@ function FlowContent() {
           sourceHandle: "mask-out",
           target: "output-node",
           targetHandle: "general-in",
-          style: { stroke: "var(--port-constraint)", strokeWidth: 3 },
+          style: FLOW_OUTPUT_EDGE_STYLE,
         });
       }
       return nextEdges.length === prevEdges.length ? prevEdges : nextEdges;
@@ -2446,7 +2449,7 @@ function FlowContent() {
           sourceHandle: config.sourceHandle,
           target: "output-node",
           targetHandle: "general-in",
-          style: { stroke: config.color, strokeWidth: 3 },
+          style: FLOW_INPUT_EDGE_STYLE,
         },
       ];
     });
@@ -2652,7 +2655,7 @@ function FlowContent() {
               sourceHandle: "canvas-out",
               target: elementNodeId,
               targetHandle: "element-in",
-              style: { stroke: "var(--port-element-board)", strokeWidth: 3 },
+              style: FLOW_OUTPUT_EDGE_STYLE,
             });
           }
 
@@ -2666,7 +2669,7 @@ function FlowContent() {
                 sourceHandle: "element-out",
                 target: getElementCanvasNodeId(element.id),
                 targetHandle: "canvas-in",
-                style: { stroke: "var(--port-element-board)", strokeWidth: 3 },
+                style: FLOW_OUTPUT_EDGE_STYLE,
               });
             }
           }
@@ -2726,17 +2729,20 @@ function FlowContent() {
       let targetHandle = params.targetHandle;
       if (params.target === "output-node") targetHandle = "general-in";
 
-      let style = { stroke: "#94a3b8", strokeWidth: 2 };
-      if (params.sourceHandle === "prompt-out") style = { stroke: "var(--port-prompt)", strokeWidth: 3 };
-      if (params.sourceHandle === "style-out") style = { stroke: "var(--port-style)", strokeWidth: 3 };
-      if (params.sourceHandle === "output-settings-out") style = { stroke: "var(--port-resolution)", strokeWidth: 3 };
-      if (params.sourceHandle === "canvas-out") style = { stroke: "var(--text-primary)", strokeWidth: 3 };
-      if (params.sourceHandle === "layer-out") style = { stroke: "var(--port-image-mix)", strokeWidth: 3 };
-      if (params.sourceHandle === "mask-out") style = { stroke: "var(--port-constraint)", strokeWidth: 3 };
-      if (params.sourceHandle === "element-out") style = { stroke: "var(--port-element-board)", strokeWidth: 3 };
+      let style = FLOW_PENDING_EDGE_STYLE;
+      if (params.target === "output-node") style = FLOW_INPUT_EDGE_STYLE;
+      if (
+        params.sourceHandle === "output-out" ||
+        params.sourceHandle === "canvas-out" ||
+        params.sourceHandle === "layer-out" ||
+        params.sourceHandle === "mask-out" ||
+        params.sourceHandle === "element-out"
+      ) {
+        style = FLOW_OUTPUT_EDGE_STYLE;
+      }
       for (const key of OPTIONAL_NODE_KEYS) {
         if (params.sourceHandle === OPTIONAL_NODE_CONFIG[key].sourceHandle) {
-          style = { stroke: OPTIONAL_NODE_CONFIG[key].color, strokeWidth: 3 };
+          style = FLOW_INPUT_EDGE_STYLE;
         }
       }
 
@@ -3493,8 +3499,8 @@ function FlowContent() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
-        defaultEdgeOptions={{ type: "default", animated: false, style: { strokeWidth: 3 } }}
-        connectionLineStyle={{ stroke: "var(--text-tertiary)", strokeWidth: 3 }}
+        defaultEdgeOptions={{ type: "default", animated: false, style: FLOW_INPUT_EDGE_STYLE }}
+        connectionLineStyle={FLOW_PENDING_EDGE_STYLE}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.5}

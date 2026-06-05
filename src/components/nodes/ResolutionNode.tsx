@@ -2,6 +2,7 @@ import { Handle, Position, useNodeConnections } from '@xyflow/react';
 import React from 'react';
 import { Monitor, X } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
+import { XgenSegmentedControl } from '@/components/ui';
 
 type ResolutionNodeData = {
   resolution: string;
@@ -45,30 +46,11 @@ const bodyStyle = {
   gap: 'var(--ui-space-12)',
 };
 
-const toolbarStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 'var(--ui-space-4)',
-  backgroundColor: 'var(--bg-canvas)',
-  borderRadius: 'var(--ui-radius-xl)',
-  padding: '4px',
-  border: 'none',
-};
-
-const toolbarButtonStyle = (isActive: boolean) => ({
-  flex: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 'var(--ui-space-8)',
-  borderRadius: 'var(--ui-space-8)',
-  border: 'none',
-  backgroundColor: isActive ? 'var(--bg-node-base)' : 'transparent',
-  color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
-  cursor: 'pointer',
-  transition: 'all 0.15s ease',
-  boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
-});
+const resolutionOptions = ['SD', 'HD', '4K', '8K'].map((value) => ({
+  value,
+  label: value,
+  ariaLabel: `${value} 해상도`,
+}));
 
 const portLabelContainerStyle = {
   display: 'flex',
@@ -117,19 +99,15 @@ export function ResolutionNode({ id, data }: { id: string; data: ResolutionNodeD
       </div>
 
       <div style={bodyStyle}>
-        <div style={toolbarStyle} className="nodrag">
-          <button style={toolbarButtonStyle(resolution === 'SD')} onClick={() => setResolution('SD')} title="SD 해상도">
-            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 700 }}>SD</span>
-          </button>
-          <button style={toolbarButtonStyle(resolution === 'HD')} onClick={() => setResolution('HD')} title="HD 해상도">
-            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 700 }}>HD</span>
-          </button>
-          <button style={toolbarButtonStyle(resolution === '4K')} onClick={() => setResolution('4K')} title="4K 해상도">
-            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 700 }}>4K</span>
-          </button>
-          <button style={toolbarButtonStyle(resolution === '8K')} onClick={() => setResolution('8K')} title="8K 해상도">
-            <span style={{ fontSize: 'var(--ui-type-xs-size)', fontWeight: 700 }}>8K</span>
-          </button>
+        <div className="nodrag">
+          <XgenSegmentedControl
+            aria-label="해상도"
+            value={resolution}
+            onChange={setResolution}
+            options={resolutionOptions}
+            size="xs"
+            block
+          />
         </div>
 
         <div 

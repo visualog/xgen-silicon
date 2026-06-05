@@ -1,6 +1,18 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { LayoutGrid, Palette, Wand2, X } from "lucide-react";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui";
 
 export const metadata = {
   title: "컴포넌트 | xGen 디자인 시스템",
@@ -483,48 +495,6 @@ const componentGroups: ComponentGroupSpec[] = [
   },
 ];
 
-const shellStyle: CSSProperties = {
-  minHeight: "100vh",
-  color: "var(--text-primary)",
-  background: "var(--bg-canvas)",
-};
-
-const pageStyle: CSSProperties = {
-  width: "min(1180px, calc(100vw - 48px))",
-  margin: "0 auto",
-  padding: "var(--ui-space-24) 0 var(--ui-space-80)",
-};
-
-const headerStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "var(--ui-space-20)",
-  marginBottom: "var(--ui-space-48)",
-};
-
-const gridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: "var(--ui-space-20)",
-};
-
-const cardStyle: CSSProperties = {
-  padding: "var(--ui-space-20)",
-  border: "1px solid var(--border-node)",
-  borderRadius: "var(--component-panel-radius)",
-  background: "var(--bg-node-base)",
-  boxShadow: "var(--component-panel-shadow)",
-};
-
-const cardLinkStyle: CSSProperties = {
-  ...cardStyle,
-  display: "grid",
-  gap: "var(--ui-space-16)",
-  color: "inherit",
-  textDecoration: "none",
-};
-
 const codeStyle: CSSProperties = {
   display: "inline-block",
   color: "var(--text-tertiary)",
@@ -533,79 +503,188 @@ const codeStyle: CSSProperties = {
   lineHeight: 1.4,
 };
 
-const introStyle: CSSProperties = {
-  display: "grid",
-  maxWidth: 760,
-  gap: "var(--ui-space-16)",
-};
-
 export default function ComponentsPage() {
   return (
-    <main style={shellStyle}>
-      <div style={pageStyle}>
-        <header className="studio-topbar" style={headerStyle} aria-label="xGen 디자인 시스템 컴포넌트">
-          <div className="brand-lockup">
-            <div className="brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 44 44" focusable="false">
-                <rect x="5" y="5" width="34" height="34" rx="7.5" fill="currentColor" />
-                <path d="M16.2 16.2 27.8 27.8M27.8 16.2 16.2 27.8" />
-              </svg>
-            </div>
-            <div className="brand-breadcrumb" aria-label="현재 위치">
-              <Link className="brand-name" href="/">
-                xGen
-              </Link>
-              <span className="breadcrumb-separator" aria-hidden="true">
-                /
-              </span>
-              <Link className="breadcrumb-link" href="/design-system">
-                디자인 시스템
-              </Link>
-              <span className="breadcrumb-separator" aria-hidden="true">
-                /
-              </span>
-              <span className="breadcrumb-current">컴포넌트</span>
-            </div>
-          </div>
-          <div className="studio-actions">
-            <Link className="secondary-command" href="/design-system/templates">
-              템플릿
-            </Link>
-          </div>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto w-[min(1120px,calc(100vw-48px))] py-4 pb-20">
+        <header className="mb-20 flex h-9 items-center justify-between gap-5 text-sm" aria-label="xGen 디자인 시스템 컴포넌트">
+          <Link href="/" className="flex items-center gap-2 font-semibold text-foreground no-underline">
+            <span className="grid size-6 place-items-center rounded-md bg-foreground text-background text-xs">×</span>
+            xGen
+          </Link>
+          <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex" aria-label="디자인 시스템 내비게이션">
+            <Link className="transition-colors hover:text-foreground" href="/design-system">Docs</Link>
+            <a className="font-medium text-foreground" href="#components">Components</a>
+            <a className="transition-colors hover:text-foreground" href="#blocks">Blocks</a>
+            <Link className="transition-colors hover:text-foreground" href="/design-system/templates">Templates</Link>
+          </nav>
+          <Button asChild size="sm">
+            <Link href="/">New board</Link>
+          </Button>
         </header>
 
-        <section id="components" style={{ display: "grid", gap: "var(--ui-space-32)" }}>
-          <div style={introStyle}>
-            <h2 style={{ font: "var(--ui-type-section-title)" }}>컴포넌트 사용 원칙</h2>
-            <p style={{ color: "var(--text-secondary)", lineHeight: 1.7 }}>
-              사이트와 앱 화면은 아래 컴포넌트 이름과 클래스, 토큰을 기준으로 구현합니다. primitive 토큰은 컴포넌트에서 직접 쓰지 않고,
-              디자인 시스템에서 생성된 semantic/component 토큰만 참조합니다.
+        <section id="components" className="grid gap-12">
+          <section className="mx-auto grid max-w-4xl justify-items-center gap-5 text-center">
+            <Badge variant="secondary" className="rounded-md px-3 py-1">shadcn/ui primitives</Badge>
+            <h1 className="max-w-4xl text-4xl font-semibold leading-tight tracking-normal md:text-6xl">
+              The foundation for xGen design system
+            </h1>
+            <p className="max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">
+              컴포넌트는 복잡한 시각 장식을 줄이고, 조합 가능한 shadcn/ui primitive와 block 패턴 위에서 확장합니다.
             </p>
-          </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button asChild>
+                <a href="#blocks">View blocks</a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href="#catalog">Component catalog</a>
+              </Button>
+            </div>
+          </section>
 
-          <div style={gridStyle}>
+          <section id="blocks" className="mx-auto grid w-full max-w-[980px] gap-5 pt-4">
+            <div className="grid gap-2 text-center">
+              <h2 className="text-2xl font-semibold tracking-normal">Composable blocks</h2>
+              <p className="text-muted-foreground">shadcn/ui의 Card, Button, Badge, ToggleGroup을 실제 화면 블록으로 조합합니다.</p>
+            </div>
+            <ShadcnShowcase />
+          </section>
+
+          <section id="catalog" className="mx-auto grid w-full max-w-[980px] gap-5 pt-8">
+            <div className="grid gap-2">
+              <Badge variant="outline" className="w-fit rounded-full">xGen catalog</Badge>
+              <h2 className="text-2xl font-semibold tracking-normal">Component catalog</h2>
+              <p className="max-w-2xl text-muted-foreground leading-7">
+                기존 xGen 컴포넌트 목록은 아래에서 참조용으로 유지합니다. 첫 화면은 shadcn-style block을 우선합니다.
+              </p>
+            </div>
+
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
             {componentGroups.map((group) => (
-              <a key={group.id} href={`#${group.id}`} className="component-group-card" style={cardLinkStyle}>
-                <div>
-                  <p style={{ ...codeStyle, marginBottom: "var(--ui-space-8)" }}>{group.variants.length} variants</p>
-                  <h2 style={{ font: "var(--ui-type-xl)", marginBottom: "var(--ui-space-12)" }}>{group.title}</h2>
-                  <p style={{ color: "var(--text-secondary)", lineHeight: 1.65 }}>{group.summary}</p>
-                </div>
-                <GroupPreview group={group} />
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--ui-space-8)" }}>
+              <Card key={group.id} className="group overflow-hidden p-5 shadow-none transition-colors hover:bg-muted/20">
+                <Link href={`#${group.id}`} className="grid h-full gap-4 text-inherit no-underline">
+                  <CardHeader className="gap-2 px-0">
+                    <Badge variant="secondary" className="w-fit rounded-md">{group.variants.length} variants</Badge>
+                    <CardTitle className="text-lg">{group.title}</CardTitle>
+                    <CardDescription className="line-clamp-2 leading-6">{group.summary}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-0">
+                    <GroupPreview group={group} />
+                  </CardContent>
+                  <CardFooter className="flex flex-wrap gap-2 px-0">
                   {group.variants.slice(0, 5).map((variant) => (
-                    <span key={variant} className="tool-pill">{getComponentDisplayName(variant)}</span>
+                    <Badge key={variant} variant="outline" className="rounded-md">{getComponentDisplayName(variant)}</Badge>
                   ))}
-                </div>
-              </a>
+                  </CardFooter>
+                </Link>
+              </Card>
             ))}
           </div>
+          </section>
           {componentGroups.map((group) => (
             <ComponentGroupDetail key={group.id} group={group} />
           ))}
         </section>
       </div>
     </main>
+  );
+}
+
+function ShadcnShowcase() {
+  return (
+    <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] lg:grid-cols-[1fr_1fr_0.86fr]">
+      <Card className="p-6 shadow-none">
+        <CardHeader className="px-0 pt-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>Button</Badge>
+            <Badge variant="secondary">Secondary</Badge>
+            <Badge variant="outline">Outline</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 px-0">
+          <div className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Name</div>
+          <div className="rounded-lg bg-muted px-3 py-4 text-sm text-muted-foreground">Prompt message</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm">Generate</Button>
+            <Button size="sm" variant="secondary">Preview</Button>
+            <Button size="sm" variant="outline">Export</Button>
+          </div>
+        </CardContent>
+        <CardFooter className="px-0 pb-0">
+          <ToggleGroup type="single" defaultValue="ratio" size="sm" className="w-full justify-between">
+            <ToggleGroupItem value="ratio" className="flex-1">Ratio</ToggleGroupItem>
+            <ToggleGroupItem value="style" className="flex-1">Style</ToggleGroupItem>
+            <ToggleGroupItem value="quality" className="flex-1">Quality</ToggleGroupItem>
+          </ToggleGroup>
+        </CardFooter>
+      </Card>
+
+      <Card className="p-6 shadow-none">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle>Render activity</CardTitle>
+          <CardDescription>Last 6 local generations</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="flex h-36 items-end gap-3">
+            {[42, 68, 56, 78, 48, 74].map((height, index) => (
+              <div key={index} className="flex flex-1 flex-col items-center gap-2">
+                <div className="w-full rounded-md bg-foreground/55" style={{ height }} />
+                <span className="text-xs text-muted-foreground">{["M", "T", "W", "T", "F", "S"][index]}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+        <CardFooter className="px-0 pb-0">
+          <Button className="w-full" size="sm">View report</Button>
+        </CardFooter>
+      </Card>
+
+      <Card className="p-6 shadow-none md:col-span-2 lg:col-span-1">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle>Output preset</CardTitle>
+          <CardDescription>Reusable settings block</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 px-0 pb-0">
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <div className="text-3xl font-semibold">1:1 / HD</div>
+            <div className="mt-1 text-sm text-muted-foreground">square render preset</div>
+          </div>
+          <div className="grid gap-2 text-sm">
+            <div className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Ratio</span><strong>1:1</strong></div>
+            <div className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Quality</span><strong>HD</strong></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Status</span><Badge variant="secondary" className="rounded-md">Ready</Badge></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="p-6 shadow-none lg:col-span-2">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle>Component blocks</CardTitle>
+          <CardDescription>Small primitives combine into production-facing controls.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 px-0 pb-0 sm:grid-cols-2">
+          {["Prompt builder", "Style reference", "Output settings", "Gallery action"].map((item) => (
+            <div key={item} className="rounded-lg border bg-card p-4">
+              <div className="mb-8 h-2 w-16 rounded-full bg-muted" />
+              <div className="font-medium">{item}</div>
+              <div className="mt-1 text-sm text-muted-foreground">Card, Badge, Button</div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="p-6 shadow-none">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle>Handoff ready</CardTitle>
+          <CardDescription>Local design-system state</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 px-0 pb-0">
+          <div className="rounded-md bg-muted p-3 text-sm">Button, Badge, Card, ToggleGroup</div>
+          <div className="rounded-md bg-muted p-3 text-sm">Theme tokens mapped to shadcn</div>
+          <div className="rounded-md bg-muted p-3 text-sm">Legacy catalog kept below</div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -688,20 +767,22 @@ function ComponentGroupDetail({ group }: { group: ComponentGroupSpec }) {
   return (
     <section id={group.id} className="component-detail-overlay" aria-label={`${group.title} 상세`}>
       <a className="component-detail-backdrop" href="#components" aria-label="상세 닫기" />
-      <div className="component-detail-panel">
-        <header className="component-detail-header">
+      <Card className="component-detail-panel overflow-hidden">
+        <CardHeader className="component-detail-header">
           <div>
-            <h2>{group.title}</h2>
-            <p>{group.summary}</p>
+            <CardTitle className="text-2xl">{group.title}</CardTitle>
+            <CardDescription className="mt-2 leading-6">{group.summary}</CardDescription>
           </div>
-          <a className="round-tool back-tool" href="#components" aria-label="상세 닫기">
-            <X size={16} />
-          </a>
-        </header>
+          <Button asChild variant="ghost" size="icon" className="rounded-full">
+            <a href="#components" aria-label="상세 닫기">
+              <X size={16} />
+            </a>
+          </Button>
+        </CardHeader>
 
         <div className="component-state-row" aria-label={`${group.title} 상태`}>
           {group.states.map((state) => (
-            <span key={state} className="tool-pill">{state}</span>
+            <Badge key={state} variant="secondary" className="rounded-full">{state}</Badge>
           ))}
         </div>
 
@@ -710,22 +791,26 @@ function ComponentGroupDetail({ group }: { group: ComponentGroupSpec }) {
             const component = getComponentSpec(variant);
             if (!component) return null;
             return (
-              <article key={variant} className="component-variant-card">
-                <p style={codeStyle}>{component.className}</p>
-                <h3>{getComponentDisplayName(component.name)}</h3>
-                <ComponentPreview name={component.name} />
-                <p>{component.role}</p>
-                <strong>{component.usage}</strong>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--ui-space-8)", marginTop: "var(--ui-space-16)" }}>
+              <Card key={variant} className="component-variant-card gap-4">
+                <CardHeader className="gap-2">
+                  <code style={codeStyle}>{component.className}</code>
+                  <CardTitle className="text-lg">{getComponentDisplayName(component.name)}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <ComponentPreview name={component.name} />
+                  <CardDescription className="leading-6">{component.role}</CardDescription>
+                  <strong className="text-sm font-medium">{component.usage}</strong>
+                </CardContent>
+                <CardFooter className="flex flex-wrap gap-2">
                   {component.tokens.map((token) => (
-                    <code key={token} style={codeStyle}>{token}</code>
+                    <Badge key={token} variant="outline" className="rounded-full font-mono">{token}</Badge>
                   ))}
-                </div>
-              </article>
+                </CardFooter>
+              </Card>
             );
           })}
         </div>
-      </div>
+      </Card>
     </section>
   );
 }
@@ -1064,7 +1149,7 @@ const previewStyle: CSSProperties = {
   display: "grid",
   placeItems: "center",
   margin: "var(--ui-space-16) 0",
-  padding: "var(--ui-space-16)",
+  padding: "var(--ui-space-20)",
   borderRadius: "var(--ui-radius-2xl)",
   border: "1px solid color-mix(in srgb, var(--border-node) 76%, transparent)",
   background: "var(--bg-canvas)",

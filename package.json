@@ -4,8 +4,6 @@
   "private": true,
   "main": "electron/main.mjs",
   "scripts": {
-    "sync:design": "node scripts/sync-design-tokens.mjs",
-    "predev": "npm run sync:design",
     "dev": "next dev",
     "dev:next": "next dev -H 127.0.0.1",
     "electron:dev": "node electron/dev.mjs",
@@ -13,8 +11,6 @@
     "codex-worker": "node scripts/codex-worker.mjs",
     "collect:style-reference": "node scripts/collect-style-reference.mjs",
     "build:style-reference-library": "node scripts/build-style-reference-library.mjs",
-    "prebuild": "npm run sync:design",
-    "prebuild:next": "npm run sync:design",
     "build:next": "next build && node scripts/prepare-electron-package.mjs",
     "pack:mac": "npm run build:next && electron-builder --mac --dir",
     "build": "next build",
@@ -23,13 +19,20 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-toggle-group": "^1.1.11",
+    "@tailwindcss/postcss": "^4.3.0",
     "@xyflow/react": "^12.10.2",
     "animejs": "^4.4.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@types/animejs": "^3.1.13",

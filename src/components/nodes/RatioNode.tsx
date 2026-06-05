@@ -2,6 +2,7 @@ import { Handle, Position, useNodeConnections } from '@xyflow/react';
 import React from 'react';
 import { Square, RectangleHorizontal, RectangleVertical, Ratio, X } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
+import { XgenSegmentedControl } from '@/components/ui';
 
 type RatioNodeData = {
   ratio: string;
@@ -45,33 +46,13 @@ const bodyStyle = {
   gap: 'var(--ui-space-12)',
 };
 
-const toolbarStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 'var(--ui-space-4)',
-  backgroundColor: 'var(--bg-canvas)',
-  borderRadius: 'var(--ui-radius-xl)',
-  padding: '4px',
-  border: 'none',
-};
-
-const toolbarButtonStyle = (isActive: boolean) => ({
-  flex: 1,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 'var(--size-control-toolbar)',
-  padding: 'var(--ui-space-6)',
-  borderRadius: 'var(--ui-space-8)',
-  border: 'none',
-  backgroundColor: isActive ? 'var(--bg-node-base)' : 'transparent',
-  color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
-  fontSize: 'var(--ui-type-xs-size)',
-  fontWeight: 800,
-  cursor: 'pointer',
-  transition: 'all 0.15s ease',
-  boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
-});
+const ratioOptions = [
+  { value: '1:1', label: <Square size={16} />, ariaLabel: '1:1 화면비' },
+  { value: '16:9', label: <RectangleHorizontal size={16} />, ariaLabel: '16:9 화면비' },
+  { value: '9:16', label: <RectangleVertical size={16} />, ariaLabel: '9:16 화면비' },
+  { value: '4:3', label: '4:3', ariaLabel: '4:3 가로형 화면비' },
+  { value: '3:4', label: '3:4', ariaLabel: '3:4 세로형 화면비' },
+];
 
 const portLabelContainerStyle = {
   display: 'flex',
@@ -120,12 +101,15 @@ export function RatioNode({ id, data }: { id: string; data: RatioNodeData }) {
       </div>
 
       <div style={bodyStyle}>
-        <div style={toolbarStyle} className="nodrag">
-          <button style={toolbarButtonStyle(ratio === '1:1')} onClick={() => setRatio('1:1')} title="1:1 화면비"><Square size={16} /></button>
-          <button style={toolbarButtonStyle(ratio === '16:9')} onClick={() => setRatio('16:9')} title="16:9 화면비"><RectangleHorizontal size={16} /></button>
-          <button style={toolbarButtonStyle(ratio === '9:16')} onClick={() => setRatio('9:16')} title="9:16 화면비"><RectangleVertical size={16} /></button>
-          <button style={toolbarButtonStyle(ratio === '4:3')} onClick={() => setRatio('4:3')} title="4:3 가로형 화면비">4:3</button>
-          <button style={toolbarButtonStyle(ratio === '3:4')} onClick={() => setRatio('3:4')} title="4:3 세로형 화면비">3:4</button>
+        <div className="nodrag">
+          <XgenSegmentedControl
+            aria-label="화면 비율"
+            value={ratio}
+            onChange={setRatio}
+            options={ratioOptions}
+            size="xs"
+            block
+          />
         </div>
 
         <div 
