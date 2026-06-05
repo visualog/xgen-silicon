@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Moon, Plus } from "lucide-react";
 
-import { RenderProgressChart } from "@/components/RenderProgressChart";
+import { LazyRenderProgressChart } from "@/components/LazyRenderProgressChart";
 import {
   Avatar,
   AvatarFallback,
@@ -201,7 +201,7 @@ export default function ComponentsPage() {
               <CardDescription>Current workflow stages mapped to chart data.</CardDescription>
             </CardHeader>
             <CardContent>
-              <RenderProgressChart />
+              <LazyRenderProgressChart />
             </CardContent>
           </Card>
           <Card>

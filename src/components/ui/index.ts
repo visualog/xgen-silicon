@@ -3,15 +3,6 @@ export { Badge, badgeVariants } from "./badge";
 export { Button, buttonVariants } from "./button";
 export { ButtonGroup, ButtonGroupSeparator } from "./button-group";
 export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./card";
-export {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartStyle,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "./chart";
 export { Checkbox } from "./checkbox";
 export { Input } from "./input";
 export { Progress } from "./progress";
