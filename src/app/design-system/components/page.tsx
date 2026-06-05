@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Moon, Plus } from "lucide-react";
 
+import { RenderProgressChart } from "@/components/RenderProgressChart";
 import {
   Avatar,
   AvatarFallback,
@@ -68,13 +69,6 @@ const generationRows = [
   ["Product poster", "Final", "Queued"],
   ["Gallery cover", "Analysis", "Ready"],
 ];
-
-const chartRows = [
-  ["Prompt", 72],
-  ["Style", 56],
-  ["Output", 84],
-  ["Gallery", 64],
-] as const;
 
 export default function ComponentsPage() {
   return (
@@ -198,30 +192,22 @@ export default function ComponentsPage() {
         <SectionIntro
           label="Charts"
           title="Render progress"
-          description="차트 컴포넌트 도입 전까지는 shadcn Progress와 Card 조합으로 상태를 가볍게 표시합니다."
+          description="공식 shadcn chart 컴포넌트와 Recharts를 사용해 생성 흐름을 표시합니다."
         />
         <div className="grid auto-rows-min gap-4 md:grid-cols-3 md:gap-6">
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Generation throughput</CardTitle>
-              <CardDescription>Current workflow stages mapped to local progress.</CardDescription>
+              <CardDescription>Current workflow stages mapped to chart data.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4">
-              {chartRows.map(([label, value]) => (
-                <div key={label} className="grid gap-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{label}</span>
-                    <span className="text-muted-foreground">{value}%</span>
-                  </div>
-                  <Progress value={value} />
-                </div>
-              ))}
+            <CardContent>
+              <RenderProgressChart />
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Chart readiness</CardTitle>
-              <CardDescription>Next step for the official chart pattern.</CardDescription>
+              <CardDescription>Official registry component now installed.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 text-sm">
               <div className="flex justify-between border-b pb-2">
@@ -234,7 +220,7 @@ export default function ComponentsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <Badge variant="outline">Planned</Badge>
+                <Badge variant="secondary">Installed</Badge>
               </div>
             </CardContent>
           </Card>
