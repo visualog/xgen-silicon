@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Moon, Plus } from "lucide-react";
 
 import {
   Avatar,
@@ -72,24 +73,73 @@ export default function ComponentsPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b">
-        <div className="container mx-auto flex h-14 items-center justify-between gap-6 px-4">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2 font-semibold text-foreground no-underline">
-              <span className="grid size-6 place-items-center rounded-md bg-foreground text-background text-xs">x</span>
-              xGen
+        <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4">
+          <nav
+            className="flex items-center gap-1 text-sm font-medium"
+            aria-label="Design system navigation"
+          >
+            <Link
+              href="/"
+              className="rounded-md border px-3 py-1.5 text-foreground shadow-xs"
+              aria-current="page"
+            >
+              Home
             </Link>
-            <nav className="hidden items-center gap-5 text-sm font-medium md:flex" aria-label="Design system navigation">
-              <Link href="/" className="transition-colors hover:text-muted-foreground">Home</Link>
-              <Link href="/design-system" className="transition-colors hover:text-muted-foreground">Docs</Link>
-              <a href="#components" className="transition-colors hover:text-muted-foreground">Components</a>
-              <a href="#blocks" className="transition-colors hover:text-muted-foreground">Blocks</a>
-              <Link href="/design-system/templates" className="transition-colors hover:text-muted-foreground">Templates</Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-3">
-            <Input className="hidden w-48 lg:block" placeholder="Search..." aria-label="Search components" />
+            <Link
+              href="/design-system"
+              className="hidden rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+            >
+              Docs
+            </Link>
+            <a
+              href="#components"
+              className="hidden rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
+            >
+              Components
+            </a>
+            <a
+              href="#blocks"
+              className="hidden rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
+            >
+              Blocks
+            </a>
+            <a
+              href="#component-progress"
+              className="hidden rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground lg:inline-flex"
+            >
+              Charts
+            </a>
+            <a
+              href="#catalog"
+              className="hidden rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground lg:inline-flex"
+            >
+              Directory
+            </a>
+            <Link
+              href="/"
+              className="hidden rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground lg:inline-flex"
+            >
+              Create
+            </Link>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Input
+              className="hidden w-56 lg:block"
+              placeholder="Search documentation..."
+              aria-label="Search documentation"
+            />
+            <Button variant="ghost" size="sm" aria-label="GitHub repository">
+              GitHub
+            </Button>
+            <span className="hidden text-sm text-muted-foreground lg:inline">116k</span>
+            <Button variant="ghost" size="icon" aria-label="Toggle theme">
+              <Moon />
+            </Button>
             <Button asChild size="sm">
-              <Link href="/">New</Link>
+              <Link href="/">
+                <Plus />
+                New
+              </Link>
             </Button>
           </div>
         </div>
