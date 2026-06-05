@@ -69,6 +69,13 @@ const generationRows = [
   ["Gallery cover", "Analysis", "Ready"],
 ];
 
+const chartRows = [
+  ["Prompt", 72],
+  ["Style", 56],
+  ["Output", 84],
+  ["Gallery", 64],
+] as const;
+
 export default function ComponentsPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -168,7 +175,12 @@ export default function ComponentsPage() {
       </section>
 
       <section id="blocks" className="container mx-auto px-4 pb-24">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <SectionIntro
+          label="Blocks"
+          title="Composable blocks"
+          description="shadcn/ui 컴포넌트를 xGen 생성 워크플로우 내용으로 조합합니다."
+        />
+        <div className="grid auto-rows-min gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
           <PromptBuilderCard />
           <RenderActivityCard />
           <OutputPresetCard />
@@ -182,15 +194,60 @@ export default function ComponentsPage() {
         </div>
       </section>
 
-      <section id="catalog" className="container mx-auto px-4 pb-24">
-        <div className="space-y-2">
-          <Badge variant="outline">xGen catalog</Badge>
-          <h2 className="scroll-m-20 text-3xl font-semibold tracking-tight">Component catalog</h2>
-          <p className="text-sm text-muted-foreground">
-            초기 로딩을 줄이기 위해 카탈로그는 요약만 렌더링합니다.
-          </p>
+      <section id="component-progress" className="container mx-auto px-4 pb-24">
+        <SectionIntro
+          label="Charts"
+          title="Render progress"
+          description="차트 컴포넌트 도입 전까지는 shadcn Progress와 Card 조합으로 상태를 가볍게 표시합니다."
+        />
+        <div className="grid auto-rows-min gap-4 md:grid-cols-3 md:gap-6">
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Generation throughput</CardTitle>
+              <CardDescription>Current workflow stages mapped to local progress.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {chartRows.map(([label, value]) => (
+                <div key={label} className="grid gap-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{label}</span>
+                    <span className="text-muted-foreground">{value}%</span>
+                  </div>
+                  <Progress value={value} />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Chart readiness</CardTitle>
+              <CardDescription>Next step for the official chart pattern.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm">
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">Library</span>
+                <span className="font-medium">Recharts</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">Component</span>
+                <span className="font-medium">Chart</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Status</span>
+                <Badge variant="outline">Planned</Badge>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      </section>
+
+      <section id="catalog" className="container mx-auto px-4 pb-24">
+        <SectionIntro
+          label="Directory"
+          title="Component catalog"
+          description="초기 로딩을 줄이기 위해 카탈로그는 요약만 렌더링합니다."
+        />
+        <div className="grid auto-rows-min gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
           {catalogGroups.map((group) => (
             <Card key={group.title}>
               <CardHeader>
@@ -207,6 +264,24 @@ export default function ComponentsPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function SectionIntro({
+  label,
+  title,
+  description,
+}: {
+  label: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="mx-auto mb-6 flex max-w-3xl flex-col items-center gap-2 text-center">
+      <Badge variant="outline">{label}</Badge>
+      <h2 className="scroll-m-20 text-3xl font-semibold tracking-tight">{title}</h2>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
   );
 }
 
@@ -276,7 +351,7 @@ function OutputPresetCard() {
       </CardHeader>
       <CardContent className="grid gap-3">
         <div className="rounded-lg border bg-muted/30 p-4">
-          <div className="text-3xl font-semibold">1:1 / HD</div>
+          <div className="text-lg font-semibold">1:1 / HD</div>
           <div className="mt-1 text-sm text-muted-foreground">square render preset</div>
         </div>
         <div className="grid gap-2 text-sm">
@@ -384,7 +459,7 @@ function GenerationQueueCard() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium">{title}</div>
-                <div className="text-xs text-muted-foreground">{type}</div>
+                <div className="text-sm text-muted-foreground">{type}</div>
               </div>
               <Badge variant={status === "Ready" ? "secondary" : "outline"}>{status}</Badge>
             </div>
