@@ -2,7 +2,7 @@ import { Handle, Position, useNodeConnections } from '@xyflow/react';
 import React from 'react';
 import { Square, RectangleHorizontal, RectangleVertical, Ratio, X } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
-import { XgenSegmentedControl } from '@/components/ui';
+import { XgenSegmentedControl } from '@/components/ui/xgen';
 
 type RatioNodeData = {
   ratio: string;

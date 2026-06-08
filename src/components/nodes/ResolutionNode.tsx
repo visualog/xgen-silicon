@@ -2,7 +2,7 @@ import { Handle, Position, useNodeConnections } from '@xyflow/react';
 import React from 'react';
 import { Monitor, X } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
-import { XgenSegmentedControl } from '@/components/ui';
+import { XgenSegmentedControl } from '@/components/ui/xgen';
 
 type ResolutionNodeData = {
   resolution: string;

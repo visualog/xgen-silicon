@@ -43,8 +43,18 @@ function Button({
     asChild?: boolean;
   }) {
   const Comp = asChild ? Slot : "button";
+  const buttonSize = size ?? "default";
+  const buttonVariant = variant ?? "default";
 
-  return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return (
+    <Comp
+      data-slot="button"
+      data-size={buttonSize}
+      data-variant={buttonVariant}
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
 }
 
 export { Button, buttonVariants };

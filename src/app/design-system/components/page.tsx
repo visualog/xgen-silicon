@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Moon, Plus } from "lucide-react";
+import { Bell, CheckCircle2, ImageIcon, Layers3, Moon, Plus, WandSparkles } from "lucide-react";
 
 import { LazyRenderProgressChart } from "@/components/LazyRenderProgressChart";
 import {
@@ -16,12 +16,22 @@ import {
   CardTitle,
   Checkbox,
   Input,
+  Label,
   Progress,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Separator,
+  Skeleton,
+  Slider,
+  Switch,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  Textarea,
   ToggleGroup,
   ToggleGroupItem,
 } from "@/components/ui";
@@ -70,11 +80,16 @@ const generationRows = [
   ["Gallery cover", "Analysis", "Ready"],
 ];
 
+const bodyShellClassName = "mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8";
+const pageShellClassName = "mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28";
+const centeredSectionClassName = "mx-auto grid w-full max-w-5xl";
+const sectionStackClassName = `${centeredSectionClassName} gap-8 lg:gap-10`;
+
 export default function ComponentsPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <div className="flex h-14 w-full items-center justify-between gap-4 px-4">
+    <main className="shadcn-docs-surface min-h-screen bg-background text-foreground">
+      <header className="w-full border-b">
+        <div className={`${bodyShellClassName} flex h-14 items-center justify-between gap-4`}>
           <nav
             className="flex items-center gap-1 text-sm font-medium"
             aria-label="Design system navigation"
@@ -146,109 +161,112 @@ export default function ComponentsPage() {
         </div>
       </header>
 
-      <section id="components" className="container mx-auto px-4">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 py-24 text-center">
-          <Badge variant="secondary">shadcn/ui primitives</Badge>
-          <div className="space-y-4">
-            <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight text-balance">
-              The foundation for xGen design system
-            </h1>
-            <p className="text-xl text-muted-foreground text-balance">
-              xGen의 생성, 참조, 출력, 갤러리 흐름을 shadcn/ui 컴포넌트와 레이아웃 패턴 위에 구성합니다.
-            </p>
+      <div className={pageShellClassName}>
+        <section id="components" className={`${centeredSectionClassName} gap-10 lg:gap-12`}>
+          <div className="flex w-full flex-col items-center gap-6 text-center">
+            <Badge variant="outline">shadcn/ui registry foundation</Badge>
+            <div className="max-w-5xl space-y-5">
+              <h1 className="scroll-m-20 text-4xl leading-tight font-extrabold tracking-tight text-balance sm:text-5xl lg:text-nowrap">
+                The foundation for xGen design system
+              </h1>
+              <p className="text-muted-foreground text-base leading-7 text-balance sm:text-lg">
+                Official shadcn/ui components, spacing, typography, and responsive block patterns rebuilt around the xGen generation workflow.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button asChild>
+                <a href="#blocks">View blocks</a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href="#catalog">Component catalog</a>
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Button asChild>
-              <a href="#blocks">View blocks</a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href="#catalog">Component catalog</a>
-            </Button>
+          <FoundationShowcase />
+        </section>
+
+        <section id="blocks" className={`mt-16 ${sectionStackClassName}`}>
+          <SectionIntro
+            label="Blocks"
+            title="Composable blocks"
+            description="shadcn/ui 컴포넌트를 xGen 생성 워크플로우 내용으로 조합합니다."
+          />
+          <div className="grid w-full auto-rows-min gap-5 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+            <PromptBuilderCard />
+            <RenderActivityCard />
+            <OutputPresetCard />
+            <StyleReferencesCard />
+            <NavigationCard />
+            <ComponentBlocksCard />
+            <GenerationQueueCard />
+            <GalleryActionCard />
+            <NotificationsCard />
+            <HandoffCard />
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section id="blocks" className="container mx-auto px-4 pb-24">
-        <SectionIntro
-          label="Blocks"
-          title="Composable blocks"
-          description="shadcn/ui 컴포넌트를 xGen 생성 워크플로우 내용으로 조합합니다."
-        />
-        <div className="grid auto-rows-min gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
-          <PromptBuilderCard />
-          <RenderActivityCard />
-          <OutputPresetCard />
-          <StyleReferencesCard />
-          <NavigationCard />
-          <ComponentBlocksCard />
-          <GenerationQueueCard />
-          <GalleryActionCard />
-          <NotificationsCard />
-          <HandoffCard />
-        </div>
-      </section>
-
-      <section id="component-progress" className="container mx-auto px-4 pb-24">
-        <SectionIntro
-          label="Charts"
-          title="Render progress"
-          description="공식 shadcn chart 컴포넌트와 Recharts를 사용해 생성 흐름을 표시합니다."
-        />
-        <div className="grid auto-rows-min gap-4 md:grid-cols-3 md:gap-6">
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Generation throughput</CardTitle>
-              <CardDescription>Current workflow stages mapped to chart data.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <LazyRenderProgressChart />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Chart readiness</CardTitle>
-              <CardDescription>Official registry component now installed.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 text-sm">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">Library</span>
-                <span className="font-medium">Recharts</span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">Component</span>
-                <span className="font-medium">Chart</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Status</span>
-                <Badge variant="secondary">Installed</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section id="catalog" className="container mx-auto px-4 pb-24">
-        <SectionIntro
-          label="Directory"
-          title="Component catalog"
-          description="초기 로딩을 줄이기 위해 카탈로그는 요약만 렌더링합니다."
-        />
-        <div className="grid auto-rows-min gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
-          {catalogGroups.map((group) => (
-            <Card key={group.title}>
+        <section id="component-progress" className={`mt-16 ${sectionStackClassName}`}>
+          <SectionIntro
+            label="Charts"
+            title="Render progress"
+            description="공식 shadcn chart 컴포넌트와 Recharts를 사용해 생성 흐름을 표시합니다."
+          />
+          <div className="grid w-full auto-rows-min gap-5 md:grid-cols-3 md:gap-6">
+            <Card className="md:col-span-2">
               <CardHeader>
-                <CardTitle>{group.title}</CardTitle>
-                <CardDescription>{group.description}</CardDescription>
+                <CardTitle>Generation throughput</CardTitle>
+                <CardDescription>Current workflow stages mapped to chart data.</CardDescription>
               </CardHeader>
-              <CardFooter className="flex-wrap gap-2">
-                {group.items.map((item) => (
-                  <Badge key={item} variant="outline">{item}</Badge>
-                ))}
-              </CardFooter>
+              <CardContent>
+                <LazyRenderProgressChart />
+              </CardContent>
             </Card>
-          ))}
-        </div>
-      </section>
+            <Card>
+              <CardHeader>
+                <CardTitle>Chart readiness</CardTitle>
+                <CardDescription>Official registry component now installed.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm">
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-muted-foreground">Library</span>
+                  <span className="font-medium">Recharts</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-muted-foreground">Component</span>
+                  <span className="font-medium">Chart</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <Badge variant="secondary">Installed</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        <section id="catalog" className={`mt-16 ${sectionStackClassName}`}>
+          <SectionIntro
+            label="Directory"
+            title="Component catalog"
+            description="초기 로딩을 줄이기 위해 카탈로그는 요약만 렌더링합니다."
+          />
+          <div className="grid w-full auto-rows-min gap-5 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
+            {catalogGroups.map((group) => (
+              <Card key={group.title}>
+                <CardHeader>
+                  <CardTitle>{group.title}</CardTitle>
+                  <CardDescription>{group.description}</CardDescription>
+                </CardHeader>
+                <CardFooter className="flex-wrap gap-2">
+                  {group.items.map((item) => (
+                    <Badge key={item} variant="outline">{item}</Badge>
+                  ))}
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
@@ -263,10 +281,179 @@ function SectionIntro({
   description: string;
 }) {
   return (
-    <div className="mx-auto mb-6 flex max-w-3xl flex-col items-center gap-2 text-center">
+    <div className="flex w-full flex-col items-center gap-3 text-center">
       <Badge variant="outline">{label}</Badge>
       <h2 className="scroll-m-20 text-3xl font-semibold tracking-tight">{title}</h2>
       <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function FoundationShowcase() {
+  return (
+    <div className="w-full">
+      <div className="grid gap-5 md:grid-cols-6 lg:grid-cols-12 lg:gap-6">
+        <Card className="md:col-span-3 lg:col-span-6">
+          <CardHeader>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <CardTitle>Prompt system</CardTitle>
+                <CardDescription>Registry form controls mapped to xGen input.</CardDescription>
+              </div>
+              <Badge variant="secondary">Live</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="showcase-brief">Generation brief</Label>
+              <Textarea
+                id="showcase-brief"
+                defaultValue="Product poster for a tactile ceramic speaker, warm morning light, editorial still-life composition."
+                className="min-h-24 resize-none"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="showcase-output">Output preset</Label>
+              <Select defaultValue="square">
+                <SelectTrigger id="showcase-output" className="w-full">
+                  <SelectValue placeholder="Choose preset" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="square">1:1 HD render</SelectItem>
+                  <SelectItem value="poster">4:5 product poster</SelectItem>
+                  <SelectItem value="cover">16:9 gallery cover</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <ButtonGroup>
+              <Button>Generate</Button>
+              <Button variant="secondary">Preview</Button>
+              <Button variant="outline">Save</Button>
+            </ButtonGroup>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-3 lg:col-span-6">
+          <CardHeader>
+            <CardTitle>Style reference</CardTitle>
+            <CardDescription>Images, strength, and analysis stay inside shadcn spacing.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            <div className="grid grid-cols-3 gap-3">
+              {["Light", "Texture", "Scene", "Angle", "Palette", "Mood"].map((label, index) => (
+                <div key={label} className="grid gap-2">
+                  <div data-slot="media-tile" className="grid aspect-square place-items-center rounded-xl border bg-background">
+                    {index % 2 === 0 ? (
+                      <ImageIcon className="size-5 text-muted-foreground" />
+                    ) : (
+                      <Skeleton className="size-10 rounded-full" />
+                    )}
+                  </div>
+                  <span className="truncate text-center text-xs text-muted-foreground">{label}</span>
+                </div>
+              ))}
+            </div>
+            <Separator />
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between gap-4">
+                <Label>Reference strength</Label>
+                <Badge variant="outline">Balanced</Badge>
+              </div>
+              <Slider defaultValue={[64]} max={100} step={1} />
+            </div>
+            <div data-slot="control-row" className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="showcase-consistency">Consistency pass</Label>
+                <p className="text-sm text-muted-foreground">Analyze references before render.</p>
+              </div>
+              <Switch id="showcase-consistency" defaultChecked />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-6 lg:col-span-5">
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <CardTitle>Generation queue</CardTitle>
+                <CardDescription>Preview, final, and gallery states.</CardDescription>
+              </div>
+              <Bell className="size-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {[
+              ["Prompt", "Ready", 100],
+              ["Reference analysis", "Running", 72],
+              ["Final render", "Queued", 28],
+            ].map(([title, status, value]) => (
+              <div key={title} data-slot="status-tile" className="grid gap-3 rounded-xl border p-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="size-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">{title}</div>
+                      <div className="text-sm text-muted-foreground">{status}</div>
+                    </div>
+                  </div>
+                  <Badge variant={status === "Running" ? "secondary" : "outline"}>{value}%</Badge>
+                </div>
+                <Progress value={Number(value)} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-3 lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <WandSparkles className="size-4" />
+              Output block
+            </CardTitle>
+            <CardDescription>Canvas handoff uses native card rhythm.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div data-slot="preview-frame" className="aspect-video rounded-xl border bg-background p-3">
+              <div className="h-full rounded-lg bg-muted" />
+            </div>
+            <Button variant="outline">Open canvas</Button>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-3 lg:col-span-4">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layers3 className="size-4" />
+              Foundation checklist
+            </CardTitle>
+            <CardDescription>Active rules for this route.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            {[
+              ["Tokens", "Use background, foreground, muted, border, ring."],
+              ["Spacing", "Let Card, Input, Select, and Button own padding."],
+              ["Responsive", "Compose sections with grid spans, not fixed widths."],
+            ].map(([title, body]) => (
+              <div key={title} data-slot="summary-tile" className="rounded-xl border p-4">
+                <div className="font-medium">{title}</div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-6 lg:col-span-12">
+          <CardHeader>
+            <CardTitle>Directory state</CardTitle>
+            <CardDescription>Installed registry components.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {["card", "button", "input", "select", "switch", "slider", "textarea", "chart"].map((item) => (
+              <Badge key={item} variant="secondary">{item}</Badge>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -281,10 +468,10 @@ function PromptBuilderCard() {
       <CardContent className="grid gap-3">
         <Input placeholder="Name" aria-label="Prompt name" />
         <Input placeholder="Prompt message" aria-label="Prompt message" />
-        <ButtonGroup className="gap-2">
-          <Button size="sm">Generate</Button>
-          <Button size="sm" variant="secondary">Preview</Button>
-          <Button size="sm" variant="outline">Export</Button>
+        <ButtonGroup>
+          <Button>Generate</Button>
+          <Button variant="secondary">Preview</Button>
+          <Button variant="outline">Export</Button>
         </ButtonGroup>
       </CardContent>
       <CardFooter>
@@ -322,7 +509,7 @@ function RenderActivityCard() {
         ))}
       </CardContent>
       <CardFooter>
-        <Button className="w-full" size="sm">View report</Button>
+        <Button className="w-full">View report</Button>
       </CardFooter>
     </Card>
   );
@@ -336,7 +523,7 @@ function OutputPresetCard() {
         <CardDescription>Reusable settings block</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <div className="rounded-lg border bg-muted/30 p-4">
+        <div data-slot="summary-panel" className="rounded-lg border bg-muted/30 p-4">
           <div className="text-lg font-semibold">1:1 / HD</div>
           <div className="mt-1 text-sm text-muted-foreground">square render preset</div>
         </div>
@@ -365,7 +552,7 @@ function StyleReferencesCard() {
             </Avatar>
           ))}
         </div>
-        <div className="rounded-xl border bg-muted/30 p-4">
+        <div data-slot="summary-panel" className="rounded-xl border bg-muted/30 p-4">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="font-medium">Reference strength</span>
             <Badge variant="secondary">Balanced</Badge>
@@ -395,7 +582,7 @@ function NavigationCard() {
           </TabsList>
           <TabsContent className="grid gap-3 pt-4">
             {["Prompt board", "Style references", "Output settings", "Gallery"].map((item) => (
-              <div key={item} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+              <div key={item} data-slot="control-row" className="flex items-center justify-between rounded-lg border p-3 text-sm">
                 <span>{item}</span>
                 <Badge variant="outline">Open</Badge>
               </div>
@@ -409,14 +596,14 @@ function NavigationCard() {
 
 function ComponentBlocksCard() {
   return (
-    <Card className="md:col-span-2">
+    <Card className="xl:col-span-2">
       <CardHeader>
         <CardTitle>Component blocks</CardTitle>
         <CardDescription>Small primitives combine into production-facing controls.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">
         {["Prompt builder", "Style reference", "Output settings", "Gallery action"].map((item) => (
-          <div key={item} className="rounded-lg border bg-card p-4">
+          <div key={item} data-slot="summary-tile" className="rounded-lg border bg-card p-4">
             <div className="mb-8 h-2 w-16 rounded-full bg-muted" />
             <div className="font-medium">{item}</div>
             <div className="mt-1 text-sm text-muted-foreground">Card, Badge, Button</div>
@@ -441,7 +628,7 @@ function GenerationQueueCard() {
       </CardHeader>
       <CardContent className="grid gap-3">
         {generationRows.map(([title, type, status]) => (
-          <div key={title} className="grid gap-3 rounded-xl border p-3">
+          <div key={title} data-slot="status-tile" className="grid gap-3 rounded-xl border p-3">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium">{title}</div>
@@ -468,13 +655,13 @@ function GalleryActionCard() {
         <CardDescription>Review output and branch from a result.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="aspect-video rounded-xl border bg-muted/40 p-3">
+        <div data-slot="preview-frame" className="aspect-video rounded-xl border bg-muted/40 p-3">
           <div className="h-full rounded-lg bg-background/70" />
         </div>
-        <ButtonGroup className="gap-2">
-          <Button size="sm">Open canvas</Button>
-          <Button size="sm" variant="secondary">Reuse prompt</Button>
-          <Button size="sm" variant="outline">Export</Button>
+        <ButtonGroup>
+          <Button>Open canvas</Button>
+          <Button variant="secondary">Reuse prompt</Button>
+          <Button variant="outline">Export</Button>
         </ButtonGroup>
       </CardContent>
     </Card>
@@ -494,7 +681,7 @@ function NotificationsCard() {
           ["Reference analysis", "Style and consistency updates."],
           ["Gallery milestones", "Batch status and export notices."],
         ].map(([title, description], index) => (
-          <label key={title} className="flex items-start gap-3 text-sm">
+          <label key={title} data-slot="option-row" className="flex items-start gap-3 rounded-lg border p-3 text-sm">
             <Checkbox defaultChecked={index < 2} aria-label={title} />
             <span className="grid gap-1">
               <span className="font-medium">{title}</span>
@@ -515,9 +702,9 @@ function HandoffCard() {
         <CardDescription>Local design-system state</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <div className="rounded-md bg-muted p-3 text-sm">Button, Badge, Card, Input, ToggleGroup</div>
-        <div className="rounded-md bg-muted p-3 text-sm">Theme tokens mapped to shadcn</div>
-        <div className="rounded-md bg-muted p-3 text-sm">Catalog summary kept below</div>
+        <div data-slot="muted-row" className="rounded-md bg-muted p-3 text-sm">Button, Badge, Card, Input, ToggleGroup</div>
+        <div data-slot="muted-row" className="rounded-md bg-muted p-3 text-sm">Theme tokens mapped to shadcn</div>
+        <div data-slot="muted-row" className="rounded-md bg-muted p-3 text-sm">Catalog summary kept below</div>
       </CardContent>
     </Card>
   );

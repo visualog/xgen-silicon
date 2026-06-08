@@ -3,7 +3,7 @@
 import { Handle, Position, useNodeConnections, useReactFlow } from "@xyflow/react";
 import React from "react";
 import { RectangleHorizontal, RectangleVertical, Square, SlidersHorizontal, X } from "lucide-react";
-import { XgenSegmentedControl } from "@/components/ui";
+import { XgenSegmentedControl } from "@/components/ui/xgen";
 
 type OutputSettingsNodeData = {
   ratio: string;

@@ -9,6 +9,13 @@ const tokensPath = path.join(designDir, "tokens.json");
 const variablesPath = path.join(designDir, "variables.css");
 const themePath = path.join(designDir, "theme.css");
 
+if (process.env.DESIGN_MD_ALLOW_SYNC !== "1") {
+  console.error(
+    "design-md token sync is archived. Set DESIGN_MD_ALLOW_SYNC=1 only for historical export work, not app runtime styling."
+  );
+  process.exit(1);
+}
+
 const tokens = JSON.parse(fs.readFileSync(tokensPath, "utf8"));
 
 function formatFont(value) {
