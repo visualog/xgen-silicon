@@ -39,6 +39,10 @@ function enqueue(task) {
   return next;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function parseJsonLines(stdout) {
   return stdout
     .split(/\r?\n/)
@@ -375,6 +379,112 @@ function findLatestGeneratedImage(threadId) {
   return files[0]?.filePath ?? null;
 }
 
+function getImageExtensionFromBuffer(buffer) {
+  if (buffer.length >= 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+    return "png";
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "jpg";
+  }
+  if (buffer.length >= 12 && buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP") {
+    return "webp";
+  }
+  return "png";
+}
+
+function normalizeInlineImageResult(result) {
+  if (typeof result !== "string" || !result.trim()) return null;
+  const trimmed = result.trim();
+  const dataUrlMatch = trimmed.match(/^data:image\/[a-z0-9.+-]+;base64,(.+)$/i);
+  return dataUrlMatch ? dataUrlMatch[1] : trimmed;
+}
+
+function extractInlineGeneratedImageFromEvent(event) {
+  const payload = event?.payload ?? event;
+  const type = payload?.type;
+  if (type !== "image_generation_call" && type !== "image_generation_end") return null;
+  const base64 = normalizeInlineImageResult(payload.result);
+  if (!base64) return null;
+  return {
+    id: typeof payload.id === "string" ? payload.id : typeof payload.call_id === "string" ? payload.call_id : `ig_${Date.now()}`,
+    base64,
+  };
+}
+
+function writeInlineGeneratedImage(threadId, inlineImage) {
+  const buffer = Buffer.from(inlineImage.base64, "base64");
+  if (!buffer.length) return null;
+  const generatedDir = path.join(os.homedir(), ".codex", "generated_images", threadId);
+  fs.mkdirSync(generatedDir, { recursive: true });
+  const safeId = inlineImage.id.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const filePath = path.join(generatedDir, `${safeId}.${getImageExtensionFromBuffer(buffer)}`);
+  fs.writeFileSync(filePath, buffer);
+  return filePath;
+}
+
+function materializeInlineGeneratedImageFromEvents(threadId, events) {
+  const inlineImage = events.map(extractInlineGeneratedImageFromEvent).filter(Boolean).at(-1);
+  return inlineImage ? writeInlineGeneratedImage(threadId, inlineImage) : null;
+}
+
+function listRecentFiles(dir, maxAgeMs) {
+  const now = Date.now();
+  const results = [];
+  const visit = (currentDir) => {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const entryPath = path.join(currentDir, entry.name);
+      let stat;
+      try {
+        stat = fs.statSync(entryPath);
+      } catch {
+        continue;
+      }
+      if (entry.isDirectory()) {
+        visit(entryPath);
+      } else if (entry.isFile()) {
+        if (now - stat.mtimeMs <= maxAgeMs) {
+          results.push({ filePath: entryPath, mtimeMs: stat.mtimeMs });
+        }
+      }
+    }
+  };
+  visit(dir);
+  return results.sort((a, b) => b.mtimeMs - a.mtimeMs);
+}
+
+function findCodexSessionFile(threadId) {
+  const sessionsDir = path.join(os.homedir(), ".codex", "sessions");
+  const recentFiles = listRecentFiles(sessionsDir, 30 * 60 * 1000);
+  return recentFiles.find(({ filePath }) => filePath.includes(threadId))?.filePath ?? null;
+}
+
+function materializeInlineGeneratedImageFromSession(threadId) {
+  const sessionFile = findCodexSessionFile(threadId);
+  if (!sessionFile) return null;
+  let inlineImage = null;
+  try {
+    const lines = fs.readFileSync(sessionFile, "utf8").split(/\r?\n/).filter(Boolean);
+    for (const line of lines) {
+      let event;
+      try {
+        event = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      inlineImage = extractInlineGeneratedImageFromEvent(event) ?? inlineImage;
+    }
+  } catch {
+    return null;
+  }
+  return inlineImage ? writeInlineGeneratedImage(threadId, inlineImage) : null;
+}
+
 function runCodexExec(prompt, { timeoutMs = 60000, imagePaths = [] } = {}) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
@@ -539,7 +649,11 @@ function runCodexExecForImageGeneration(prompt, timeoutMs = 240000, imagePaths =
         reject(new Error("Codex CLI 이미지 생성 응답에 turn.completed 이벤트가 없습니다."));
         return;
       }
-      resolve({ threadId, tokenUsage: extractTokenUsage(events) });
+      resolve({
+        threadId,
+        tokenUsage: extractTokenUsage(events),
+        inlineImagePath: materializeInlineGeneratedImageFromEvents(threadId, events),
+      });
     });
 
     proc.on("error", (error) => {
@@ -1120,13 +1234,18 @@ REQUIREMENTS:
     }
 
     const imageInputs = sheetTmpFiles.filter(Boolean);
-    const { threadId, tokenUsage: imageTokenUsage } = await runCodexExecForImageGeneration(instruction, 240000, imageInputs);
+    const { threadId, tokenUsage: imageTokenUsage, inlineImagePath } = await runCodexExecForImageGeneration(instruction, 240000, imageInputs);
     tokenUsage = addLabeledUsage(tokenUsage, tokenUsageBreakdown, "최종 이미지 생성", imageTokenUsage);
-    const filePath = findLatestGeneratedImage(threadId);
+    let filePath = findLatestGeneratedImage(threadId) || inlineImagePath || null;
+    for (let attempt = 0; !filePath && attempt < 12; attempt += 1) {
+      if (attempt > 0) await sleep(500);
+      filePath = findLatestGeneratedImage(threadId) || materializeInlineGeneratedImageFromSession(threadId);
+    }
     logDebug("generateImageWithCodex:fileLookup", {
       threadId,
       generatedDir: path.join(os.homedir(), ".codex", "generated_images", threadId),
       filePath,
+      usedInlineImageFallback: Boolean(filePath && filePath === inlineImagePath),
       elementSheetCount: sheetTmpFiles.length,
     });
     if (!filePath) {
