@@ -56,11 +56,19 @@ export async function POST(req: NextRequest) {
       detailLevel,
       prebuiltPrompt,
       elementSheetImages,
+      characterReferenceImages,
       styleReferenceImages,
       imageMixImages,
     } = await req.json();
 
-    if (!prompt && !style && !prebuiltPrompt && (!Array.isArray(styleReferenceImages) || styleReferenceImages.length === 0)) {
+    if (
+      !prompt &&
+      !style &&
+      !characterReference &&
+      !prebuiltPrompt &&
+      (!Array.isArray(characterReferenceImages) || characterReferenceImages.length === 0) &&
+      (!Array.isArray(styleReferenceImages) || styleReferenceImages.length === 0)
+    ) {
       return NextResponse.json({ error: "프롬프트 또는 스타일이 필요합니다." }, { status: 400 });
     }
 
@@ -84,6 +92,7 @@ export async function POST(req: NextRequest) {
       detailLevel,
       prebuiltPrompt,
       elementSheetImages: resolveImageInputList(elementSheetImages, requestOrigin),
+      characterReferenceImages: resolveImageObjectList(characterReferenceImages, requestOrigin),
       styleReferenceImages: resolveImageObjectList(styleReferenceImages, requestOrigin),
       imageMixImages: resolveImageObjectList(imageMixImages, requestOrigin),
     });

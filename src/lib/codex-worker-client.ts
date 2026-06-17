@@ -173,6 +173,12 @@ export function generateViaWorker(payload: {
   detailLevel?: string | null;
   prebuiltPrompt?: string | null;
   elementSheetImages?: string[];
+  characterReferenceImages?: {
+    imageUrl: string;
+    weight?: "subtle" | "medium" | "strong";
+    prompt?: string;
+    label?: string;
+  }[];
   styleReferenceImages?: {
     imageUrl: string;
     weight?: "subtle" | "medium" | "strong";

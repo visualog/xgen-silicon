@@ -488,6 +488,10 @@ function normalizeStyleWeight(weight: unknown): NonNullable<StyleEntry["weight"]
   return weight === "subtle" || weight === "strong" ? weight : "medium";
 }
 
+function normalizeReferenceMode(mode: unknown): NonNullable<StyleEntry["referenceMode"]> {
+  return mode === "image-reference" ? "image-reference" : "text-only";
+}
+
 function normalizeStyleEntry(entry: Partial<StyleEntry>, index: number): StyleEntry | null {
   const imageUrl = typeof entry.imageUrl === "string" ? entry.imageUrl.trim() : "";
   const prompt = typeof entry.prompt === "string" ? entry.prompt.trim() : "";
@@ -502,6 +506,7 @@ function normalizeStyleEntry(entry: Partial<StyleEntry>, index: number): StyleEn
       : prompt.slice(0, 30) || `스타일 참조 ${index + 1}`,
     weight: normalizeStyleWeight(entry.weight),
     mode: "style-only",
+    referenceMode: normalizeReferenceMode(entry.referenceMode),
     requiresImage: Boolean(entry.requiresImage),
     source: entry.source,
   };
@@ -969,6 +974,7 @@ function createReferenceEntryFromConsistency(kind: "character" | "object" | "sty
     imageUrl,
     prompt,
     label: `${labelPrefix} 앨리먼트`,
+    referenceMode: kind === "character" ? "image-reference" : "text-only",
   };
 }
 
@@ -1638,9 +1644,27 @@ function FlowContent() {
     () => objectReferences.find((entry) => entry.id === activeObjectReferenceId)?.prompt || "",
     [objectReferences, activeObjectReferenceId],
   );
+  const activeCharacterReferenceEntry = useMemo(
+    () => characterReferences.find((entry) => entry.id === activeCharacterReferenceId) ?? null,
+    [characterReferences, activeCharacterReferenceId],
+  );
   const activeStyleEntry = useMemo(
     () => styles.find((styleEntry) => styleEntry.id === activeStyleId) ?? null,
     [styles, activeStyleId],
+  );
+  const activeCharacterReferenceImages = useMemo(
+    () =>
+      connectedState.characterReference &&
+      activeCharacterReferenceEntry?.referenceMode === "image-reference" &&
+      activeCharacterReferenceEntry.imageUrl?.trim()
+        ? [{
+            imageUrl: activeCharacterReferenceEntry.imageUrl.trim(),
+            prompt: activeCharacterReferenceEntry.prompt.trim(),
+            label: activeCharacterReferenceEntry.label || "캐릭터 참조",
+            weight: normalizeStyleWeight(activeCharacterReferenceEntry.weight),
+          }]
+        : [],
+    [activeCharacterReferenceEntry, connectedState.characterReference],
   );
   const activeStyleReferenceImages = useMemo(
     () =>
@@ -1754,6 +1778,7 @@ function FlowContent() {
       settings.push(`Style reference image: ${activeStyleEntry.label || "active style"} (${normalizeStyleWeight(activeStyleEntry.weight)} influence, style-only)`);
     }
     if (connectedState.characterReference && activeCharacterReferencePrompt.trim()) settings.push(`Character lock: ${activeCharacterReferencePrompt.trim()}`);
+    if (activeCharacterReferenceImages.length) settings.push(`Character reference image: ${activeCharacterReferenceImages[0].label} (identity reference)`);
     if (connectedState.objectReference && activeObjectReferencePrompt.trim()) settings.push(`Object lock: ${activeObjectReferencePrompt.trim()}`);
     if (connectedState.isRatioConnected && ratio.trim()) settings.push(`Aspect ratio: ${ratio.trim()}`);
     if (connectedState.isResolutionConnected && resolution.trim()) settings.push(`Resolution: ${resolution.trim()}`);
@@ -1773,6 +1798,7 @@ function FlowContent() {
     if (imageUrl && maskEdit.enabled && maskEdit.instruction.trim()) settings.push(`Mask edit: ${maskEdit.region} region on the generated image layer`);
     return settings;
   }, [
+    activeCharacterReferenceImages,
     activeCharacterReferencePrompt,
     activeObjectReferencePrompt,
     activeStyleEntry,
@@ -2320,6 +2346,7 @@ function FlowContent() {
           detailLevel: connectedState.detail ? detailLevel : null,
           prebuiltPrompt: generationEnglishPrompt || null,
           elementSheetImages: connectedElementSheetImages,
+          characterReferenceImages: activeCharacterReferenceImages,
           styleReferenceImages: activeStyleReferenceImages,
           imageMixImages: [
             ...connectedImageMixItems.map((item) => ({
@@ -2410,6 +2437,7 @@ function FlowContent() {
     connectedElementSheetImages,
     connectedImageMixItems,
     maskEditLayerReference,
+    activeCharacterReferenceImages,
     activeStyleReferenceImages,
     constraints,
     detailLevel,
@@ -3312,9 +3340,14 @@ function FlowContent() {
                 xMark
               </Link>
               <span className="studio-action-divider" aria-hidden="true" />
-              <Link href="/design-system" className="secondary-command studio-action-plain">
+              <Link
+                href="/design-system"
+                className="secondary-command studio-action-plain"
+                title="xGen 디자인 시스템 문서"
+                aria-label="xGen 디자인 시스템 문서 열기"
+              >
                 <PaletteIcon size={16} />
-                디자인 시스템
+                디자인 시스템 문서
               </Link>
               <span className="studio-action-divider" aria-hidden="true" />
               <Link

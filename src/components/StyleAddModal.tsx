@@ -10,6 +10,7 @@ export interface StyleEntry {
   label: string;
   weight?: "subtle" | "medium" | "strong";
   mode?: "style-only";
+  referenceMode?: "text-only" | "image-reference";
   requiresImage?: boolean;
   source?: "upload" | "url" | "library" | "consistency";
 }
@@ -155,6 +156,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
   const [imageBase64, setImageBase64] = useState<string>("");
   const [mimeType, setMimeType] = useState<string>("image/jpeg");
   const [prompt, setPrompt] = useState<string>("");
+  const [useImageReference, setUseImageReference] = useState(false);
   const [urlInput, setUrlInput] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -171,6 +173,12 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
   const [libraryTag, setLibraryTag] = useState("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const analyzeStartedAtRef = useRef<number | null>(null);
+  const nextEntryIdRef = useRef(0);
+
+  const createEntryId = (prefix: string) => {
+    nextEntryIdRef.current += 1;
+    return `${prefix}-${nextEntryIdRef.current}`;
+  };
 
   // 파일 → base64 변환
   const loadFile = (file: File) => {
@@ -238,6 +246,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
       setImageUrl("");
       setImageBase64("");
       setPrompt("");
+      setUseImageReference(false);
       if (!library) {
         setIsLibraryLoading(true);
         setLibraryError("");
@@ -298,12 +307,13 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
   const handleAdd = () => {
     if (!imageUrl) return;
     onAdd({
-      id: `style-${Date.now()}`,
+      id: createEntryId("style"),
       imageUrl,
       prompt: prompt.trim(),
       label: prompt.trim().slice(0, 30) || copy.fallbackLabel,
       weight: "medium",
       mode: "style-only",
+      referenceMode: mode === "character" && useImageReference ? "image-reference" : "text-only",
       requiresImage: mode === "style",
       source: activeTab === "url" ? "url" : "upload",
     });
@@ -312,7 +322,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
 
   const handleLibraryAdd = (item: StyleReferenceLibraryItem) => {
     onAdd({
-      id: `library-${item.collection}-${item.id}-${Date.now()}`,
+      id: createEntryId(`library-${item.collection}-${item.id}`),
       imageUrl: item.imageUrl,
       prompt: item.prompt,
       label: item.title,
@@ -351,6 +361,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
 
   const canAdd = !!imageUrl;
   const hasImage = !!imageUrl;
+  const canUseImageReference = mode === "character" && hasImage;
   const showLibraryTab = mode === "style";
   const availableTabs: { id: AddTab; label: string }[] = showLibraryTab
     ? [
@@ -705,7 +716,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
               <button
-                onClick={() => { setImageUrl(""); setImageBase64(""); setPrompt(""); }}
+                onClick={() => { setImageUrl(""); setImageBase64(""); setPrompt(""); setUseImageReference(false); }}
                 style={{
                   position: "absolute", top: "var(--ui-space-8)", right: "var(--ui-space-8)",
                   width: "var(--size-control-md)", height: "var(--size-control-md)", borderRadius: "50%",
@@ -775,6 +786,40 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
                   <p style={{ fontSize: "calc(var(--ui-type-xs-size) * 1.1)", color: "var(--port-constraint)", marginTop: "4px" }}>{analyzeError}</p>
                 )}
               </div>
+
+              {mode === "character" && (
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "var(--ui-space-8)",
+                    padding: "var(--ui-space-10) var(--ui-space-12)",
+                    borderRadius: "var(--ui-space-8)",
+                    border: `1px solid ${useImageReference ? "var(--port-character-reference)" : "var(--border-node)"}`,
+                    backgroundColor: useImageReference
+                      ? "color-mix(in srgb, var(--port-character-reference) 8%, transparent)"
+                      : "var(--bg-canvas)",
+                    color: canUseImageReference ? "var(--text-primary)" : "var(--text-muted)",
+                    cursor: canUseImageReference ? "pointer" : "not-allowed",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={useImageReference}
+                    disabled={!canUseImageReference}
+                    onChange={(event) => setUseImageReference(event.target.checked)}
+                    style={{ marginTop: 2, accentColor: "var(--port-character-reference)" }}
+                  />
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ fontSize: "var(--ui-type-xs-2-size)", fontWeight: 800 }}>
+                      첨부 이미지를 실제 캐릭터 참조로 사용
+                    </span>
+                    <span style={{ fontSize: "var(--ui-type-xs-size)", lineHeight: 1.45, color: "var(--text-secondary)" }}>
+                      {hasImage ? "체크하면 얼굴, 헤어, 의상 같은 정체성 정보를 이미지 입력으로 함께 보냅니다." : "이미지를 업로드하면 선택할 수 있습니다."}
+                    </span>
+                  </span>
+                </label>
+              )}
 
               {/* 액션 버튼 */}
               <div style={{ display: "flex", gap: "var(--ui-space-8)", justifyContent: "flex-end" }}>

@@ -90,6 +90,22 @@ export function ReferenceNode({ id, data }: { id: string; data: ReferenceNodeDat
     if (data.activeReferenceId === referenceId) data.setActiveReferenceId(null);
   };
 
+  const handleReferenceModeChange = (
+    event: React.SyntheticEvent,
+    referenceId: string,
+    useImageReference: boolean,
+  ) => {
+    event.stopPropagation();
+    data.setReferences((prev) =>
+      prev.map((entry) =>
+        entry.id === referenceId
+          ? { ...entry, referenceMode: useImageReference ? "image-reference" : "text-only" }
+          : entry,
+      ),
+    );
+    data.setActiveReferenceId(referenceId);
+  };
+
   const handleDisconnect = () => {
     setEdges((eds) => eds.filter((edge) => !(edge.source === id && edge.sourceHandle === copy.handleId)));
   };
@@ -126,13 +142,48 @@ export function ReferenceNode({ id, data }: { id: string; data: ReferenceNodeDat
                     key={entry.id}
                     type="button"
                     onClick={() => data.setActiveReferenceId(isActive ? null : entry.id)}
-                    style={{ display: "flex", gap: "var(--ui-space-10)", alignItems: "flex-start", padding: "var(--ui-space-8)", borderRadius: "var(--ui-space-8)", border: `1.5px solid ${isActive ? copy.color : "var(--border-node)"}`, backgroundColor: isActive ? `color-mix(in srgb, ${copy.color} 8%, transparent)` : "var(--bg-canvas)", color: "inherit", cursor: "pointer", textAlign: "left", position: "relative" }}
+                    style={{ display: "grid", gridTemplateColumns: "var(--size-icon-container) minmax(0, 1fr)", gap: "var(--ui-space-10)", alignItems: "flex-start", padding: "var(--ui-space-8)", paddingRight: "var(--ui-space-24)", borderRadius: "var(--ui-space-8)", border: `1.5px solid ${isActive ? copy.color : "var(--border-node)"}`, backgroundColor: isActive ? `color-mix(in srgb, ${copy.color} 8%, transparent)` : "var(--bg-canvas)", color: "inherit", cursor: "pointer", textAlign: "left", position: "relative" }}
                   >
                     <span style={{ width: "var(--size-icon-container)", height: "var(--size-icon-container)", borderRadius: "var(--ui-radius-md)", overflow: "hidden", flexShrink: 0, backgroundColor: "var(--bg-node-header)" }}>
                       <img src={entry.imageUrl} alt={entry.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: "var(--ui-type-xs-size)", lineHeight: 1.5, color: isActive ? "var(--text-primary)" : "var(--text-secondary)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {entry.prompt || "참조 프롬프트 없음"}
+                    <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "var(--ui-space-6)" }}>
+                      <span style={{ minWidth: 0, fontSize: "var(--ui-type-xs-size)", lineHeight: 1.5, color: isActive ? "var(--text-primary)" : "var(--text-secondary)", display: "-webkit-box", WebkitLineClamp: data.kind === "character" ? 2 : 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {entry.prompt || "참조 프롬프트 없음"}
+                      </span>
+                      {data.kind === "character" && (
+                        <label
+                          className="nodrag"
+                          title={entry.imageUrl ? "체크하면 첨부 이미지를 실제 캐릭터 참조로 함께 보냅니다" : "이미지가 있어야 활성화됩니다"}
+                          onClick={(event) => event.stopPropagation()}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "var(--ui-space-6)",
+                            width: "fit-content",
+                            minHeight: 24,
+                            padding: "var(--ui-space-4) var(--ui-space-8)",
+                            borderRadius: "var(--ui-radius-pill)",
+                            border: `1px solid ${(entry.referenceMode || "text-only") === "image-reference" ? copy.color : "var(--border-node)"}`,
+                            backgroundColor: (entry.referenceMode || "text-only") === "image-reference"
+                              ? `color-mix(in srgb, ${copy.color} 10%, transparent)`
+                              : "var(--bg-node-header)",
+                            color: entry.imageUrl ? "var(--text-secondary)" : "var(--text-muted)",
+                            cursor: entry.imageUrl ? "pointer" : "not-allowed",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={(entry.referenceMode || "text-only") === "image-reference"}
+                            disabled={!entry.imageUrl}
+                            onChange={(event) => handleReferenceModeChange(event, entry.id, event.target.checked)}
+                            style={{ margin: 0, accentColor: copy.color }}
+                          />
+                          <span style={{ fontSize: "calc(var(--ui-type-xs-size) * 0.96)", fontWeight: 800, color: (entry.referenceMode || "text-only") === "image-reference" ? copy.color : "var(--text-secondary)", whiteSpace: "nowrap" }}>
+                            이미지 참조
+                          </span>
+                        </label>
+                      )}
                     </span>
                     <span
                       role="button"

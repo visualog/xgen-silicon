@@ -310,6 +310,27 @@ function normalizeStyleReferenceImages(styleReferenceImages) {
     : [];
 }
 
+function normalizeCharacterReferenceImages(characterReferenceImages) {
+  return Array.isArray(characterReferenceImages)
+    ? characterReferenceImages
+        .filter((item) => item && typeof item.imageUrl === "string" && item.imageUrl.trim())
+        .map((item, index) => ({
+          imageUrl: item.imageUrl.trim(),
+          prompt: typeof item.prompt === "string" ? item.prompt.trim() : "",
+          label: typeof item.label === "string" && item.label.trim() ? item.label.trim() : `character reference ${index + 1}`,
+          weight: normalizeStyleReferenceWeight(item.weight),
+        }))
+    : [];
+}
+
+function buildCharacterReferencePrompt(characterReferenceItems) {
+  if (!characterReferenceItems.length) return "";
+  return `CHARACTER REFERENCE IMAGES: ${characterReferenceItems.map((item, index) => {
+    const note = item.prompt || item.label || "preserve visible character identity";
+    return `reference ${index + 1}: ${item.label}, ${styleReferenceInfluenceLabel(item.weight)}, identity reference, ${note}`;
+  }).join(" | ")}. Use attached character reference images to preserve the same character identity: facial structure, face-defining features, hairstyle, apparent age range, body proportions, outfit, accessories, and pose-independent traits. Do not copy the exact pose, background, camera angle, lighting, or full composition unless the user explicitly asks for it.`;
+}
+
 function buildStyleReferencePrompt(styleReferenceItems) {
   if (!styleReferenceItems.length) return "";
   return `STYLE REFERENCE IMAGES: ${styleReferenceItems.map((item, index) => {
@@ -882,6 +903,7 @@ function appendStructuredNodeSettings(promptBody, settings) {
   if (settings.gesture) parts.push(`Gesture/expression: ${settings.gesture}`);
   if (settings.propsPrompt) parts.push(`Props: ${settings.propsPrompt}`);
   if (settings.detailLevel) parts.push(`Detail density: ${settings.detailLevel}`);
+  if (settings.characterReferencePrompt) parts.push(settings.characterReferencePrompt);
   if (settings.styleReferencePrompt) parts.push(settings.styleReferencePrompt);
   if (settings.imageMixPrompt) parts.push(settings.imageMixPrompt);
   if (parts.length === 0 || promptBody.includes("AUTHORITATIVE STRUCTURED INPUTS")) return promptBody;
@@ -1051,13 +1073,15 @@ ${source}
   };
 }
 
-async function generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio = "1:1", resolution = "HD", composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages = [], styleReferenceImages = [], imageMixImages = [] }) {
+async function generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio = "1:1", resolution = "HD", composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages = [], characterReferenceImages = [], styleReferenceImages = [], imageMixImages = [] }) {
   const { width, height } = getPixelSize(resolution, ratio);
   let promptBody = prebuiltPrompt?.trim() || "";
   const hasPrebuiltPrompt = Boolean(promptBody);
   let tokenUsage = null;
   const tokenUsageBreakdown = [];
   const sheetTmpFiles = [];
+  const characterReferenceItems = normalizeCharacterReferenceImages(characterReferenceImages);
+  const characterReferencePrompt = buildCharacterReferencePrompt(characterReferenceItems);
   const styleReferenceItems = normalizeStyleReferenceImages(styleReferenceImages);
   const styleReferencePrompt = buildStyleReferencePrompt(styleReferenceItems);
   const attachedStyleReferenceItems = styleReferenceItems.filter((item, index) => shouldAttachStyleReference(item, index));
@@ -1094,6 +1118,9 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
   if (!hasPrebuiltPrompt && promptBody && imageMixPrompt && !promptBody.includes("IMAGE MIX REFERENCES")) {
     promptBody = `${promptBody}, ${imageMixPrompt}`;
   }
+  if (!hasPrebuiltPrompt && promptBody && characterReferencePrompt && !promptBody.includes("CHARACTER REFERENCE IMAGES")) {
+    promptBody = `${promptBody}, ${characterReferencePrompt}`;
+  }
   if (!hasPrebuiltPrompt && promptBody && styleReferencePrompt && !promptBody.includes("STYLE REFERENCE IMAGES")) {
     promptBody = `${promptBody}, ${styleReferencePrompt}`;
   }
@@ -1116,6 +1143,7 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
       gesture,
       propsPrompt,
       detailLevel,
+      characterReferencePrompt,
       styleReferencePrompt,
       imageMixPrompt,
     });
@@ -1141,6 +1169,7 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
       gesture ? `Gesture: ${gesture}` : "",
       propsPrompt ? `Props: ${propsPrompt}` : "",
       detailLevel ? `Detail: ${detailLevel}` : "",
+      characterReferenceItems.length ? `Character reference images: ${characterReferenceItems.length} identity reference(s).` : "",
       styleReferenceItems.length ? `Style images: ${styleReferenceItems.length} style-only reference(s).` : "",
       imageMixItems.length ? `Image mix: ${imageMixItems.length} role-weighted reference(s).` : "",
       skippedStyleReferenceItems.length ? formatSkippedReferenceGuidance("Text-only style refs", skippedStyleReferenceItems) : "",
@@ -1167,6 +1196,7 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
     width,
     height,
     usedPrebuiltPrompt: Boolean(prebuiltPrompt),
+    characterReferenceImageCount: characterReferenceItems.length,
     styleReferenceCount: styleReferenceItems.length,
     attachedStyleReferenceCount: attachedStyleReferenceItems.length,
     imageMixCount: imageMixItems.length,
@@ -1185,6 +1215,11 @@ ${attachedStyleReferenceItems.length
     : "- none"}
 ${formatSkippedReferenceGuidance("TEXT-ONLY STYLE GUIDANCE", skippedStyleReferenceItems)}
 
+CHARACTER REFERENCES:
+${characterReferenceItems.length
+    ? characterReferenceItems.map((item, index) => `- ${index + 1}: ${item.label}; ${item.weight}; identity reference; ${compactText(item.prompt || "visible character identity", 220)}`).join("\n")
+    : "- none"}
+
 IMAGE MIX:
 ${attachedImageMixItems.length
     ? attachedImageMixItems.map((item, index) => `- ${index + 1}: ${item.role || "style"}; ${item.weight || "medium"}; ${compactText(item.prompt || item.label || "visible traits", 220)}`).join("\n")
@@ -1193,6 +1228,7 @@ ${formatSkippedReferenceGuidance("TEXT-ONLY MIX GUIDANCE", skippedImageMixItems)
 
 REQUIREMENTS:
 - ${ratio} aspect, target ${width}x${height}; no readable text, logo, or watermark.
+- Character refs preserve facial structure, hairstyle, proportions, outfit, accessories, and identity-defining traits.
 - Style refs affect palette, medium, texture, lighting, finish only; do not copy subject/layout.
 - Preserve character/object locks and role-weighted image mix traits.
 - If orientation or mask edit is requested, make it visibly obeyed while preserving unaffected areas.
@@ -1207,6 +1243,15 @@ REQUIREMENTS:
         path.join(os.tmpdir(), `xgen-element-reference-${Date.now()}-${index}`),
         imageData,
         { maxEdge: 1024, quality: 84 },
+      );
+      sheetTmpFiles.push(tmpFile);
+    }
+    for (const [index, item] of characterReferenceItems.entries()) {
+      const imageData = await imageInputToBuffer(item.imageUrl);
+      const tmpFile = await writeOptimizedImageInput(
+        path.join(os.tmpdir(), `xgen-character-reference-${Date.now()}-${index}`),
+        imageData,
+        { maxEdge: item.weight === "strong" ? 768 : 640, quality: item.weight === "strong" ? 84 : 80 },
       );
       sheetTmpFiles.push(tmpFile);
     }
@@ -1449,11 +1494,18 @@ async function handleAnalyzeConsistency(payload) {
 }
 
 async function handleGenerate(payload) {
-  const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages, styleReferenceImages, imageMixImages } = payload;
-  if (!prompt && !style && !prebuiltPrompt && !normalizeStyleReferenceImages(styleReferenceImages).length) {
+  const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages, characterReferenceImages, styleReferenceImages, imageMixImages } = payload;
+  if (
+    !prompt &&
+    !style &&
+    !characterReference &&
+    !prebuiltPrompt &&
+    !normalizeCharacterReferenceImages(characterReferenceImages).length &&
+    !normalizeStyleReferenceImages(styleReferenceImages).length
+  ) {
     throw new Error("프롬프트 또는 스타일이 필요합니다.");
   }
-  return generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages, styleReferenceImages, imageMixImages });
+  return generateImageWithCodex({ prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, prebuiltPrompt, elementSheetImages, characterReferenceImages, styleReferenceImages, imageMixImages });
 }
 
 async function handleGenerateElementSheet(payload) {
