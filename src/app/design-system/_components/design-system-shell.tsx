@@ -29,9 +29,9 @@ function DesignSystemShellContent({ children }: { children: ReactNode }) {
   return (
     <main className="shadcn-docs-surface">
       <header className="shadcn-docs-header">
-        <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link href="/design-system" className="flex items-center gap-2 text-sm font-semibold">
-            <span className="grid size-6 place-items-center rounded-md border bg-card text-xs">x</span>
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link href="/design-system" className="flex items-center gap-2.5 text-sm font-semibold">
+            <span className="grid size-7 place-items-center rounded-xl border bg-card text-xs shadow-xs">x</span>
             <span className="hidden sm:inline">xGen Design System</span>
           </Link>
           <nav className="hidden items-center gap-1 text-sm font-medium md:flex" aria-label="Design system navigation">
@@ -45,8 +45,8 @@ function DesignSystemShellContent({ children }: { children: ReactNode }) {
                   aria-current={active ? "page" : undefined}
                   className={
                     active
-                      ? "rounded-md border px-3 py-1.5 text-foreground shadow-xs"
-                      : "rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      ? "rounded-xl border bg-card px-3 py-1.5 text-foreground shadow-xs"
+                      : "rounded-xl px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                   }
                 >
                   {text(item.label)}
@@ -94,8 +94,8 @@ function DesignSystemShellContent({ children }: { children: ReactNode }) {
                 aria-current={active ? "page" : undefined}
                 className={
                   active
-                    ? "shrink-0 rounded-md border px-3 py-1.5 text-foreground shadow-xs"
-                    : "shrink-0 rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                    ? "shrink-0 rounded-xl border bg-card px-3 py-1.5 text-foreground shadow-xs"
+                    : "shrink-0 rounded-xl px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 }
               >
                 {text(item.label)}
@@ -128,7 +128,7 @@ function PreferenceToggle({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-md border bg-card p-1 shadow-xs" aria-label={ariaLabel}>
+    <div className="flex items-center gap-1 rounded-xl border bg-card p-1 shadow-xs" aria-label={ariaLabel}>
       <span className="grid size-7 place-items-center text-muted-foreground" aria-hidden="true">
         {icon}
       </span>
@@ -140,8 +140,8 @@ function PreferenceToggle({
           aria-pressed={value === option.value}
           className={
             value === option.value
-              ? "h-7 rounded-sm bg-foreground px-2 text-xs font-medium text-background"
-              : "h-7 rounded-sm px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              ? "h-7 rounded-lg bg-foreground px-2 text-xs font-medium text-background"
+              : "h-7 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           }
           onClick={() => onChange(option.value)}
         >
