@@ -89,7 +89,7 @@ export function LinkCardGrid({ cards }: { cards: CardLink[] }) {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.href} className="transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ring/30">
+        <Card key={card.href} className="transition-[border-color,box-shadow] duration-200 hover:border-ring/30">
           <CardHeader>
             <CardTitle>{text(card.title)}</CardTitle>
             <CardDescription>{text(card.description)}</CardDescription>
@@ -118,7 +118,7 @@ export function InfoGrid({ groups }: { groups: InfoGroup[] }) {
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {groups.map((group) => (
-        <Card key={text(group.title)} className="transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ring/30">
+        <Card key={text(group.title)} className="transition-[border-color,box-shadow] duration-200 hover:border-ring/30">
           <CardHeader>
             <CardTitle>{text(group.title)}</CardTitle>
             <CardDescription>{text(group.description)}</CardDescription>
@@ -142,7 +142,7 @@ export function BoundaryGrid({ groups }: { groups: InfoGroup[] }) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {groups.map((group) => (
-        <Card key={text(group.title)} className="transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ring/30">
+        <Card key={text(group.title)} className="transition-[border-color,box-shadow] duration-200 hover:border-ring/30">
           <CardHeader>
             <CardTitle>{text(group.title)}</CardTitle>
             <CardDescription>{text(group.description)}</CardDescription>
@@ -203,7 +203,7 @@ export function TemplateGrid({
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       {templates.map((template) => (
-        <Card key={template.route} className="transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ring/30">
+        <Card key={template.route} className="transition-[border-color,box-shadow] duration-200 hover:border-ring/30">
           <CardHeader>
             <Badge className="w-fit" variant="secondary">
               {template.route}
