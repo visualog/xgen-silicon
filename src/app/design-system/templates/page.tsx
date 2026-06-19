@@ -3,7 +3,7 @@ import { templateCards } from "../_data/design-system";
 
 export const metadata = {
   title: "Templates | xGen 디자인 시스템",
-  description: "shadcn/ui 기반 xGen 화면 템플릿 기준.",
+  description: "xGen 화면을 조립할 때 쓰는 페이지 기준.",
 };
 
 export default function TemplatesPage() {
@@ -11,21 +11,21 @@ export default function TemplatesPage() {
     <div className="grid gap-16">
       <PageHero
         label={{ ko: "템플릿", en: "Templates" }}
-        title={{ ko: "템플릿은 화면 계약을 정의합니다.", en: "Templates define screen contracts." }}
+        title={{ ko: "화면은 같은 뼈대에서 시작합니다.", en: "Screens start from shared page patterns." }}
         description={{
-          ko: "템플릿은 완성된 xGen 화면의 영역과 위계를 설명합니다. 두 번째 컴포넌트나 토큰 시스템을 도입하지 않아야 합니다.",
-          en: "Templates describe the regions and hierarchy for finished xGen screens. They should not introduce a second component or token system.",
+          ko: "템플릿은 주요 화면의 영역, 위계, 반복 구조를 정리합니다. 새 토큰이나 별도 컴포넌트 체계를 만들기 위한 곳이 아닙니다.",
+          en: "Templates define regions, hierarchy, and repeatable structure for key screens. They are not a place to introduce new tokens or component systems.",
         }}
         action={{ href: "/design-system/components", label: { ko: "컴포넌트 보기", en: "Browse components" } }}
       />
 
       <section className="grid gap-6">
         <SectionIntro
-          label={{ ko: "화면 계약", en: "Screen contracts" }}
-          title={{ ko: "알려진 영역에서 페이지를 조합합니다.", en: "Compose pages from known regions." }}
+          label={{ ko: "화면 기준", en: "Page standards" }}
+          title={{ ko: "알려진 영역을 조합해 화면을 만듭니다.", en: "Build pages from known regions." }}
           description={{
-            ko: "이 템플릿은 이후 구현 작업이 shadcn 프리미티브와 xGen 워크플로 요구에 기반을 두도록 유지합니다.",
-            en: "These templates keep future implementation work grounded in shadcn primitives and xGen workflow needs.",
+            ko: "템플릿은 구현자가 어디에 헤더, 작업 영역, 결과, 문서 영역을 배치해야 하는지 빠르게 판단하게 합니다.",
+            en: "Templates help builders place headers, work areas, results, and documentation regions with less guesswork.",
           }}
         />
         <TemplateGrid templates={templateCards} />

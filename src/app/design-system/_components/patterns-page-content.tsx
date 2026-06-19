@@ -32,21 +32,21 @@ export function PatternsPageContent() {
     <div className="grid gap-16">
       <PageHero
         label={{ ko: "패턴", en: "Patterns" }}
-        title={{ ko: "생성 작업을 위한 워크플로 패턴.", en: "Workflow patterns for generation work." }}
+        title={{ ko: "생성 흐름은 패턴에서 조합합니다.", en: "Compose generation flows with patterns." }}
         description={{
-          ko: "패턴은 승인된 shadcn 프리미티브가 xGen 제품 순간으로 바뀌는 방식을 보여줍니다: 프롬프트 진입, 레퍼런스 제어, 렌더 상태, 갤러리 검토.",
-          en: "Patterns show how approved shadcn primitives become xGen-specific product moments: prompt entry, reference control, render status, and gallery review.",
+          ko: "프롬프트 입력, 레퍼런스 조정, 렌더 상태, 갤러리 검토처럼 xGen에서 반복되는 흐름을 정리했습니다.",
+          en: "Patterns cover repeated xGen flows such as prompt entry, reference tuning, render status, and gallery review.",
         }}
-        action={{ href: "/design-system/components", label: { ko: "프리미티브 검토", en: "Review primitives" } }}
+        action={{ href: "/design-system/components", label: { ko: "컴포넌트 보기", en: "Browse components" } }}
       />
 
       <section className="grid gap-6">
         <SectionIntro
           label={{ ko: "디렉터리", en: "Directory" }}
-          title={{ ko: "새 프리미티브가 아닌 조합.", en: "Compositions, not new primitives." }}
+          title={{ ko: "새 컴포넌트가 아니라 검증된 조합입니다.", en: "Validated combinations, not new components." }}
           description={{
-            ko: "프로덕션 화면에 워크플로 동작이 필요할 때 이 패턴을 사용합니다. 버튼, 필드, 상태 badge만 필요하다면 Components에 머무릅니다.",
-            en: "Use these patterns when a production screen needs workflow behavior. If the need is only a button, field, or status badge, stay in Components.",
+            ko: "화면에 생성 흐름이 필요할 때 Patterns를 봅니다. 단순 버튼, 필드, 배지만 필요하다면 Components에서 해결합니다.",
+            en: "Use Patterns when a screen needs workflow behavior. For a single button, field, or badge, stay in Components.",
           }}
         />
         <InfoGrid
@@ -61,10 +61,10 @@ export function PatternsPageContent() {
       <section className="grid gap-6">
         <SectionIntro
           label={{ ko: "프리뷰", en: "Preview" }}
-          title={{ ko: "핵심 xGen 워크플로 스택.", en: "Core xGen workflow stack." }}
+          title={{ ko: "핵심 생성 흐름을 한눈에 봅니다.", en: "Scan the core generation flow." }}
           description={{
-            ko: "예시는 Patterns 페이지에 함께 두어 컴포넌트 카탈로그가 프리미티브 중심으로 남게 합니다.",
-            en: "This preview keeps the examples together on the Patterns page so the component catalog can remain primitive-focused.",
+            ko: "아래 예시는 실제 화면을 그대로 복제하기보다, 어떤 컴포넌트를 어떤 순서로 묶는지 보여줍니다.",
+            en: "These examples show how components are grouped and sequenced, without duplicating a full production screen.",
           }}
         />
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -89,7 +89,7 @@ function PromptPattern() {
         </Badge>
         <CardTitle>{text({ ko: "프롬프트 빌더", en: "Prompt builder" })}</CardTitle>
         <CardDescription>
-          {text({ ko: "브리프, 프리셋, 기본 생성 액션.", en: "Brief, preset, and primary generation action." })}
+          {text({ ko: "브리프, 출력 프리셋, 첫 생성 액션을 한 번에 받습니다.", en: "Collect the brief, output preset, and first generation action together." })}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -138,7 +138,7 @@ function StatusPattern() {
           {text({ ko: "상태", en: "Status" })}
         </Badge>
         <CardTitle>{text({ ko: "생성 큐", en: "Generation queue" })}</CardTitle>
-        <CardDescription>{text({ ko: "렌더 파이프라인을 압축적으로 보여줍니다.", en: "Compact visibility for the render pipeline." })}</CardDescription>
+        <CardDescription>{text({ ko: "현재 단계와 다음 대기 상태를 짧게 보여줍니다.", en: "Show the current step and the next queued state clearly." })}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {rows.map(([title, status, value]) => (
@@ -176,7 +176,7 @@ function ReferencePattern() {
           {text({ ko: "레퍼런스", en: "Reference" })}
         </Badge>
         <CardTitle>{text({ ko: "스타일 레퍼런스 선택", en: "Style reference picker" })}</CardTitle>
-        <CardDescription>{text({ ko: "레퍼런스 강도와 일관성 컨트롤.", en: "Reference strength and consistency controls." })}</CardDescription>
+        <CardDescription>{text({ ko: "레퍼런스를 고르고 생성에 반영할 강도를 조절합니다.", en: "Pick references and tune how strongly they guide the generation." })}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5">
         <div className="grid grid-cols-3 gap-3">
@@ -210,7 +210,7 @@ function ReviewPattern() {
           {text({ ko: "검토", en: "Review" })}
         </Badge>
         <CardTitle>{text({ ko: "갤러리 액션과 설정", en: "Gallery action and settings" })}</CardTitle>
-        <CardDescription>{text({ ko: "맥락을 잃지 않고 결과에서 분기합니다.", en: "Branch from a result without losing context." })}</CardDescription>
+        <CardDescription>{text({ ko: "결과를 검토한 자리에서 다음 작업으로 이어갑니다.", en: "Move from review to the next action without losing context." })}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <div data-slot="preview-frame" className="aspect-video rounded-lg border bg-muted/40 p-3">
@@ -227,8 +227,8 @@ function ReviewPattern() {
             <span className="font-medium">{text({ ko: "생성 메타데이터 저장", en: "Save generation metadata" })}</span>
             <span className="text-muted-foreground">
               {text({
-                ko: "프롬프트, 레퍼런스, 출력 설정을 함께 유지합니다.",
-                en: "Keep prompt, references, and output settings together.",
+                ko: "프롬프트, 레퍼런스, 출력 설정을 결과와 함께 보관합니다.",
+                en: "Store the prompt, references, and output settings with the result.",
               })}
             </span>
           </span>

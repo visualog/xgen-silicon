@@ -42,13 +42,13 @@ export function PageHero({
   const { text } = useDesignSystemPreferences();
 
   return (
-    <section className="grid gap-8 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+    <section className="grid gap-8 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
       <div className="max-w-3xl space-y-6">
         <Badge variant="outline">{text(label)}</Badge>
-        <h1 className="text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
+        <h1 className="text-4xl leading-11 font-semibold tracking-tight text-balance sm:text-5xl sm:leading-14">
           {text(title)}
         </h1>
-        <p className="max-w-2xl text-base leading-7 text-muted-foreground text-balance sm:text-lg">
+        <p className="max-w-2xl text-base leading-6 text-muted-foreground text-balance sm:text-lg sm:leading-8">
           {text(description)}
         </p>
       </div>
@@ -77,8 +77,8 @@ export function SectionIntro({
   return (
     <div className="space-y-4">
       <Badge variant="outline">{text(label)}</Badge>
-      <h2 className="max-w-3xl text-3xl font-semibold tracking-tight text-balance">{text(title)}</h2>
-      <p className="max-w-2xl text-sm leading-7 text-muted-foreground">{text(description)}</p>
+      <h2 className="max-w-3xl text-3xl leading-10 font-semibold tracking-tight text-balance">{text(title)}</h2>
+      <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{text(description)}</p>
     </div>
   );
 }
@@ -87,7 +87,7 @@ export function LinkCardGrid({ cards }: { cards: CardLink[] }) {
   const { text } = useDesignSystemPreferences();
 
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-7">
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
         <Card key={card.href} className="transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ring/30">
           <CardHeader>
@@ -103,7 +103,7 @@ export function LinkCardGrid({ cards }: { cards: CardLink[] }) {
           </CardContent>
           <CardFooter>
             <Button asChild variant="outline" size="sm">
-              <Link href={card.href}>{text({ ko: "열기", en: "Open" })}</Link>
+              <Link href={card.href}>{text({ ko: "보기", en: "View" })}</Link>
             </Button>
           </CardFooter>
         </Card>
@@ -116,7 +116,7 @@ export function InfoGrid({ groups }: { groups: InfoGroup[] }) {
   const { text } = useDesignSystemPreferences();
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-7">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {groups.map((group) => (
         <Card key={text(group.title)} className="transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ring/30">
           <CardHeader>
@@ -140,7 +140,7 @@ export function BoundaryGrid({ groups }: { groups: InfoGroup[] }) {
   const { text } = useDesignSystemPreferences();
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 md:gap-7">
+    <div className="grid gap-6 md:grid-cols-2">
       {groups.map((group) => (
         <Card key={text(group.title)} className="transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ring/30">
           <CardHeader>
@@ -164,8 +164,8 @@ export function TemplatePreview({ regions }: { regions: LocalizedText[] }) {
   const { text } = useDesignSystemPreferences();
 
   return (
-    <div className="grid gap-5">
-      <div data-slot="preview-frame" className="rounded-2xl border bg-muted/30 p-5">
+    <div className="grid gap-6">
+      <div data-slot="preview-frame" className="rounded-2xl border bg-muted/30 p-6">
         <div className="grid gap-3">
           <div className="h-3 w-2/5 rounded-full bg-muted-foreground/20" />
           <div className="h-20 rounded-xl bg-background" />
@@ -201,7 +201,7 @@ export function TemplateGrid({
   const { text } = useDesignSystemPreferences();
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3 lg:gap-7">
+    <div className="grid gap-6 lg:grid-cols-3">
       {templates.map((template) => (
         <Card key={template.route} className="transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ring/30">
           <CardHeader>
