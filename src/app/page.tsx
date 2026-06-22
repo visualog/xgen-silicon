@@ -66,6 +66,13 @@ const LOCAL_STORAGE_MAX_BYTES = 500_000;
 const FLOW_INPUT_EDGE_STYLE: CSSProperties = { stroke: "var(--flow-line-input)", strokeWidth: 2.5 };
 const FLOW_OUTPUT_EDGE_STYLE: CSSProperties = { stroke: "var(--flow-line-output)", strokeWidth: 3 };
 const FLOW_PENDING_EDGE_STYLE: CSSProperties = { stroke: "var(--flow-line-pending)", strokeWidth: 2.5 };
+const FLOW_ARIA_LABELS = {
+  "controls.ariaLabel": "캔버스 컨트롤",
+  "controls.zoomIn.ariaLabel": "확대",
+  "controls.zoomOut.ariaLabel": "축소",
+  "controls.fitView.ariaLabel": "화면에 맞추기",
+  "controls.interactive.ariaLabel": "인터랙션 전환",
+};
 
 const OPTIONAL_NODE_CONFIG = {
   composition: {
@@ -3437,7 +3444,7 @@ function FlowContent() {
       <main className="studio-shell">
         <div className="studio-noise" aria-hidden="true" />
         <section className="studio-hero">
-          <nav className="studio-topbar" aria-label="xGen workspace">
+          <nav className="studio-topbar" aria-label="xGen 작업공간">
             <div className="brand-lockup">
               <div className="brand-mark" aria-hidden="true">
                 <svg viewBox="0 0 44 44" focusable="false">
@@ -3489,8 +3496,8 @@ function FlowContent() {
                 type="button"
                 onClick={toggleTheme}
                 className="icon-toggle studio-action-plain"
-                title={theme === "dark" ? "Light theme" : "Dark theme"}
-                aria-label={theme === "dark" ? "Light theme" : "Dark theme"}
+                title={theme === "dark" ? "라이트 테마로 전환" : "다크 테마로 전환"}
+                aria-label={theme === "dark" ? "라이트 테마로 전환" : "다크 테마로 전환"}
               >
                 {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />}
               </button>
@@ -3498,7 +3505,7 @@ function FlowContent() {
           </nav>
 
           <div className="hero-grid info-grid">
-            <div className="metrics-panel" aria-label="Workspace summary">
+            <div className="metrics-panel" aria-label="작업공간 요약">
               <div className="metric-card major">
                 <strong>{galleryStats.total}</strong>
                 <small>라이브러리</small>
@@ -3519,7 +3526,7 @@ function FlowContent() {
           </div>
         </section>
 
-        <section className="library-section" aria-label="Generated image library">
+        <section className="library-section" aria-label="생성 이미지 라이브러리">
           <div className="library-heading">
             <div>
               <h2>라이브러리</h2>
@@ -3654,6 +3661,7 @@ function FlowContent() {
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.5}
         colorMode={theme}
+        ariaLabelConfig={FLOW_ARIA_LABELS}
       >
         <Background color="var(--border-node)" gap={24} size={1} />
       </ReactFlow>
@@ -3677,8 +3685,9 @@ function FlowContent() {
         />
       </div>
 
-      <div className="editor-mode-toggle" aria-label="Editor mode controls">
+      <div className="editor-mode-toggle" aria-label="편집 모드 컨트롤">
         <Controls
+          aria-label="캔버스 컨트롤"
           showInteractive={false}
           position="top-right"
           style={{
@@ -3695,9 +3704,9 @@ function FlowContent() {
         />
         <button
           onClick={toggleTheme}
-          title="Toggle Theme"
+          title={theme === "dark" ? "라이트 테마로 전환" : "다크 테마로 전환"}
           className="icon-toggle compact"
-          aria-label={theme === "dark" ? "Light theme" : "Dark theme"}
+          aria-label={theme === "dark" ? "라이트 테마로 전환" : "다크 테마로 전환"}
         >
           {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
         </button>

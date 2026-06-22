@@ -627,7 +627,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
                 }}
               >
                 {promptComposeStatus === 'loading' ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={12} />}
-                Compose
+                프롬프트 생성
               </button>
             </div>
 
@@ -636,7 +636,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
               className="nodrag nowheel"
               value={optimizedPrompt}
               onChange={(event) => setOptimizedPrompt?.(event.target.value)}
-              placeholder="Compose를 눌러 이미지 생성용 프롬프트를 준비하세요."
+              placeholder="프롬프트 생성을 눌러 이미지 생성용 프롬프트를 준비하세요."
               style={{
                 width: '100%',
                 minHeight: '92px',
@@ -689,7 +689,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
                 }}
               >
                 <Check size={13} />
-                Use For Generation
+                생성에 사용
               </button>
               <button
                 type="button"
@@ -714,7 +714,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
                 }}
               >
                 {isOptimizedPromptCopied ? <Check size={13} /> : <Copy size={13} />}
-                Copy
+                복사
               </button>
             </div>
           </div>
