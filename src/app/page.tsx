@@ -1243,6 +1243,10 @@ function FlowContent() {
   const [detailLevel, setDetailLevel] = useState(DEFAULT_SNAPSHOT.detailLevel);
   const [englishPrompt, setEnglishPrompt] = useState(DEFAULT_SNAPSHOT.englishPrompt);
   const [koreanPrompt, setKoreanPrompt] = useState(DEFAULT_SNAPSHOT.koreanPrompt);
+  const [optimizedPrompt, setOptimizedPrompt] = useState("");
+  const [optimizedPromptEdited, setOptimizedPromptEdited] = useState(false);
+  const [promptComposeStatus, setPromptComposeStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [promptComposeError, setPromptComposeError] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(DEFAULT_SNAPSHOT.imageUrl);
   const [generationErrorMessage, setGenerationErrorMessage] = useState("");
 
@@ -1301,6 +1305,10 @@ function FlowContent() {
     setDetailLevel(normalizedSnapshot.detailLevel);
     setEnglishPrompt(normalizedSnapshot.englishPrompt);
     setKoreanPrompt(options?.preserveKoreanPrompt ? normalizedSnapshot.koreanPrompt : "");
+    setOptimizedPrompt("");
+    setOptimizedPromptEdited(false);
+    setPromptComposeStatus("idle");
+    setPromptComposeError("");
     setImageUrl(normalizedSnapshot.imageUrl);
     const snapshotWithUsage = snapshot as EditorSnapshot & {
       tokenUsage?: GenerationTokenUsage | null;
@@ -1927,6 +1935,95 @@ function FlowContent() {
     [connectedState.elementBoard, elementBoard.elements],
   );
 
+  const composePromptFromNodes = useCallback(async () => {
+    if (!hasAnyConnection || promptComposeStatus === "loading") return;
+
+    setPromptComposeStatus("loading");
+    setPromptComposeError("");
+
+    try {
+      const res = await fetch("/api/compose-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: connectedState.isPromptConnected ? prompt : "",
+          style: connectedState.isStyleConnected ? (activeStyleEntry?.prompt || null) : null,
+          characterReference: connectedState.characterReference ? activeCharacterReferencePrompt : null,
+          objectReference: connectedState.objectReference ? activeObjectReferencePrompt : null,
+          ratio: connectedState.isRatioConnected ? ratio : null,
+          resolution: connectedState.isResolutionConnected ? resolution : null,
+          composition: connectedState.composition ? composition : null,
+          background: connectedState.background ? backgroundPrompt : null,
+          constraints: connectedState.constraints ? constraints : null,
+          mood: connectedState.mood ? mood : null,
+          palette: connectedState.palette ? palette : null,
+          cameraAngle: connectedState.cameraAngle ? cameraAngle : null,
+          objectAngle: connectedState.objectAngle ? objectAngle : null,
+          lighting: connectedState.lighting ? lighting : null,
+          gesture: connectedState.gesture ? gesture : null,
+          propsPrompt: connectedState.props ? propsPrompt : null,
+          detailLevel: connectedState.detail ? detailLevel : null,
+          imageMixPrompt: connectedState.imageMix ? imageMixPrompt : null,
+        }),
+      });
+
+      const data = (await res.json()) as { optimizedPrompt?: string; error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || "프롬프트 구성에 실패했습니다.");
+      }
+
+      setOptimizedPrompt(data.optimizedPrompt?.trim() || "");
+      setOptimizedPromptEdited(false);
+      setPromptComposeStatus("ready");
+    } catch (composeError) {
+      const message =
+        composeError instanceof Error
+          ? composeError.message
+          : "프롬프트 구성에 실패했습니다.";
+      setPromptComposeStatus("error");
+      setPromptComposeError(message);
+    }
+  }, [
+    activeCharacterReferencePrompt,
+    activeObjectReferencePrompt,
+    activeStyleEntry,
+    backgroundPrompt,
+    cameraAngle,
+    composition,
+    connectedState,
+    constraints,
+    detailLevel,
+    gesture,
+    hasAnyConnection,
+    imageMixPrompt,
+    lighting,
+    mood,
+    objectAngle,
+    palette,
+    prompt,
+    promptComposeStatus,
+    propsPrompt,
+    ratio,
+    resolution,
+  ]);
+
+  const updateOptimizedPrompt = useCallback((value: string) => {
+    setOptimizedPrompt(value);
+    setOptimizedPromptEdited(true);
+    setPromptComposeError("");
+    setPromptComposeStatus(value.trim() ? "ready" : "idle");
+  }, []);
+
+  const useOptimizedPromptForGeneration = useCallback(() => {
+    const nextPrompt = optimizedPrompt.trim();
+    if (!nextPrompt) return;
+    setEnglishPrompt(nextPrompt);
+    setOptimizedPrompt(nextPrompt);
+    setOptimizedPromptEdited(false);
+    setPromptComposeStatus("ready");
+    setPromptComposeError("");
+  }, [optimizedPrompt]);
+
   const requestKoreanPromptInBackground = useCallback(
     async (resultId: string, nextEnglishPrompt: string) => {
       if (!nextEnglishPrompt.trim()) return;
@@ -2252,8 +2349,10 @@ function FlowContent() {
       ? styles.find((styleEntry) => styleEntry.id === activeStyleId)
       : null;
     const effectivePrompt = connectedState.isPromptConnected ? prompt : "";
+    const reviewedPrompt = optimizedPrompt.trim();
+    const generationPromptForRequest = reviewedPrompt || generationEnglishPrompt;
 
-    if ((!effectivePrompt.trim() && !activeStyle && !generationEnglishPrompt.trim()) || isGenerating || isTranslating) return;
+    if ((!effectivePrompt.trim() && !activeStyle && !generationPromptForRequest.trim()) || isGenerating || isTranslating) return;
 
     setIsGenerating(true);
     setError(false);
@@ -2344,7 +2443,7 @@ function FlowContent() {
           gesture: connectedState.gesture ? gesture : null,
           propsPrompt: connectedState.props ? propsPrompt : null,
           detailLevel: connectedState.detail ? detailLevel : null,
-          prebuiltPrompt: generationEnglishPrompt || null,
+          prebuiltPrompt: generationPromptForRequest.trim() || null,
           elementSheetImages: connectedElementSheetImages,
           characterReferenceImages: activeCharacterReferenceImages,
           styleReferenceImages: activeStyleReferenceImages,
@@ -2378,7 +2477,7 @@ function FlowContent() {
       setImageUrl(data.url);
       const snapshot = {
         ...captureCurrentSnapshot(data.url),
-        englishPrompt: data.englishPrompt?.trim() || generationEnglishPrompt,
+        englishPrompt: data.englishPrompt?.trim() || generationPromptForRequest,
         koreanPrompt: data.koreanPrompt?.trim() || visibleKoreanPrompt,
       };
 
@@ -2443,6 +2542,7 @@ function FlowContent() {
     detailLevel,
     gesture,
     generationEnglishPrompt,
+    optimizedPrompt,
     isGenerating,
     isTranslating,
     lighting,
@@ -2939,8 +3039,16 @@ function FlowContent() {
             isTranslating,
             translateElapsedLabel: formatDurationLabel(translateElapsedSeconds),
             lastTranslateDurationLabel: formatDurationLabel(lastTranslateDurationSeconds),
+            optimizedPrompt,
+            setOptimizedPrompt: updateOptimizedPrompt,
+            optimizedPromptEdited,
+            promptComposeStatus,
+            promptComposeError,
+            onComposePrompt: composePromptFromNodes,
+            onUseOptimizedPrompt: useOptimizedPromptForGeneration,
+            canComposePrompt: hasAnyConnection && !isGenerating,
             onGenerate: handleGenerate,
-            canGenerate: !isTranslating && !!generationEnglishPrompt.trim(),
+            canGenerate: !isTranslating && !!(optimizedPrompt.trim() || generationEnglishPrompt.trim()),
             isGenerating,
             generateElapsedLabel: formatDurationLabel(generateElapsedSeconds),
             lastGenerateDurationLabel: formatDurationLabel(lastGenerateDurationSeconds),
@@ -3000,8 +3108,16 @@ function FlowContent() {
     handleGenerate,
     maskEdit,
     generationEnglishPrompt,
+    optimizedPrompt,
+    optimizedPromptEdited,
+    promptComposeStatus,
+    promptComposeError,
+    composePromptFromNodes,
+    updateOptimizedPrompt,
+    useOptimizedPromptForGeneration,
     regenerateEnglishPromptFromBrief,
     isGenerating,
+    hasAnyConnection,
     imageUrl,
     error,
     generationErrorMessage,
