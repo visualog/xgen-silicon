@@ -55,7 +55,6 @@ type OutputNodeData = {
   promptComposeStatus?: "idle" | "loading" | "ready" | "error";
   promptComposeError?: string;
   onComposePrompt?: () => void;
-  onUseOptimizedPrompt?: () => void;
   canComposePrompt?: boolean;
   onGenerate?: () => void;
   canGenerate?: boolean;
@@ -92,7 +91,6 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
     promptComposeStatus = "idle",
     promptComposeError = "",
     onComposePrompt,
-    onUseOptimizedPrompt,
     canComposePrompt = false,
     onGenerate,
     canGenerate = false,
@@ -203,7 +201,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
     const textarea = optimizedPromptTextareaRef.current;
     if (!textarea) return;
     textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(textarea.scrollHeight + 2, 180)}px`;
+    textarea.style.height = `${Math.min(textarea.scrollHeight + 2, 260)}px`;
   }, [optimizedPrompt]);
 
   React.useEffect(() => {
@@ -412,7 +410,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--ui-space-10)' }}>
                 <span style={{ fontSize: 'calc(var(--ui-type-xs-size) * 1.1)', fontWeight: 800, color: 'var(--text-secondary)' }}>
-                  프롬프트
+                  입력 브리프
                 </span>
                 {englishPrompt ? (
                   <button
@@ -577,58 +575,146 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--ui-space-8)',
-              borderRadius: 'var(--ui-space-10)',
-              backgroundColor: 'color-mix(in srgb, var(--bg-canvas) 78%, transparent)',
-              border: '1px solid var(--border-node)',
-              padding: 'var(--ui-space-10)',
+              gap: 'var(--ui-space-10)',
+              borderRadius: 'var(--ui-space-12)',
+              backgroundColor: 'color-mix(in srgb, var(--bg-canvas) 88%, transparent)',
+              border: `1px solid ${optimizedPrompt.trim() ? 'color-mix(in srgb, var(--text-primary) 24%, var(--border-node))' : 'var(--border-node)'}`,
+              padding: 'var(--ui-space-12)',
+              boxShadow: optimizedPrompt.trim() ? '0 10px 28px color-mix(in srgb, var(--text-primary) 8%, transparent)' : 'none',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--ui-space-8)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--ui-space-6)' }}>
-                <Sparkles size={13} color="var(--text-secondary)" />
-                <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--ui-type-xs-size)', fontWeight: 850 }}>
-                  최적화 프롬프트
-                </span>
-                {optimizedPromptEdited ? (
+              <div style={{ display: 'grid', gap: 'var(--ui-space-4)', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--ui-space-6)' }}>
+                  <Sparkles size={13} color="var(--text-primary)" />
+                  <span style={{ color: 'var(--text-primary)', fontSize: 'calc(var(--ui-type-xs-size) * 1.08)', fontWeight: 900 }}>
+                    실행 프롬프트
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 'var(--ui-space-4)' }}>
                   <span
                     style={{
-                      color: 'var(--port-prompt)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 'calc(var(--ui-space-unit) * 0.75)',
+                      width: 'fit-content',
+                      color: optimizedPrompt.trim() ? 'var(--text-primary)' : 'var(--text-muted)',
+                      backgroundColor: optimizedPrompt.trim()
+                        ? 'color-mix(in srgb, var(--text-primary) 8%, transparent)'
+                        : 'color-mix(in srgb, var(--bg-node-base) 70%, transparent)',
+                      border: '1px solid var(--border-node)',
+                      borderRadius: 'var(--ui-radius-pill)',
+                      padding: 'calc(var(--ui-space-unit) * 0.75) var(--ui-space-8)',
                       fontSize: 'var(--ui-type-xs-size)',
                       fontWeight: 800,
                     }}
                   >
-                    편집됨
+                    {optimizedPrompt.trim() ? <Check size={11} /> : <Sparkles size={11} />}
+                    {optimizedPrompt.trim() ? '자동 사용' : '대기 중'}
                   </span>
-                ) : null}
+                  {promptComposeStatus === 'ready' && !optimizedPromptEdited ? (
+                    <span
+                      style={{
+                        color: 'var(--port-prompt)',
+                        backgroundColor: 'color-mix(in srgb, var(--port-prompt) 10%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--port-prompt) 28%, var(--border-node))',
+                        borderRadius: 'var(--ui-radius-pill)',
+                        padding: 'calc(var(--ui-space-unit) * 0.75) var(--ui-space-8)',
+                        fontSize: 'var(--ui-type-xs-size)',
+                        fontWeight: 800,
+                      }}
+                    >
+                      Codex 최적화 완료
+                    </span>
+                  ) : null}
+                  {optimizedPromptEdited ? (
+                    <span
+                      style={{
+                        color: 'var(--port-prompt)',
+                        backgroundColor: 'color-mix(in srgb, var(--port-prompt) 10%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--port-prompt) 28%, var(--border-node))',
+                        borderRadius: 'var(--ui-radius-pill)',
+                        padding: 'calc(var(--ui-space-unit) * 0.75) var(--ui-space-8)',
+                        fontSize: 'var(--ui-type-xs-size)',
+                        fontWeight: 800,
+                      }}
+                    >
+                      편집됨
+                    </span>
+                  ) : null}
+                  {optimizedPrompt.trim() ? (
+                    <span
+                      style={{
+                        color: 'var(--text-secondary)',
+                        backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 62%, transparent)',
+                        border: '1px solid var(--border-node)',
+                        borderRadius: 'var(--ui-radius-pill)',
+                        padding: 'calc(var(--ui-space-unit) * 0.75) var(--ui-space-8)',
+                        fontSize: 'var(--ui-type-xs-size)',
+                        fontWeight: 800,
+                      }}
+                    >
+                      고정값 포함
+                    </span>
+                  ) : null}
+                </div>
               </div>
-              <button
-                type="button"
-                className="nodrag"
-                onClick={onComposePrompt}
-                disabled={!canComposePrompt || promptComposeStatus === 'loading'}
-                aria-label="프롬프트 생성"
-                title="프롬프트 생성"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 'var(--ui-space-4)',
-                  height: 'var(--size-control-md)',
-                  padding: '0 var(--ui-space-8)',
-                  borderRadius: 'var(--ui-radius-pill)',
-                  border: '1px solid var(--border-node)',
-                  backgroundColor: promptComposeStatus === 'loading' ? 'var(--bg-node-base)' : 'var(--text-primary)',
-                  color: promptComposeStatus === 'loading' ? 'var(--text-muted)' : 'var(--bg-node-base)',
-                  cursor: !canComposePrompt || promptComposeStatus === 'loading' ? 'not-allowed' : 'pointer',
-                  fontSize: 'var(--ui-type-xs-size)',
-                  fontWeight: 850,
-                  opacity: !canComposePrompt ? 0.55 : 1,
-                }}
-              >
-                {promptComposeStatus === 'loading' ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={12} />}
-                프롬프트 생성
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--ui-space-6)' }}>
+                <button
+                  type="button"
+                  className="nodrag"
+                  onClick={copyOptimizedPrompt}
+                  disabled={!optimizedPrompt.trim()}
+                  aria-label="실행 프롬프트 복사"
+                  title={isOptimizedPromptCopied ? '복사됨' : '실행 프롬프트 복사'}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 'var(--size-control-md)',
+                    height: 'var(--size-control-md)',
+                    borderRadius: 'var(--ui-radius-pill)',
+                    border: '1px solid var(--border-node)',
+                    backgroundColor: 'var(--bg-canvas)',
+                    color: optimizedPrompt.trim() ? 'var(--text-secondary)' : 'var(--text-muted)',
+                    cursor: optimizedPrompt.trim() ? 'pointer' : 'not-allowed',
+                    opacity: optimizedPrompt.trim() ? 1 : 0.55,
+                  }}
+                >
+                  {isOptimizedPromptCopied ? <Check size={13} /> : <Copy size={13} />}
+                </button>
+                <button
+                  type="button"
+                  className="nodrag"
+                  onClick={onComposePrompt}
+                  disabled={!canComposePrompt || promptComposeStatus === 'loading'}
+                  aria-label="AI로 프롬프트 다듬기"
+                  title="AI로 프롬프트 다듬기"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 'var(--ui-space-4)',
+                    height: 'var(--size-control-md)',
+                    padding: '0 var(--ui-space-10)',
+                    borderRadius: 'var(--ui-radius-pill)',
+                    border: optimizedPrompt.trim() ? '1px solid var(--border-node)' : 'none',
+                    backgroundColor: optimizedPrompt.trim()
+                      ? 'color-mix(in srgb, var(--bg-node-base) 72%, transparent)'
+                      : 'var(--text-primary)',
+                    color: optimizedPrompt.trim()
+                      ? 'var(--text-secondary)'
+                      : 'var(--bg-node-base)',
+                    cursor: !canComposePrompt || promptComposeStatus === 'loading' ? 'not-allowed' : 'pointer',
+                    fontSize: 'var(--ui-type-xs-size)',
+                    fontWeight: 850,
+                    opacity: !canComposePrompt ? 0.55 : 1,
+                  }}
+                >
+                  {promptComposeStatus === 'loading' ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={12} />}
+                  {optimizedPrompt.trim() ? '다시 다듬기' : 'AI로 다듬기'}
+                </button>
+              </div>
             </div>
 
             <textarea
@@ -636,20 +722,20 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
               className="nodrag nowheel"
               value={optimizedPrompt}
               onChange={(event) => setOptimizedPrompt?.(event.target.value)}
-              placeholder="프롬프트 생성을 눌러 이미지 생성용 프롬프트를 준비하세요."
+              placeholder="AI로 다듬기를 눌러 이미지 생성에 사용할 실행 프롬프트를 준비하세요."
               style={{
                 width: '100%',
-                minHeight: '92px',
-                maxHeight: '180px',
+                minHeight: '148px',
+                maxHeight: '260px',
                 boxSizing: 'border-box',
                 resize: 'none',
                 overflow: 'auto',
                 border: '1px solid var(--border-node)',
-                borderRadius: 'var(--ui-space-8)',
-                backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 46%, transparent)',
-                padding: 'var(--ui-space-10)',
+                borderRadius: 'var(--ui-space-10)',
+                backgroundColor: 'color-mix(in srgb, var(--bg-node-base) 58%, transparent)',
+                padding: 'var(--ui-space-12)',
                 fontSize: 'var(--ui-type-xs-size)',
-                lineHeight: '1.65',
+                lineHeight: '1.7',
                 color: 'var(--text-primary)',
                 margin: 0,
                 whiteSpace: 'pre-wrap',
@@ -659,64 +745,23 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
               }}
             />
 
+            {promptComposeStatus === 'loading' ? (
+              <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.5, fontWeight: 750 }}>
+                Codex가 연결된 노드를 실행 프롬프트로 정리하고 있습니다.
+              </span>
+            ) : (
+              <span style={{ color: optimizedPrompt.trim() ? 'var(--text-secondary)' : 'var(--text-muted)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.5, fontWeight: 750 }}>
+                {optimizedPrompt.trim()
+                  ? '이미지 생성에는 이 실행 프롬프트가 자동으로 전달됩니다.'
+                  : '최적화 전에는 현재 영문 프롬프트가 이미지 생성에 사용됩니다.'}
+              </span>
+            )}
+
             {promptComposeStatus === 'error' && promptComposeError ? (
               <span style={{ color: 'var(--port-constraint)', fontSize: 'var(--ui-type-xs-size)', lineHeight: 1.5 }}>
                 {promptComposeError}
               </span>
             ) : null}
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--ui-space-8)' }}>
-              <button
-                type="button"
-                className="nodrag"
-                onClick={onUseOptimizedPrompt}
-                disabled={!optimizedPrompt.trim()}
-                aria-label="생성에 사용"
-                title="생성에 사용"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 'var(--ui-space-6)',
-                  height: 'var(--size-control-lg)',
-                  borderRadius: 'var(--ui-radius-pill)',
-                  border: optimizedPrompt.trim() ? 'none' : '1px solid var(--border-node)',
-                  backgroundColor: optimizedPrompt.trim() ? 'var(--text-primary)' : 'var(--bg-node-base)',
-                  color: optimizedPrompt.trim() ? 'var(--bg-node-base)' : 'var(--text-muted)',
-                  cursor: optimizedPrompt.trim() ? 'pointer' : 'not-allowed',
-                  fontSize: 'var(--ui-type-xs-size)',
-                  fontWeight: 850,
-                }}
-              >
-                <Check size={13} />
-                생성에 사용
-              </button>
-              <button
-                type="button"
-                className="nodrag"
-                onClick={copyOptimizedPrompt}
-                disabled={!optimizedPrompt.trim()}
-                aria-label="최적화 프롬프트 복사"
-                title={isOptimizedPromptCopied ? '복사됨' : '최적화 프롬프트 복사'}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 'var(--ui-space-6)',
-                  height: 'var(--size-control-lg)',
-                  borderRadius: 'var(--ui-radius-pill)',
-                  border: '1px solid var(--border-node)',
-                  backgroundColor: 'var(--bg-canvas)',
-                  color: optimizedPrompt.trim() ? 'var(--text-secondary)' : 'var(--text-muted)',
-                  cursor: optimizedPrompt.trim() ? 'pointer' : 'not-allowed',
-                  fontSize: 'var(--ui-type-xs-size)',
-                  fontWeight: 850,
-                }}
-              >
-                {isOptimizedPromptCopied ? <Check size={13} /> : <Copy size={13} />}
-                복사
-              </button>
-            </div>
           </div>
         ) : null}
 
@@ -753,7 +798,7 @@ export function OutputNode({ data }: { data: OutputNodeData }) {
         {hasExecutionPrompt && (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <span style={{ color: 'var(--text-secondary)', fontSize: 'calc(var(--ui-type-xs-size) * 1.1)', fontWeight: 700 }}>
-              이미지 생성에는 영문 실행 프롬프트가 전달됩니다.
+              {optimizedPrompt.trim() ? '준비 완료' : '영문 프롬프트 준비됨'}
             </span>
           </div>
         )}

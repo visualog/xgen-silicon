@@ -2021,16 +2021,6 @@ function FlowContent() {
     setPromptComposeStatus(value.trim() ? "ready" : "idle");
   }, []);
 
-  const useOptimizedPromptForGeneration = useCallback(() => {
-    const nextPrompt = optimizedPrompt.trim();
-    if (!nextPrompt) return;
-    setEnglishPrompt(nextPrompt);
-    setOptimizedPrompt(nextPrompt);
-    setOptimizedPromptEdited(false);
-    setPromptComposeStatus("ready");
-    setPromptComposeError("");
-  }, [optimizedPrompt]);
-
   const requestKoreanPromptInBackground = useCallback(
     async (resultId: string, nextEnglishPrompt: string) => {
       if (!nextEnglishPrompt.trim()) return;
@@ -3052,7 +3042,6 @@ function FlowContent() {
             promptComposeStatus,
             promptComposeError,
             onComposePrompt: composePromptFromNodes,
-            onUseOptimizedPrompt: useOptimizedPromptForGeneration,
             canComposePrompt: hasAnyConnection && !isGenerating,
             onGenerate: handleGenerate,
             canGenerate: !isTranslating && !!(optimizedPrompt.trim() || generationEnglishPrompt.trim()),
@@ -3121,7 +3110,6 @@ function FlowContent() {
     promptComposeError,
     composePromptFromNodes,
     updateOptimizedPrompt,
-    useOptimizedPromptForGeneration,
     regenerateEnglishPromptFromBrief,
     isGenerating,
     hasAnyConnection,
