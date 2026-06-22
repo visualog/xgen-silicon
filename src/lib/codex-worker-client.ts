@@ -68,6 +68,8 @@ export interface WorkerComposePromptResponse {
     }[];
   };
   warnings: string[];
+  rewriteStatus?: "codex" | "deterministic" | "fallback" | "skipped";
+  rewriteTokenUsage?: WorkerTokenUsage | null;
   createdAt: string;
 }
 

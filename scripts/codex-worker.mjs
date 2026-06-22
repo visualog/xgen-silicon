@@ -1415,7 +1415,7 @@ function createPromptSource(label, value, role, promptLine) {
   return { label, value: text, role, promptLine: promptLine(text) };
 }
 
-function composeOptimizedPrompt(payload) {
+function createPromptCompositionParts(payload) {
   const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, imageMixPrompt } = payload;
 
   const warnings = [];
@@ -1469,10 +1469,39 @@ function composeOptimizedPrompt(payload) {
     ...lockedSources.map((source) => `${source.label} (${source.role})`),
   ];
 
+  return {
+    creativeSources,
+    referenceSources,
+    lockedSources,
+    classifiedSources,
+    sourceSummary,
+    warnings,
+  };
+}
+
+function composeOptimizedPrompt(payload, options = {}) {
+  const {
+    creativeSources,
+    referenceSources,
+    lockedSources,
+    classifiedSources,
+    sourceSummary,
+    warnings,
+  } = createPromptCompositionParts(payload);
+  const codexCreativeDirection = typeof options.codexCreativeDirection === "string"
+    ? compactText(options.codexCreativeDirection, 1600)
+    : "";
+  const rewriteStatus = options.rewriteStatus || (creativeSources.length ? "deterministic" : "skipped");
+  const rewriteWarning = typeof options.rewriteWarning === "string" ? options.rewriteWarning.trim() : "";
+  const nextWarnings = rewriteWarning ? [...warnings, rewriteWarning] : warnings;
+  const creativeLines = codexCreativeDirection
+    ? [`- ${codexCreativeDirection}`]
+    : creativeSources.map((source) => `- ${source.promptLine}`);
+
   const optimizedPrompt = compactJoin([
     "xGen image brief.",
-    creativeSources.length ? "Creative direction:" : "",
-    ...creativeSources.map((source) => `- ${source.promptLine}`),
+    creativeLines.length ? "Creative direction:" : "",
+    ...creativeLines,
     referenceSources.length ? "Reference locks:" : "",
     ...referenceSources.map((source) => `- ${source.promptLine}`),
     lockedSources.length ? "Locked constraints:" : "",
@@ -1485,13 +1514,93 @@ function composeOptimizedPrompt(payload) {
     optimizedPrompt,
     sourceSummary,
     classifiedSources,
-    warnings,
+    warnings: nextWarnings,
+    rewriteStatus,
     createdAt: new Date().toISOString(),
   };
 }
 
+function parseCodexCreativeRewrite(raw) {
+  const cleaned = stripCodeFences(raw);
+  const parsed = JSON.parse(cleaned);
+  const creativeDirection = typeof parsed.creativeDirection === "string"
+    ? parsed.creativeDirection.replace(/\s+/g, " ").trim()
+    : "";
+  if (!creativeDirection) {
+    throw new Error("Codex rewrite response did not include creativeDirection.");
+  }
+  return creativeDirection;
+}
+
+async function rewriteCreativeDirectionWithCodex({ creativeSources, referenceSources, lockedSources }) {
+  if (!creativeSources.length) {
+    return { creativeDirection: "", status: "skipped", tokenUsage: null };
+  }
+
+  const contextPayload = {
+    creative: creativeSources.map(({ label, value }) => ({ label, value })),
+    referenceContext: referenceSources.map(({ label, value }) => ({ label, value })),
+    lockedContext: lockedSources.map(({ label, value }) => ({ label, value })),
+    outputRole: "creativeDirectionOnly",
+  };
+
+  const instruction = `
+You are the backend worker for xGen prompt composition.
+Use only the supplied context payload.
+Do not perform external side effects.
+Do not invent missing product, character, brand, logo, or text details.
+Return exactly one JSON object and no markdown.
+
+Task:
+Rewrite the creative inputs into one polished English image-generation creative direction for ChatGPT image generation.
+
+Rules:
+- Use creative inputs as the only material you may rewrite or expand.
+- Use referenceContext and lockedContext only to avoid contradiction.
+- Do not duplicate reference locks, aspect ratio, resolution, camera lock, object orientation lock, constraints, or quality guard in creativeDirection.
+- Keep the direction specific, visual, compact, and brand-safe.
+- No readable text, logos, or watermark requests.
+- If creative inputs are insufficient, keep the direction minimal instead of guessing.
+
+Output JSON shape:
+{
+  "creativeDirection": "one concise English paragraph"
+}
+
+Context payload:
+${JSON.stringify(contextPayload, null, 2)}
+`.trim();
+
+  const { text: raw, tokenUsage } = await runCodexExec(instruction, { timeoutMs: 60000 });
+  return {
+    creativeDirection: parseCodexCreativeRewrite(raw),
+    status: "codex",
+    tokenUsage,
+  };
+}
+
+async function composeOptimizedPromptWithCodex(payload) {
+  const parts = createPromptCompositionParts(payload);
+  try {
+    const rewrite = await rewriteCreativeDirectionWithCodex(parts);
+    const response = composeOptimizedPrompt(payload, {
+      codexCreativeDirection: rewrite.creativeDirection,
+      rewriteStatus: rewrite.status,
+    });
+    if (rewrite.tokenUsage) response.rewriteTokenUsage = rewrite.tokenUsage;
+    return response;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logDebug("composeOptimizedPromptWithCodex:fallback", { message });
+    return composeOptimizedPrompt(payload, {
+      rewriteStatus: "fallback",
+      rewriteWarning: `Codex creative rewrite failed; deterministic prompt was used. ${message}`,
+    });
+  }
+}
+
 async function handleComposePrompt(payload) {
-  return composeOptimizedPrompt(payload);
+  return composeOptimizedPromptWithCodex(payload);
 }
 
 async function handleTranslate(payload) {
