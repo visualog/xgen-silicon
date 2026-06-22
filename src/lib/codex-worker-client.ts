@@ -46,6 +46,13 @@ export interface WorkerTranslateResponse {
   englishPrompt: string;
 }
 
+export interface WorkerComposePromptResponse {
+  optimizedPrompt: string;
+  sourceSummary: string[];
+  warnings: string[];
+  createdAt: string;
+}
+
 export interface WorkerTranslateKoreanResponse {
   koreanPrompt: string;
 }
@@ -121,6 +128,29 @@ export function translateViaWorker(payload: {
   imageMixPrompt?: string | null;
 }) {
   return postToWorker<WorkerTranslateResponse>("/translate", payload, 90000);
+}
+
+export function composePromptViaWorker(payload: {
+  prompt?: string;
+  style?: string | null;
+  characterReference?: string | null;
+  objectReference?: string | null;
+  ratio?: string;
+  resolution?: string;
+  composition?: string | null;
+  background?: string | null;
+  constraints?: string | null;
+  mood?: string | null;
+  palette?: string | null;
+  cameraAngle?: string | null;
+  objectAngle?: string | null;
+  lighting?: string | null;
+  gesture?: string | null;
+  propsPrompt?: string | null;
+  detailLevel?: string | null;
+  imageMixPrompt?: string | null;
+}) {
+  return postToWorker<WorkerComposePromptResponse>("/compose-prompt", payload, 90000);
 }
 
 export function translateKoreanViaWorker(payload: {

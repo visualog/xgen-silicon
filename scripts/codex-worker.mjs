@@ -1409,13 +1409,21 @@ function writeJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-async function handleTranslate(payload) {
+function composeOptimizedPrompt(payload) {
   const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, imageMixPrompt } = payload;
-  if (!prompt && !style && !characterReference && !objectReference && !ratio && !resolution && !composition && !background && !constraints && !mood && !palette && !cameraAngle && !objectAngle && !lighting && !gesture && !propsPrompt && !detailLevel && !imageMixPrompt) {
-    return { englishPrompt: "" };
+
+  const sourceSummary = [];
+  const warnings = [];
+
+  if (prompt) sourceSummary.push("Core prompt");
+  if (style) sourceSummary.push("Style");
+  if (characterReference) sourceSummary.push("Character lock");
+  if (objectReference) sourceSummary.push("Object lock");
+  if (!prompt && !style && !characterReference && !objectReference) {
+    warnings.push("No subject, style, or reference lock is connected.");
   }
 
-  const parts = [
+  const optimizedPrompt = compactJoin([
     "xGen image brief.",
     prompt ? `Subject: ${prompt}` : "",
     style ? `Style: ${style}` : "",
@@ -1436,9 +1444,27 @@ async function handleTranslate(payload) {
     detailLevel ? `Detail: ${detailLevel}` : "",
     imageMixPrompt || "",
     "Quality: premium brand image, coherent composition, high detail, no readable text, no logo, no watermark.",
-  ];
+  ]);
 
-  return { englishPrompt: compactJoin(parts) };
+  return {
+    optimizedPrompt,
+    sourceSummary,
+    warnings,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function handleComposePrompt(payload) {
+  return composeOptimizedPrompt(payload);
+}
+
+async function handleTranslate(payload) {
+  const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, imageMixPrompt } = payload;
+  if (!prompt && !style && !characterReference && !objectReference && !ratio && !resolution && !composition && !background && !constraints && !mood && !palette && !cameraAngle && !objectAngle && !lighting && !gesture && !propsPrompt && !detailLevel && !imageMixPrompt) {
+    return { englishPrompt: "" };
+  }
+
+  return { englishPrompt: composeOptimizedPrompt(payload).optimizedPrompt };
 }
 
 async function handleTranslateKorean(payload) {
@@ -1613,6 +1639,7 @@ const server = http.createServer(async (req, res) => {
     logDebug("request:start", { url: req.url, method: req.method });
     const result = await enqueue(async () => {
       if (req.url === "/translate") return handleTranslate(payload);
+      if (req.url === "/compose-prompt") return handleComposePrompt(payload);
       if (req.url === "/translate-korean") return handleTranslateKorean(payload);
       if (req.url === "/generate-title") return handleGenerateTitle(payload);
       if (req.url === "/analyze-style") return handleAnalyzeStyle(payload);
