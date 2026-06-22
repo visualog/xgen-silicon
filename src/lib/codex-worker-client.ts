@@ -49,6 +49,24 @@ export interface WorkerTranslateResponse {
 export interface WorkerComposePromptResponse {
   optimizedPrompt: string;
   sourceSummary: string[];
+  classifiedSources?: {
+    creative: {
+      label: string;
+      value: string;
+    }[];
+    reference: {
+      label: string;
+      value: string;
+    }[];
+    locked: {
+      label: string;
+      value: string;
+    }[];
+    quality: {
+      label: string;
+      value: string;
+    }[];
+  };
   warnings: string[];
   createdAt: string;
 }

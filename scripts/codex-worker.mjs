@@ -1409,46 +1409,82 @@ function writeJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function createPromptSource(label, value, role, promptLine) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text) return null;
+  return { label, value: text, role, promptLine: promptLine(text) };
+}
+
 function composeOptimizedPrompt(payload) {
   const { prompt, style, characterReference, objectReference, ratio, resolution, composition, background, constraints, mood, palette, cameraAngle, objectAngle, lighting, gesture, propsPrompt, detailLevel, imageMixPrompt } = payload;
 
-  const sourceSummary = [];
   const warnings = [];
 
-  if (prompt) sourceSummary.push("Core prompt");
-  if (style) sourceSummary.push("Style");
-  if (characterReference) sourceSummary.push("Character lock");
-  if (objectReference) sourceSummary.push("Object lock");
+  const creativeSources = [
+    createPromptSource("Core prompt", prompt, "creative", (value) => `Subject: ${value}`),
+    createPromptSource("Style", style, "creative", (value) => `Style direction: ${value}`),
+    createPromptSource("Composition", composition, "creative", (value) => `Composition direction: ${value}`),
+    createPromptSource("Background", background, "creative", (value) => `Background direction: ${value}`),
+    createPromptSource("Mood", mood, "creative", (value) => `Mood direction: ${value}`),
+    createPromptSource("Palette", palette, "creative", (value) => `Palette direction: ${value}`),
+    createPromptSource("Lighting", lighting, "creative", (value) => `Lighting direction: ${value}`),
+    createPromptSource("Gesture", gesture, "creative", (value) => `Gesture and expression direction: ${value}`),
+    createPromptSource("Props", propsPrompt, "creative", (value) => `Props direction: ${value}`),
+    createPromptSource("Image mix", imageMixPrompt, "creative", (value) => `Image mix direction: ${value}`),
+  ].filter(Boolean);
+
+  const referenceSources = [
+    createPromptSource("Character lock", characterReference, "reference", (value) => `Character lock: ${value}`),
+    createPromptSource("Object lock", objectReference, "reference", (value) => `Object lock: ${value}`),
+  ].filter(Boolean);
+
+  const lockedSources = [
+    createPromptSource("Aspect ratio", ratio, "locked", (value) => `Aspect ratio: ${value}`),
+    createPromptSource("Resolution", resolution, "locked", (value) => `Resolution: ${value}`),
+    createPromptSource("Constraints", constraints, "locked", (value) => `Constraints: ${value}`),
+    createPromptSource("Camera angle", cameraAngle, "locked", (value) => `Camera angle lock: ${value}`),
+    createPromptSource("Object orientation", objectAngle, "locked", (value) => `Object orientation lock: ${value}`),
+    createPromptSource("Detail density", detailLevel, "locked", (value) => `Detail density lock: ${value}`),
+  ].filter(Boolean);
+
   if (!prompt && !style && !characterReference && !objectReference) {
     warnings.push("No subject, style, or reference lock is connected.");
   }
 
+  const classifiedSources = {
+    creative: creativeSources.map(({ label, value }) => ({ label, value })),
+    reference: referenceSources.map(({ label, value }) => ({ label, value })),
+    locked: lockedSources.map(({ label, value }) => ({ label, value })),
+    quality: [
+      {
+        label: "Quality guard",
+        value: "premium brand image, coherent composition, high detail, no readable text, no logo, no watermark",
+      },
+    ],
+  };
+
+  const sourceSummary = [
+    ...creativeSources.map((source) => `${source.label} (${source.role})`),
+    ...referenceSources.map((source) => `${source.label} (${source.role})`),
+    ...lockedSources.map((source) => `${source.label} (${source.role})`),
+  ];
+
   const optimizedPrompt = compactJoin([
     "xGen image brief.",
-    prompt ? `Subject: ${prompt}` : "",
-    style ? `Style: ${style}` : "",
-    characterReference ? `Character lock: ${characterReference}` : "",
-    objectReference ? `Object lock: ${objectReference}` : "",
-    ratio ? `Aspect ratio: ${ratio}` : "",
-    resolution ? `Resolution: ${resolution}` : "",
-    composition ? `Composition: ${composition}` : "",
-    background ? `Background: ${background}` : "",
-    constraints ? `Constraints: ${constraints}` : "",
-    mood ? `Mood: ${mood}` : "",
-    palette ? `Palette: ${palette}` : "",
-    cameraAngle ? `Camera: ${cameraAngle}` : "",
-    objectAngle ? `Object orientation: ${objectAngle}` : "",
-    lighting ? `Lighting: ${lighting}` : "",
-    gesture ? `Gesture: ${gesture}` : "",
-    propsPrompt ? `Props: ${propsPrompt}` : "",
-    detailLevel ? `Detail: ${detailLevel}` : "",
-    imageMixPrompt || "",
+    creativeSources.length ? "Creative direction:" : "",
+    ...creativeSources.map((source) => `- ${source.promptLine}`),
+    referenceSources.length ? "Reference locks:" : "",
+    ...referenceSources.map((source) => `- ${source.promptLine}`),
+    lockedSources.length ? "Locked constraints:" : "",
+    ...lockedSources.map((source) => `- ${source.promptLine}`),
+    "Quality guard:",
     "Quality: premium brand image, coherent composition, high detail, no readable text, no logo, no watermark.",
   ]);
 
   return {
     optimizedPrompt,
     sourceSummary,
+    classifiedSources,
     warnings,
     createdAt: new Date().toISOString(),
   };
