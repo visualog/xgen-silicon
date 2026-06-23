@@ -8,11 +8,12 @@
     "dev:next": "next dev -H 127.0.0.1",
     "electron:dev": "node electron/dev.mjs",
     "electron": "electron ./electron",
+    "check:arm64": "node scripts/check-arm64-runtime.mjs",
     "codex-worker": "node scripts/codex-worker.mjs",
     "collect:style-reference": "node scripts/collect-style-reference.mjs",
     "build:style-reference-library": "node scripts/build-style-reference-library.mjs",
     "build:next": "next build && node scripts/prepare-electron-package.mjs",
-    "pack:mac": "npm run build:next && electron-builder --mac --dir",
+    "pack:mac": "npm run check:arm64 && npm run build:next && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --dir",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -34,13 +35,15 @@
     "recharts": "^3.8.0",
     "sharp": "^0.34.5",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@types/animejs": "^3.1.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.184.1",
     "electron": "^42.2.0",
     "electron-builder": "^26.0.12",
     "eslint": "^9",

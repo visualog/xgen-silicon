@@ -1,4 +1,12 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# xGen
+
+xGen is a local creative workspace built with Next.js, Electron, and a local Codex worker pipeline.
+
+## Local Setup
+
+For Apple Silicon clone, setup, Codex worker, development server, and Electron run commands, see:
+
+- [xGen 로컬 클론 및 실행 가이드](docs/local-clone-run-guide.md)
 
 ## Getting Started
 

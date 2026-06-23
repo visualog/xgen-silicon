@@ -388,16 +388,16 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
 
-  --bg-canvas: color-mix(in srgb, var(--ui-ink-primary) 88%, var(--ui-ink-strong));
-  --bg-node-base: color-mix(in srgb, var(--ui-ink-strong) 86%, var(--ui-ink-secondary));
-  --bg-node-header: color-mix(in srgb, var(--ui-ink-strong) 76%, var(--ui-ink-secondary));
+  --bg-canvas: color-mix(in srgb, var(--background) 88%, var(--card));
+  --bg-node-base: var(--card);
+  --bg-node-header: color-mix(in srgb, var(--card) 70%, var(--muted));
   --bg-node-body: var(--bg-node-base);
-  --border-node: color-mix(in srgb, var(--ui-ink-secondary) 72%, var(--ui-border-subtle));
-  --text-primary: var(--ui-surface-white);
-  --text-secondary: var(--ui-border-subtle);
-  --text-tertiary: var(--ui-ink-muted);
-  --text-muted: var(--ui-ink-tertiary);
-  --shadow-node: color-mix(in srgb, var(--ui-ink-primary) 50%, transparent) 0px 8px 24px;
+  --border-node: color-mix(in srgb, var(--border) 74%, var(--muted-foreground));
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-tertiary: color-mix(in srgb, var(--muted-foreground) 78%, transparent);
+  --text-muted: color-mix(in srgb, var(--muted-foreground) 62%, transparent);
+  --shadow-node: color-mix(in srgb, black 36%, transparent) 0px 8px 24px;
   --flow-line-input: color-mix(in srgb, var(--muted-foreground) 76%, transparent);
   --flow-line-output: color-mix(in srgb, var(--foreground) 84%, var(--primary));
   --flow-line-pending: color-mix(in srgb, var(--muted-foreground) 72%, transparent);

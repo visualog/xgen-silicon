@@ -67,22 +67,22 @@ export function PatternsPageContent() {
             en: "These examples show how components are grouped and sequenced, without duplicating a full production screen.",
           }}
         />
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <PromptPattern />
-          <StatusPattern />
-          <ReferencePattern />
-          <ReviewPattern />
+        <div className="grid gap-6 lg:grid-cols-12">
+          <PromptPattern className="lg:col-span-6" />
+          <StatusPattern className="lg:col-span-6" />
+          <ReferencePattern className="lg:col-span-6" />
+          <ReviewPattern className="lg:col-span-6" />
         </div>
       </section>
     </div>
   );
 }
 
-function PromptPattern() {
+function PromptPattern({ className }: { className?: string }) {
   const { text } = useDesignSystemPreferences();
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <Badge className="w-fit" variant="secondary">
           {text({ ko: "진입", en: "Entry" })}
@@ -123,7 +123,7 @@ function PromptPattern() {
   );
 }
 
-function StatusPattern() {
+function StatusPattern({ className }: { className?: string }) {
   const { text } = useDesignSystemPreferences();
   const rows = [
     [{ ko: "프롬프트", en: "Prompt" }, { ko: "준비", en: "Ready" }, 100],
@@ -132,7 +132,7 @@ function StatusPattern() {
   ] as const;
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <Badge className="w-fit" variant="secondary">
           {text({ ko: "상태", en: "Status" })}
@@ -158,7 +158,7 @@ function StatusPattern() {
   );
 }
 
-function ReferencePattern() {
+function ReferencePattern({ className }: { className?: string }) {
   const { text } = useDesignSystemPreferences();
   const tags = [
     { ko: "빛", en: "Light" },
@@ -170,7 +170,7 @@ function ReferencePattern() {
   ];
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <Badge className="w-fit" variant="secondary">
           {text({ ko: "레퍼런스", en: "Reference" })}
@@ -200,11 +200,11 @@ function ReferencePattern() {
   );
 }
 
-function ReviewPattern() {
+function ReviewPattern({ className }: { className?: string }) {
   const { text } = useDesignSystemPreferences();
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <Badge className="w-fit" variant="secondary">
           {text({ ko: "검토", en: "Review" })}

@@ -3,12 +3,9 @@
 import { Handle, Position, useNodeConnections, useReactFlow } from "@xyflow/react";
 import React from "react";
 import { Box, Trash2, X } from "lucide-react";
+import { ObjectAngleViewport } from "./ObjectAngleViewport";
 
 const PORT_COLOR = "var(--port-object-angle)";
-const SPHERE_SIZE = 136;
-const SPHERE_RADIUS = SPHERE_SIZE / 2;
-const DRAG_YAW_SENSITIVITY = 2.4;
-const DRAG_PITCH_SENSITIVITY = 1.1;
 
 const nodeStyle = {
   backgroundColor: "color-mix(in srgb, var(--bg-node-base) 5%, transparent)",
@@ -62,14 +59,6 @@ type ObjectAngleNodeData = {
   onRemove: () => void;
 };
 
-type DragState = {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  startYaw: number;
-  startPitch: number;
-};
-
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -121,51 +110,10 @@ function parseObjectAngle(value: string) {
 export function ObjectAngleNode({ id, data }: { id: string; data: ObjectAngleNodeData }) {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = React.useState(false);
-  const [isDragging, setIsDragging] = React.useState(false);
-  const dragRef = React.useRef<DragState | null>(null);
   const connections = useNodeConnections({ handleType: "source", handleId: "object-angle-out" });
   const isConnected = connections.length > 0;
   const { yaw, pitch } = parseObjectAngle(data.objectAngle);
-  const yawRad = (yaw * Math.PI) / 180;
-  const pitchRad = (pitch * Math.PI) / 180;
-  const markerRadius = SPHERE_RADIUS - 18;
-  const markerX = SPHERE_RADIUS + Math.sin(yawRad) * markerRadius;
-  const markerY = SPHERE_RADIUS - Math.sin(pitchRad) * Math.cos(yawRad) * markerRadius;
-  const markerDepth = Math.cos(yawRad) * Math.cos(pitchRad);
-  const markerScale = markerDepth >= 0 ? 1 : 0.72;
-  const markerOpacity = markerDepth >= 0 ? 1 : 0.44;
   const facingLabel = Math.abs(yaw) >= 150 ? "후면" : Math.abs(yaw) >= 90 ? "측후면" : "전면";
-
-  const updateAngleFromDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-
-    const deltaX = event.clientX - drag.startX;
-    const deltaY = event.clientY - drag.startY;
-    const nextYaw = Math.round(normalizeYaw(drag.startYaw + deltaX * DRAG_YAW_SENSITIVITY));
-    const nextPitch = Math.round(clamp(drag.startPitch - deltaY * DRAG_PITCH_SENSITIVITY, -60, 60));
-
-    data.setObjectAngle(formatObjectAngle(nextYaw, nextPitch));
-  };
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      startYaw: yaw,
-      startPitch: pitch,
-    };
-    setIsDragging(true);
-  };
-
-  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (dragRef.current?.pointerId === event.pointerId) {
-      dragRef.current = null;
-      setIsDragging(false);
-    }
-  };
 
   const handleDisconnect = () => {
     setEdges((eds) => eds.filter((e) => !(e.source === id && e.sourceHandle === "object-angle-out")));
@@ -187,85 +135,13 @@ export function ObjectAngleNode({ id, data }: { id: string; data: ObjectAngleNod
         </button>
       </div>
       <div style={bodyStyle}>
-        <div
-          className="nodrag nowheel"
-          onPointerDown={handlePointerDown}
-          onPointerMove={updateAngleFromDrag}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          style={{
-            width: SPHERE_SIZE,
-            height: SPHERE_SIZE,
-            alignSelf: "center",
-            borderRadius: "50%",
-            position: "relative",
-            cursor: isDragging ? "grabbing" : "grab",
-            touchAction: "none",
-            background:
-              "radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--bg-node-base) 95%, white), color-mix(in srgb, var(--bg-canvas) 75%, transparent) 52%, color-mix(in srgb, var(--bg-canvas) 94%, black) 100%)",
-            border: "1px solid color-mix(in srgb, var(--border-node) 80%, transparent)",
-            boxShadow: "inset -18px -22px 34px rgba(0,0,0,0.22), inset 14px 14px 28px rgba(255,255,255,0.06)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 12,
-              borderRadius: "50%",
-              transform: `rotateX(${pitch}deg) rotateY(${yaw}deg)`,
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {[-60, -30, 0, 30, 60].map((angle) => (
-              <div
-                key={`lat-${angle}`}
-                style={{
-                  position: "absolute",
-                  left: 2,
-                  right: 2,
-                  top: "50%",
-                  height: `${Math.max(8, Math.cos((angle * Math.PI) / 180) * 78)}px`,
-                  borderRadius: "50%",
-                  border: "1px solid color-mix(in srgb, var(--text-muted) 22%, transparent)",
-                  transform: `translateY(-50%) translateZ(${Math.sin((angle * Math.PI) / 180) * 42}px)`,
-                }}
-              />
-            ))}
-            {[0, 45, 90, 135].map((angle) => (
-              <div
-                key={`lon-${angle}`}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: "50%",
-                  border: "1px solid color-mix(in srgb, var(--text-muted) 24%, transparent)",
-                  transform: `rotateY(${angle}deg)`,
-                }}
-              />
-            ))}
-          </div>
-          <div style={{ position: "absolute", inset: 1, borderRadius: "50%", boxShadow: "inset 0 0 0 999px color-mix(in srgb, transparent 84%, var(--bg-canvas))", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", left: 10, top: "50%", fontSize: "calc(var(--ui-type-xs-size) * 0.9)", fontWeight: 800, color: "var(--text-muted)", transform: "translateY(-50%)" }}>L</div>
-          <div style={{ position: "absolute", right: 10, top: "50%", fontSize: "calc(var(--ui-type-xs-size) * 0.9)", fontWeight: 800, color: "var(--text-muted)", transform: "translateY(-50%)" }}>R</div>
-          <div
-            style={{
-              position: "absolute",
-              left: markerX,
-              top: markerY,
-              width: "var(--size-dial-handle)",
-              height: "var(--size-dial-handle)",
-              borderRadius: "50%",
-              transform: `translate(-50%, -50%) scale(${markerScale})`,
-              background: PORT_COLOR,
-              border: "2px solid var(--bg-node-base)",
-              boxShadow: "0 8px 18px rgba(0,0,0,0.28)",
-              opacity: markerOpacity,
-            }}
-          />
-        </div>
+        <ObjectAngleViewport
+          yaw={yaw}
+          pitch={pitch}
+          onChange={(nextYaw, nextPitch) => data.setObjectAngle(formatObjectAngle(nextYaw, nextPitch))}
+        />
         <div style={{ fontSize: "calc(var(--ui-type-xs-size) * 1.1)", color: "var(--text-muted)", textAlign: "center", marginTop: -4 }}>
-          좌우 드래그 360도 회전 · 상하 드래그 기울기
+          드래그로 3D 회전 · 방향키로 미세 조정 · 더블클릭 리셋
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: "var(--ui-space-8)", fontSize: "calc(var(--ui-type-xs-size) * 1.1)", color: "var(--text-muted)", alignItems: "center" }}>
           <span>Yaw {yaw} deg</span>

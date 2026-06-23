@@ -101,7 +101,7 @@ export function LinkCardGrid({ cards }: { cards: CardLink[] }) {
               </Badge>
             ))}
           </CardContent>
-          <CardFooter>
+          <CardFooter className="justify-end">
             <Button asChild variant="outline" size="sm">
               <Link href={card.href}>{text({ ko: "보기", en: "View" })}</Link>
             </Button>
