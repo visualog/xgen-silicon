@@ -140,7 +140,7 @@ export function generateTitleViaWorker(payload: {
 export function analyzeStyleViaWorker(payload: {
   imageBase64: string;
   mimeType?: string;
-  mode?: "style" | "character" | "object";
+  mode?: "style" | "character" | "object" | "background";
 }) {
   return postToWorker<WorkerAnalyzeStyleResponse>("/analyze-style", payload, 90000);
 }

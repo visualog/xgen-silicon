@@ -350,7 +350,20 @@ function isLayerEditReference(item) {
 
 function shouldAttachImageMixReference(item) {
   if (isLayerEditReference(item)) return true;
+  if (item?.role === "symbol" && item?.weight !== "low") return true;
+  if (item?.role === "background" && item?.weight !== "low") return true;
   return item?.weight === "high";
+}
+
+function imageMixRoleLabel(role) {
+  if (role === "symbol") return "symbol or logo-mark identity";
+  if (role === "character") return "character identity";
+  if (role === "object") return "object form";
+  if (role === "style") return "visual style";
+  if (role === "palette") return "color palette";
+  if (role === "composition") return "composition";
+  if (role === "background") return "background mood";
+  return role || "visual reference";
 }
 
 function formatSkippedReferenceGuidance(label, items) {
@@ -916,7 +929,9 @@ async function analyzeStyleWithCodex(imagePath, mode = "style") {
       ? "Focus on stable character identity: apparent age range, body proportions, hair, face-defining features, outfit, accessories, pose-independent traits, and what must stay consistent."
       : mode === "object"
         ? "Focus on stable object identity: silhouette, structure, color placement, material, proportions, markings, and distinctive details that must stay consistent."
-        : "Focus on drawing technique, palette, texture, mood, and composition.";
+        : mode === "background"
+          ? "Focus only on reusable background traits: palette, lighting, spatial depth, surface material, soft patterns, environmental mood, and cleanliness. Do not describe foreground subjects, people, products, readable text, logos, or the full composition."
+          : "Focus on drawing technique, palette, texture, mood, and composition.";
   const instruction = `
 Analyze the attached image and return only one short English ${mode} reference prompt for image generation.
 ${focus}
@@ -1093,11 +1108,11 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
   const skippedImageMixItems = imageMixItems.filter((item) => !shouldAttachImageMixReference(item));
   const imageMixPrompt = imageMixItems.length
     ? `IMAGE MIX REFERENCES: ${imageMixItems.map((item, index) => {
-        const role = item.role || "style";
+        const role = imageMixRoleLabel(item.role);
         const weight = item.weight || "medium";
         const promptText = item.prompt || item.label || "use visible traits from this reference";
         return `reference ${index + 1}: ${role}, ${weight} influence, ${promptText}`;
-      }).join(" | ")}. Use attached mix images as controlled references by role; combine their intended traits into one coherent new image, not a collage.`
+      }).join(" | ")}. Use attached mix images as controlled references by role; combine their intended traits into one coherent new image, not a collage. For symbol or logo-mark references, preserve the visible silhouette, internal geometry, node relationships, color identity, and negative space while allowing material, depth, camera, and lighting to change.`
     : "";
 
   if (
@@ -1538,11 +1553,11 @@ async function runStyleReferenceDryRun() {
   const textOnlyStyleGuidance = formatSkippedReferenceGuidance("TEXT-ONLY STYLE GUIDANCE", skippedStyleReferenceImages);
   const textOnlyMixGuidance = formatSkippedReferenceGuidance("TEXT-ONLY MIX GUIDANCE", skippedImageMixImages);
   const imageMixPrompt = `IMAGE MIX REFERENCES: ${imageMixImages.map((item, index) => {
-    const role = item.role || "style";
+    const role = imageMixRoleLabel(item.role);
     const weight = item.weight || "medium";
     const promptText = item.prompt || item.label || "use visible traits from this reference";
     return `reference ${index + 1}: ${role}, ${weight} influence, ${promptText}`;
-  }).join(" | ")}. Use attached mix images as controlled references by role; combine their intended traits into one coherent new image, not a collage.`;
+  }).join(" | ")}. Use attached mix images as controlled references by role; combine their intended traits into one coherent new image, not a collage. For symbol or logo-mark references, preserve the visible silhouette, internal geometry, node relationships, color identity, and negative space while allowing material, depth, camera, and lighting to change.`;
   const promptBody = appendStructuredNodeSettings(
     [
       "Core prompt: generate a premium desk organizer for a design studio",

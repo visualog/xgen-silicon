@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { Blend, Check, Plus, Trash2, X } from "lucide-react";
 import { StyleAddModal, type StyleEntry } from "@/components/StyleAddModal";
 
-export type ImageMixRole = "character" | "object" | "style" | "palette" | "composition" | "background";
+export type ImageMixRole = "symbol" | "character" | "object" | "style" | "palette" | "composition" | "background";
 export type ImageMixWeight = "low" | "medium" | "high";
 
 export type ImageMixItem = Omit<StyleEntry, "weight"> & {
@@ -21,6 +21,7 @@ type ImageMixNodeData = {
 };
 
 const ROLE_OPTIONS: Array<{ value: ImageMixRole; label: string }> = [
+  { value: "symbol", label: "심볼" },
   { value: "character", label: "캐릭터" },
   { value: "object", label: "오브젝트" },
   { value: "style", label: "스타일" },
@@ -73,6 +74,16 @@ function roleLabel(role: ImageMixRole) {
   return ROLE_OPTIONS.find((option) => option.value === role)?.label ?? "참조";
 }
 
+function roleHint(role: ImageMixRole) {
+  if (role === "symbol") return "형태와 노드 구조 유지";
+  if (role === "object") return "외형과 구조 유지";
+  if (role === "style") return "질감과 렌더링 참고";
+  if (role === "palette") return "색감만 참고";
+  if (role === "composition") return "배치와 시점 참고";
+  if (role === "background") return "배경 무드 참고";
+  return "정체성 유지";
+}
+
 export function ImageMixNode({ id, data }: { id: string; data: ImageMixNodeData }) {
   const { setEdges } = useReactFlow();
   const [showModal, setShowModal] = useState(false);
@@ -87,8 +98,8 @@ export function ImageMixNode({ id, data }: { id: string; data: ImageMixNodeData 
       {
         ...entry,
         id: `image-mix-${Date.now()}`,
-        role: "style",
-        weight: "medium",
+        role: "symbol",
+        weight: "high",
         enabled: true,
       },
     ]);
@@ -111,7 +122,7 @@ export function ImageMixNode({ id, data }: { id: string; data: ImageMixNodeData 
     <>
       {showModal && (
         <StyleAddModal
-          mode="style"
+          mode="object"
           onAdd={handleAdd}
           onClose={() => setShowModal(false)}
         />
@@ -171,6 +182,9 @@ export function ImageMixNode({ id, data }: { id: string; data: ImageMixNodeData 
                             영향 {WEIGHT_OPTIONS.find((option) => option.value === item.weight)?.label}
                           </span>
                         </div>
+                        <div style={{ marginBottom: 4, fontSize: "var(--ui-type-xs-2-size)", fontWeight: 800, color: enabled ? "var(--text-muted)" : "color-mix(in srgb, var(--text-muted) 70%, transparent)", letterSpacing: 0 }}>
+                          {roleHint(item.role)}
+                        </div>
                         <p style={{ margin: 0, fontSize: "var(--ui-type-xs-size)", lineHeight: 1.5, color: enabled ? "var(--text-secondary)" : "var(--text-muted)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                           {item.prompt || item.label || "이미지에서 사용할 특징을 설명하세요"}
                         </p>
@@ -213,12 +227,12 @@ export function ImageMixNode({ id, data }: { id: string; data: ImageMixNodeData 
           ) : (
             <div style={{ padding: "calc(var(--ui-space-unit) * 4.5) var(--ui-space-12)", textAlign: "center", color: "var(--text-muted)", fontSize: "calc(var(--ui-type-xs-size) * 1.1)", lineHeight: 1.5 }}>
               <Blend size={24} color="var(--border-node)" style={{ marginBottom: 8 }} />
-              <p style={{ margin: 0 }}>여러 이미지를 역할별로 섞어<br />생성 기준을 만드세요</p>
+              <p style={{ margin: 0 }}>심볼이나 오브젝트 이미지를<br />역할별 생성 기준으로 만드세요</p>
             </div>
           )}
 
           <button type="button" className="nodrag" onClick={() => setShowModal(true)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "calc(var(--ui-space-unit) * 1.5)", width: "100%", padding: "var(--ui-space-8)", borderRadius: "var(--ui-space-8)", border: "1.5px dashed var(--border-node)", backgroundColor: "transparent", color: "var(--text-secondary)", fontSize: "var(--ui-type-xs-2-size)", fontWeight: 600, cursor: "pointer" }}>
-            <Plus size={14} /> 이미지 추가
+            <Plus size={14} /> 심볼 이미지 추가
           </button>
           <NodeOutputChip isConnected={isConnected} isHovered={isHovered} onHover={setIsHovered} onClick={isConnected ? handleDisconnect : undefined} />
         </div>
