@@ -43,7 +43,7 @@ type ScrollAreaAxis = "x" | "y";
 interface Props {
   onAdd: (entry: StyleEntry) => void;
   onClose: () => void;
-  mode?: "style" | "character" | "object";
+  mode?: "style" | "character" | "object" | "background";
   initialTab?: AddTab;
 }
 
@@ -71,6 +71,14 @@ const MODAL_COPY = {
     alt: "Object reference",
     helper: "Codex가 오브젝트 형태를 분석 중입니다",
     placeholder: "오브젝트의 형태, 구조, 색상, 소재를 직접 입력하거나 자동 분석하세요...",
+  },
+  background: {
+    title: "배경 참조 추가",
+    promptLabel: "배경 참조 프롬프트",
+    fallbackLabel: "배경 참조",
+    alt: "Background reference",
+    helper: "Codex가 배경 무드와 공간감을 분석 중입니다",
+    placeholder: "배경의 색감, 조명, 공간감, 표면, 패턴을 직접 입력하거나 자동 분석하세요...",
   },
 } as const;
 
@@ -115,8 +123,12 @@ function ScrollArea({
   };
 
   const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    event.stopPropagation();
     if (axis !== "x") return;
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+      handleScroll();
+      return;
+    }
     const target = scrollRef.current;
     if (!target) return;
     target.scrollLeft += event.deltaY;
@@ -134,6 +146,8 @@ function ScrollArea({
     <div
       ref={scrollRef}
       className={[
+        "nodrag",
+        "nowheel",
         "style-modal-scrollarea",
         axis === "x" ? "style-modal-scrollarea-x" : "style-modal-scrollarea-y",
         isScrolling ? "is-scrolling" : "",
@@ -474,7 +488,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
 
           {/* 이미지 첨부 영역 */}
           {activeTab === "library" && showLibraryTab ? (
-            <div style={{ display: "grid", gridTemplateRows: "auto auto auto minmax(0, 1fr) auto", gap: "var(--ui-space-12)", minHeight: 0, height: "100%" }}>
+            <div style={{ display: "grid", gridTemplateRows: "auto auto auto auto auto", gap: "var(--ui-space-12)", minHeight: 0, maxHeight: "calc(92vh - 148px)", overflow: "hidden" }}>
               <div style={{ display: "flex", gap: "var(--ui-space-8)" }}>
                 <div style={{
                   flex: 1,
@@ -514,7 +528,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
                   </span>
                   <span style={{ fontSize: "10px", fontWeight: 800 }}>가로 스크롤</span>
                 </div>
-                <ScrollArea axis="x" style={{ display: "flex", gap: "var(--ui-space-6)", paddingBottom: 4, WebkitMaskImage: "linear-gradient(90deg, black 88%, transparent)" }}>
+                <ScrollArea axis="x" style={{ display: "flex", maxWidth: "100%", minWidth: 0, gap: "var(--ui-space-6)", paddingBottom: 4, overscrollBehaviorInline: "contain", touchAction: "pan-x", WebkitMaskImage: "linear-gradient(90deg, black 88%, transparent)" }}>
                   <FilterPill label="전체" active={libraryCategory === "all"} onClick={() => setLibraryCategory("all")} />
                   {topEntries(library?.categoryCounts || {}, 12).map(([category, count]) => (
                     <FilterPill
@@ -535,7 +549,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
                   </span>
                   <span style={{ fontSize: "10px", fontWeight: 800 }}>가로 스크롤</span>
                 </div>
-                <ScrollArea axis="x" style={{ display: "flex", gap: "var(--ui-space-6)", paddingBottom: 4, WebkitMaskImage: "linear-gradient(90deg, black 88%, transparent)" }}>
+                <ScrollArea axis="x" style={{ display: "flex", maxWidth: "100%", minWidth: 0, gap: "var(--ui-space-6)", paddingBottom: 4, overscrollBehaviorInline: "contain", touchAction: "pan-x", WebkitMaskImage: "linear-gradient(90deg, black 88%, transparent)" }}>
                   <FilterPill label="전체" active={libraryTag === "all"} onClick={() => setLibraryTag("all")} />
                   {topEntries(library?.styleTagCounts || {}, 14).map(([tag, count]) => (
                     <FilterPill
@@ -548,7 +562,7 @@ export function StyleAddModal({ onAdd, onClose, mode = "style", initialTab }: Pr
                 </ScrollArea>
               </div>
 
-              <ScrollArea axis="y" style={{ minHeight: 0, height: "100%", border: "1px solid var(--border-node)", borderRadius: "var(--ui-radius-xl)", backgroundColor: "var(--bg-canvas)", padding: "var(--ui-space-8)" }}>
+              <ScrollArea axis="y" style={{ minHeight: 0, maxHeight: "clamp(220px, calc(92vh - 360px), 420px)", border: "1px solid var(--border-node)", borderRadius: "var(--ui-radius-xl)", backgroundColor: "var(--bg-canvas)", padding: "var(--ui-space-8)", overscrollBehaviorBlock: "contain" }}>
                 {isLibraryLoading && (
                   <div style={{ minHeight: 260, display: "grid", placeItems: "center", color: "var(--text-secondary)", fontSize: "var(--ui-type-xs-2-size)", fontWeight: 700 }}>
                     <span style={{ display: "flex", alignItems: "center", gap: "var(--ui-space-8)" }}>

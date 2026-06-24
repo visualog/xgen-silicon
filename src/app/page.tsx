@@ -43,7 +43,7 @@ import { ReferenceNode } from "@/components/nodes/ReferenceNode";
 import { ElementItemNode } from "@/components/nodes/ElementItemNode";
 import { OutputSettingsNode } from "@/components/nodes/OutputSettingsNode";
 import { CompositionNode } from "@/components/nodes/CompositionNode";
-import { BackgroundNode } from "@/components/nodes/BackgroundNode";
+import { BackgroundNode, type BackgroundReferenceItem } from "@/components/nodes/BackgroundNode";
 import { ConstraintNode } from "@/components/nodes/ConstraintNode";
 import { MoodNode } from "@/components/nodes/MoodNode";
 import { PaletteNode } from "@/components/nodes/PaletteNode";
@@ -277,6 +277,7 @@ type EditorSnapshot = {
   resolution: string;
   composition: string;
   backgroundPrompt: string;
+  backgroundReferences: BackgroundReferenceItem[];
   constraints: string;
   mood: string;
   palette: string;
@@ -477,7 +478,8 @@ function normalizeElementBoard(board?: Partial<ElementBoard> | null): ElementBoa
 }
 
 function normalizeImageMixRole(role: unknown): ImageMixRole {
-  return role === "character" ||
+  return role === "symbol" ||
+    role === "character" ||
     role === "object" ||
     role === "style" ||
     role === "palette" ||
@@ -552,6 +554,35 @@ function normalizeImageMixItems(items?: Partial<ImageMixItem>[] | null): ImageMi
     ? items
         .map((item, index) => normalizeImageMixItem(item, index))
         .filter((item): item is ImageMixItem => Boolean(item))
+    : [];
+}
+
+function normalizeBackgroundReferenceItem(item: Partial<BackgroundReferenceItem>, index: number): BackgroundReferenceItem | null {
+  const imageUrl = typeof item.imageUrl === "string" ? item.imageUrl.trim() : "";
+  if (!imageUrl) return null;
+
+  const prompt = typeof item.prompt === "string" ? item.prompt.trim() : "";
+  const label = typeof item.label === "string" && item.label.trim()
+    ? item.label.trim()
+    : prompt.slice(0, 30) || `배경 참조 ${index + 1}`;
+
+  return {
+    id: typeof item.id === "string" && item.id.trim() ? item.id : `background-reference-${Date.now()}-${index}`,
+    imageUrl,
+    prompt,
+    label,
+    weight: normalizeImageMixWeight(item.weight),
+    enabled: item.enabled !== false,
+    mode: "style-only",
+    source: item.source,
+  };
+}
+
+function normalizeBackgroundReferences(items?: Partial<BackgroundReferenceItem>[] | null): BackgroundReferenceItem[] {
+  return Array.isArray(items)
+    ? items
+        .map((item, index) => normalizeBackgroundReferenceItem(item, index))
+        .filter((item): item is BackgroundReferenceItem => Boolean(item))
     : [];
 }
 
@@ -649,6 +680,7 @@ const DEFAULT_SNAPSHOT: EditorSnapshot = {
   resolution: "HD",
   composition: "full-body composition with visible limbs and clear silhouette",
   backgroundPrompt: "pure white background with no environmental details",
+  backgroundReferences: [],
   constraints: "no text, letters, numbers, captions, or typography anywhere",
   mood: "refined and premium mood with polished restraint",
   palette: "soft muted pastel palette with low saturation and gentle warmth",
@@ -712,6 +744,7 @@ function normalizeEditorSnapshot(snapshot: Partial<EditorSnapshot>): EditorSnaps
     composition: typeof snapshot.composition === "string" ? snapshot.composition : DEFAULT_SNAPSHOT.composition,
     backgroundPrompt:
       typeof snapshot.backgroundPrompt === "string" ? snapshot.backgroundPrompt : DEFAULT_SNAPSHOT.backgroundPrompt,
+    backgroundReferences: normalizeBackgroundReferences(snapshot.backgroundReferences),
     constraints: typeof snapshot.constraints === "string" ? snapshot.constraints : DEFAULT_SNAPSHOT.constraints,
     mood: typeof snapshot.mood === "string" ? snapshot.mood : DEFAULT_SNAPSHOT.mood,
     palette: typeof snapshot.palette === "string" ? snapshot.palette : DEFAULT_SNAPSHOT.palette,
@@ -1047,6 +1080,7 @@ function formatImageMixPrompt(items: ImageMixItem[]) {
   if (enabledItems.length === 0) return "";
 
   const roleLabel: Record<ImageMixRole, string> = {
+    symbol: "symbol or logo-mark identity",
     character: "character identity",
     object: "object form",
     style: "visual style",
@@ -1064,7 +1098,7 @@ function formatImageMixPrompt(items: ImageMixItem[]) {
     return `reference ${index + 1}: ${roleLabel[item.role]}, ${weightLabel[item.weight]}, ${prompt}`;
   });
 
-  return `IMAGE MIX REFERENCES: ${parts.join(" | ")}. Use attached mix images as controlled references by role; combine their intended traits into one coherent new image, not a collage. Resolve conflicts by favoring stronger influence settings.`;
+  return `IMAGE MIX REFERENCES: ${parts.join(" | ")}. Use attached mix images as controlled references by role; combine their intended traits into one coherent new image, not a collage. For symbol or logo-mark references, preserve the visible silhouette, internal geometry, node relationships, color identity, and negative space while allowing material, depth, camera, and lighting to change. Resolve conflicts by favoring stronger influence settings.`;
 }
 
 function appendImageMixPrompt(englishPrompt: string, items: ImageMixItem[]) {
@@ -1239,6 +1273,7 @@ function FlowContent() {
   const [resolution, setResolution] = useState(DEFAULT_SNAPSHOT.resolution);
   const [composition, setComposition] = useState(DEFAULT_SNAPSHOT.composition);
   const [backgroundPrompt, setBackgroundPrompt] = useState(DEFAULT_SNAPSHOT.backgroundPrompt);
+  const [backgroundReferences, setBackgroundReferences] = useState<BackgroundReferenceItem[]>(DEFAULT_SNAPSHOT.backgroundReferences);
   const [constraints, setConstraints] = useState(DEFAULT_SNAPSHOT.constraints);
   const [mood, setMood] = useState(DEFAULT_SNAPSHOT.mood);
   const [palette, setPalette] = useState(DEFAULT_SNAPSHOT.palette);
@@ -1301,6 +1336,7 @@ function FlowContent() {
     setResolution(normalizedSnapshot.resolution);
     setComposition(normalizedSnapshot.composition);
     setBackgroundPrompt(normalizedSnapshot.backgroundPrompt);
+    setBackgroundReferences(normalizedSnapshot.backgroundReferences);
     setConstraints(normalizedSnapshot.constraints);
     setMood(normalizedSnapshot.mood);
     setPalette(normalizedSnapshot.palette);
@@ -1367,6 +1403,7 @@ function FlowContent() {
         resolution,
         composition,
         backgroundPrompt,
+        backgroundReferences,
         constraints,
         mood,
         palette,
@@ -1401,6 +1438,7 @@ function FlowContent() {
       resolution,
       composition,
       backgroundPrompt,
+      backgroundReferences,
       constraints,
       mood,
       palette,
@@ -1724,6 +1762,9 @@ function FlowContent() {
         resolution,
         composition,
         backgroundPrompt,
+        backgroundReferenceIds: backgroundReferences
+          .filter((item) => item.enabled !== false)
+          .map((item) => `${item.id}:${item.weight}`),
         constraints,
         mood,
         palette,
@@ -1752,6 +1793,7 @@ function FlowContent() {
       resolution,
       composition,
       backgroundPrompt,
+      backgroundReferences,
       constraints,
       mood,
       palette,
@@ -1770,6 +1812,10 @@ function FlowContent() {
   const connectedImageMixItems = useMemo(
     () => (connectedState.imageMix ? imageMixItems.filter((item) => item.enabled !== false && item.imageUrl.trim()) : []),
     [connectedState.imageMix, imageMixItems],
+  );
+  const connectedBackgroundReferenceItems = useMemo(
+    () => (connectedState.background ? backgroundReferences.filter((item) => item.enabled !== false && item.imageUrl.trim()) : []),
+    [backgroundReferences, connectedState.background],
   );
   const imageMixPrompt = useMemo(
     () => formatImageMixPrompt(connectedImageMixItems),
@@ -1802,6 +1848,7 @@ function FlowContent() {
     if (connectedState.isResolutionConnected && resolution.trim()) settings.push(`Resolution: ${resolution.trim()}`);
     if (connectedState.composition && composition.trim()) settings.push(`Composition: ${composition.trim()}`);
     if (connectedState.background && backgroundPrompt.trim()) settings.push(`Background: ${backgroundPrompt.trim()}`);
+    if (connectedState.background && connectedBackgroundReferenceItems.length > 0) settings.push(`Background references: ${connectedBackgroundReferenceItems.length} image reference(s) for palette, lighting, spatial depth, surface material, and environmental mood only`);
     if (connectedState.constraints && constraints.trim()) settings.push(`Constraints: ${constraints.trim()}`);
     if (connectedState.mood && mood.trim()) settings.push(`Mood: ${mood.trim()}`);
     if (connectedState.palette && palette.trim()) settings.push(`Palette: ${palette.trim()}`);
@@ -1823,6 +1870,7 @@ function FlowContent() {
     backgroundPrompt,
     cameraAngle,
     composition,
+    connectedBackgroundReferenceItems,
     connectedImageMixItems,
     connectedState,
     constraints,
@@ -1875,6 +1923,9 @@ function FlowContent() {
     if (connectedState.isResolutionConnected) detailLines.push(`해상도: ${resolution}`);
     if (connectedState.composition && composition.trim()) detailLines.push(`구도: ${composition.trim()}`);
     if (connectedState.background && backgroundPrompt.trim()) detailLines.push(`배경: ${backgroundPrompt.trim()}`);
+    if (connectedState.background && connectedBackgroundReferenceItems.length > 0) {
+      detailLines.push(`배경 참조: ${connectedBackgroundReferenceItems.length}개 이미지의 색감, 조명, 공간감, 표면감만 참조`);
+    }
     if (connectedState.constraints && constraints.trim()) detailLines.push(`제한사항: ${constraints.trim()}`);
     if (connectedState.mood && mood.trim()) detailLines.push(`무드: ${mood.trim()}`);
     if (connectedState.palette && palette.trim()) detailLines.push(`팔레트: ${palette.trim()}`);
@@ -1920,6 +1971,7 @@ function FlowContent() {
     propsPrompt,
     detailLevel,
     enabledElementCount,
+    connectedBackgroundReferenceItems,
     connectedImageMixItems,
     imageUrl,
     maskEdit,
@@ -2198,6 +2250,7 @@ function FlowContent() {
     resolution,
     composition,
     backgroundPrompt,
+    backgroundReferences,
     constraints,
     mood,
     palette,
@@ -2455,6 +2508,13 @@ function FlowContent() {
               prompt: item.prompt,
               label: item.label,
             })),
+            ...connectedBackgroundReferenceItems.map((item) => ({
+              imageUrl: item.imageUrl,
+              role: "background" as ImageMixRole,
+              weight: item.weight,
+              prompt: item.prompt,
+              label: item.label || "배경 참조",
+            })),
             ...(maskEditLayerReference ? [maskEditLayerReference] : []),
           ],
         }),
@@ -2534,6 +2594,7 @@ function FlowContent() {
     composition,
     connectedState,
     connectedElementSheetImages,
+    connectedBackgroundReferenceItems,
     connectedImageMixItems,
     maskEditLayerReference,
     activeCharacterReferenceImages,
@@ -2937,7 +2998,7 @@ function FlowContent() {
         return { ...node, data: { ...baseData, composition, setComposition, onRemove: () => removeOptionalNode("composition") } };
       }
       if (node.id === "background-node") {
-        return { ...node, data: { ...baseData, backgroundPrompt, setBackgroundPrompt, onRemove: () => removeOptionalNode("background") } };
+        return { ...node, data: { ...baseData, backgroundPrompt, setBackgroundPrompt, backgroundReferences, setBackgroundReferences, onRemove: () => removeOptionalNode("background") } };
       }
       if (node.id === "constraint-node") {
         return { ...node, data: { ...baseData, constraints, setConstraints, onRemove: () => removeOptionalNode("constraints") } };
@@ -3094,6 +3155,7 @@ function FlowContent() {
     resolution,
     composition,
     backgroundPrompt,
+    backgroundReferences,
     constraints,
     mood,
     palette,
