@@ -32,7 +32,7 @@ async function postToWorker<T>(
         message.includes("connect")
       ) {
         throw new Error(
-          "Codex worker에 연결할 수 없습니다. 별도 터미널에서 `npm run codex-worker`를 실행하세요.",
+          "Codex worker에 연결할 수 없습니다. `npm run dev`로 worker와 앱을 함께 실행하거나, 별도 터미널에서 `npm run codex-worker`를 실행하세요.",
         );
       }
       throw error;

@@ -4,7 +4,7 @@
   "private": true,
   "main": "electron/main.mjs",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev-with-codex-worker.mjs",
     "dev:next": "next dev -H 127.0.0.1",
     "electron:dev": "node electron/dev.mjs",
     "electron": "electron ./electron",

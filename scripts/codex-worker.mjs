@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import sharp from "sharp";
 
 const PORT = Number(process.env.BRANDGEN_CODEX_WORKER_PORT || 4317);
-const CODEX_BIN = process.env.CODEX_BIN || "/usr/local/bin/codex";
+const CODEX_BIN = resolveCodexBin();
 const CODEX_WORKDIR =
   process.env.BRANDGEN_CODEX_CWD || process.cwd();
 
@@ -25,6 +25,46 @@ FORBIDDEN: photorealistic, 3D render, neon colors, high contrast, text, watermar
 `;
 
 let queue = Promise.resolve();
+
+function isExecutable(filePath) {
+  try {
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveCodexBin() {
+  const explicitBin = process.env.CODEX_BIN?.trim();
+  if (explicitBin) {
+    const resolved = path.resolve(explicitBin);
+    if (isExecutable(resolved)) return resolved;
+    throw new Error(`CODEX_BIN points to a non-executable Codex CLI: ${resolved}`);
+  }
+
+  const pathCandidates = (process.env.PATH || "")
+    .split(path.delimiter)
+    .filter(Boolean)
+    .map((entry) => path.join(entry, "codex"));
+  const candidates = [
+    "/opt/homebrew/bin/codex",
+    "/usr/local/bin/codex",
+    ...pathCandidates,
+  ];
+
+  const seen = new Set();
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    if (isExecutable(resolved)) return resolved;
+  }
+
+  throw new Error(
+    "Codex CLI를 찾지 못했습니다. Codex를 설치하고 로그인한 뒤 `CODEX_BIN=/path/to/codex npm run codex-worker`로 실행하세요.",
+  );
+}
 
 function logDebug(label, payload) {
   const timestamp = new Date().toISOString();
@@ -1774,6 +1814,16 @@ if (process.argv.includes("--dry-run-style-reference")) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (req.method === "GET" && req.url === "/health") {
+    writeJson(res, 200, {
+      ok: true,
+      codexBin: CODEX_BIN,
+      workdir: CODEX_WORKDIR,
+      port: PORT,
+    });
+    return;
+  }
+
   if (req.method !== "POST") {
     writeJson(res, 405, { error: "Method Not Allowed" });
     return;

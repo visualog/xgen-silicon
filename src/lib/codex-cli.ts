@@ -30,7 +30,7 @@ interface RunCodexExecOptions {
   imagePaths?: string[];
 }
 
-const CODEX_BIN = process.env.CODEX_BIN || "/usr/local/bin/codex";
+const CODEX_BIN = resolveCodexBin();
 const CODEX_WORKDIR =
   process.env.BRANDGEN_CODEX_CWD ||
   process.env.INIT_CWD ||
@@ -47,6 +47,46 @@ STYLE RULES:
 
 FORBIDDEN: photorealistic, 3D render, neon colors, high contrast, text, watermark, logo, complex backgrounds
 `;
+
+function isExecutable(filePath: string) {
+  try {
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveCodexBin() {
+  const explicitBin = process.env.CODEX_BIN?.trim();
+  if (explicitBin) {
+    const resolved = path.resolve(explicitBin);
+    if (isExecutable(resolved)) return resolved;
+    throw new Error(`CODEX_BIN points to a non-executable Codex CLI: ${resolved}`);
+  }
+
+  const pathCandidates = (process.env.PATH || "")
+    .split(path.delimiter)
+    .filter(Boolean)
+    .map((entry) => path.join(entry, "codex"));
+  const candidates = [
+    "/opt/homebrew/bin/codex",
+    "/usr/local/bin/codex",
+    ...pathCandidates,
+  ];
+
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    if (isExecutable(resolved)) return resolved;
+  }
+
+  throw new Error(
+    "Codex CLI를 찾지 못했습니다. Codex를 설치하고 로그인한 뒤 `CODEX_BIN=/path/to/codex`로 실행하세요.",
+  );
+}
 
 function stripCodeFences(text: string): string {
   return text

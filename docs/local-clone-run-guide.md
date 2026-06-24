@@ -47,17 +47,13 @@ which codex
 codex --version
 ```
 
-Apple Silicon Homebrew 환경에서는 보통 `/opt/homebrew/bin/codex`가 나온다. Codex CLI가 다른 경로에 있으면 실행 전에 `CODEX_BIN`을 지정한다.
-
-```bash
-export CODEX_BIN="$(which codex)"
-```
+Apple Silicon Homebrew 환경에서는 보통 `/opt/homebrew/bin/codex`가 나온다. worker는 `CODEX_BIN`이 지정되어 있으면 해당 경로를 우선 사용하고, 지정되어 있지 않으면 `/opt/homebrew/bin/codex`, `/usr/local/bin/codex`, `PATH` 순서로 자동 탐색한다.
 
 Codex 실행 시 로그인이 필요하다는 안내가 나오면 먼저 로컬 Codex 로그인을 완료한 뒤 xGen을 다시 실행한다.
 
-## 4. 웹 개발 서버만 실행
+## 4. 표준 개발 실행
 
-UI와 일반 화면만 확인할 때는 Next.js 개발 서버만 실행하면 된다.
+표준 개발 실행은 Codex worker와 Next.js 앱을 함께 띄운다.
 
 ```bash
 npm run dev
@@ -69,41 +65,39 @@ npm run dev
 http://localhost:3000
 ```
 
-이 방식은 화면 확인에는 충분하지만, Codex 기반 프롬프트 생성과 이미지 생성 기능은 worker가 없으면 실패한다.
+이 방식에서는 프롬프트 생성, 스타일 분석, 이미지 생성처럼 Codex worker가 필요한 기능도 함께 사용할 수 있다.
 
-## 5. Codex worker까지 실행
-
-이미지 생성, 프롬프트 최적화, 스타일 분석 등 Codex 기반 기능을 확인하려면 터미널을 두 개 사용한다.
-
-터미널 1: Codex worker
+Next.js 앱만 따로 실행해야 하는 특수한 경우에는 다음 명령을 사용한다.
 
 ```bash
-export CODEX_BIN="$(which codex)"
+npm run dev:next
+```
+
+## 5. Codex worker만 수동 실행
+
+이미 실행 중인 Next.js 서버에 worker만 붙여야 할 때는 별도 터미널에서 다음 명령을 사용한다.
+
+```bash
 npm run codex-worker
 ```
 
-터미널 2: Next.js 앱
+worker 상태는 다음 주소로 확인할 수 있다.
 
-```bash
-export BRANDGEN_CODEX_WORKER_URL="http://127.0.0.1:4317"
-npm run dev
+```text
+http://127.0.0.1:4317/health
 ```
-
-이후 `http://localhost:3000`에서 xGen을 사용한다.
 
 ## 6. Electron 개발 실행
 
 Electron 데스크톱 앱 형태로 실행하려면 다음 명령을 사용한다.
 
 ```bash
-export CODEX_BIN="$(which codex)"
 npm run electron:dev
 ```
 
 `electron/dev.mjs`는 Next.js 서버와 Codex worker를 함께 띄우고 Electron 창을 연다. 이미 별도 터미널에서 Next.js 서버를 실행 중이라면 다음처럼 기존 서버를 재사용할 수 있다.
 
 ```bash
-export CODEX_BIN="$(which codex)"
 BRANDGEN_ELECTRON_REUSE_NEXT=1 npm run electron:dev
 ```
 
@@ -121,7 +115,7 @@ npm run pack:mac
 
 | 변수 | 기본값 | 용도 |
 | --- | --- | --- |
-| `CODEX_BIN` | `/usr/local/bin/codex` | Codex worker가 실행할 Codex CLI 경로 |
+| `CODEX_BIN` | 자동 탐색 | Codex worker가 실행할 Codex CLI 경로. 명시하면 해당 경로를 우선 사용 |
 | `BRANDGEN_CODEX_WORKER_PORT` | `4317` | 로컬 Codex worker 포트 |
 | `BRANDGEN_CODEX_WORKER_URL` | `http://127.0.0.1:4317` | Next.js API Route가 호출할 worker 주소 |
 | `BRANDGEN_CODEX_CWD` | 현재 작업 디렉터리 | `codex exec` 작업 디렉터리 |
@@ -143,7 +137,13 @@ node -p "process.arch"
 
 ### Codex worker에 연결할 수 없음
 
-worker가 실행 중인지 확인한다.
+표준 개발 실행으로 다시 시작한다.
+
+```bash
+npm run dev
+```
+
+이미 Next.js 서버가 떠 있다면 worker만 따로 실행한다.
 
 ```bash
 npm run codex-worker
@@ -158,7 +158,7 @@ BRANDGEN_CODEX_WORKER_URL=http://127.0.0.1:4320 npm run dev
 
 ### Codex 명령을 찾을 수 없음
 
-Codex CLI 경로를 확인하고 `CODEX_BIN`을 지정한다.
+worker가 자동 탐색하지 못하는 위치에 Codex CLI가 있으면 경로를 확인하고 `CODEX_BIN`을 지정한다.
 
 ```bash
 which codex
@@ -179,7 +179,7 @@ ls ~/.codex/generated_images
 1. `npm install` 완료
 2. `npm run check:arm64` 통과
 3. `which codex`가 실제 Codex CLI 경로를 출력
-4. `npm run codex-worker` 실행
-5. `npm run dev` 실행
+4. `npm run dev` 실행
+5. `http://127.0.0.1:4317/health` 응답 확인
 6. `http://localhost:3000` 접속
 7. 이미지 생성 화면에서 프롬프트 생성 또는 이미지 생성 요청 테스트

@@ -54,13 +54,13 @@
 
 ### 1. Codex CLI 준비
 
-로컬에서 `codex` 명령이 실행 가능해야 한다. 기본 worker는 `/usr/local/bin/codex`를 사용한다.
+로컬에서 `codex` 명령이 실행 가능해야 한다. worker는 `CODEX_BIN`이 지정되어 있으면 해당 경로를 우선 사용하고, 지정되어 있지 않으면 `/opt/homebrew/bin/codex`, `/usr/local/bin/codex`, `PATH` 순서로 자동 탐색한다.
 
 ```bash
 codex --version
 ```
 
-다른 경로의 Codex 바이너리를 쓰려면 `CODEX_BIN`을 지정한다.
+자동 탐색이 실패하거나 특정 경로를 고정하려면 `CODEX_BIN`을 지정한다.
 
 ```bash
 CODEX_BIN="$(which codex)" npm run codex-worker
@@ -68,16 +68,28 @@ CODEX_BIN="$(which codex)" npm run codex-worker
 
 ### 2. Codex worker 실행
 
-별도 터미널에서 worker를 먼저 띄운다.
+표준 개발 실행은 worker와 Next.js 앱을 함께 실행한다.
+
+```bash
+npm run dev
+```
+
+worker만 별도로 실행해야 할 때는 다음 명령을 사용한다.
 
 ```bash
 npm run codex-worker
 ```
 
-기본 주소는 다음과 같다.
+기본 worker 주소는 다음과 같다.
 
 ```text
 http://127.0.0.1:4317
+```
+
+worker 상태는 `/health`에서 확인한다.
+
+```bash
+curl http://127.0.0.1:4317/health
 ```
 
 포트를 바꾸려면 `BRANDGEN_CODEX_WORKER_PORT`를 지정한다.
@@ -88,10 +100,10 @@ BRANDGEN_CODEX_WORKER_PORT=4320 npm run codex-worker
 
 ### 3. Next.js 개발 서버 실행
 
-다른 터미널에서 앱을 실행한다.
+Next.js 앱만 별도로 실행하려면 `dev:next`를 사용한다.
 
 ```bash
-npm run dev
+npm run dev:next
 ```
 
 worker 포트를 바꿨다면 Next.js 쪽에도 같은 URL을 넘긴다.
@@ -114,7 +126,7 @@ npm run electron:dev
 
 | 변수 | 기본값 | 쓰임 |
 | --- | --- | --- |
-| `CODEX_BIN` | `/usr/local/bin/codex` | worker가 실행할 Codex CLI 바이너리 경로 |
+| `CODEX_BIN` | 자동 탐색 | worker가 실행할 Codex CLI 바이너리 경로 |
 | `BRANDGEN_CODEX_WORKER_PORT` | `4317` | worker HTTP 서버 포트 |
 | `BRANDGEN_CODEX_WORKER_URL` | `http://127.0.0.1:4317` | Next.js Route가 호출할 worker 주소 |
 | `BRANDGEN_CODEX_CWD` | 현재 작업 디렉터리 | `codex exec -C`에 넘길 작업 디렉터리 |
@@ -247,19 +259,20 @@ Codex 재작성에 실패하면 worker는 deterministic fallback으로 프롬프
 필요 조건:
 
 - 대상 컴퓨터에 `codex` CLI가 설치되어 있어야 한다.
-- `CODEX_BIN` 기본값인 `/usr/local/bin/codex`에 없으면 환경 변수로 경로를 지정해야 한다.
+- worker는 `/opt/homebrew/bin/codex`, `/usr/local/bin/codex`, `PATH`를 자동 탐색한다.
+- 자동 탐색이 실패하면 `CODEX_BIN`으로 경로를 지정해야 한다.
 - 대상 사용자가 Codex CLI에 로그인되어 있어야 한다.
 - Codex CLI가 이미지 생성 기능을 사용할 수 있어야 한다.
 - Apple Silicon 배포라면 Node/Electron/native optional dependency가 arm64 기준으로 맞아야 한다.
 - `~/.codex/generated_images`와 앱 userData 디렉터리를 읽고 쓸 수 있어야 한다.
 
-즉, 현재 방식은 "앱이 자체 AI 서버를 내장한 독립 제품"이라기보다 "로컬 Codex CLI를 백엔드 작업자로 사용하는 데스크톱 도구"에 가깝다. 완전 독립 배포를 목표로 하면 설치 시 Codex CLI 존재 확인, 로그인 상태 확인, 실패 안내, `CODEX_BIN` 설정 UI 또는 자동 탐색이 추가로 필요하다.
+즉, 현재 방식은 "앱이 자체 AI 서버를 내장한 독립 제품"이라기보다 "로컬 Codex CLI를 백엔드 작업자로 사용하는 데스크톱 도구"에 가깝다. 현재 worker는 Codex CLI 경로를 자동 탐색하고 `/health`로 상태를 노출하지만, 완전 독립 배포를 목표로 하면 설치 시 Codex CLI 존재 확인과 로그인 상태 안내 UI가 추가로 필요하다.
 
 ## 현재 구현에서 주의할 점
 
 - `WORK_GUIDE.md`에는 과거 Gemini/Pollinations 중심 설명이 남아 있다. 실제 현재 Codex 경로는 `scripts/codex-worker.mjs`와 `src/lib/codex-worker-client.ts`를 기준으로 확인한다.
 - `src/lib/codex-cli.ts`에는 direct subprocess helper가 남아 있지만, 앱 route의 주 경로는 worker 위임 방식이다.
-- Codex worker가 꺼져 있으면 route는 `Codex worker에 연결할 수 없습니다. 별도 터미널에서 npm run codex-worker를 실행하세요.` 계열 오류를 반환한다.
+- Codex worker가 꺼져 있으면 route는 `Codex worker에 연결할 수 없습니다. npm run dev로 worker와 앱을 함께 실행하거나, 별도 터미널에서 npm run codex-worker를 실행하세요.` 계열 오류를 반환한다.
 - 이미지 생성은 최대 300초까지 기다릴 수 있다. 중간에 타임아웃이 나면 worker 로그에서 `runCodexExecForImageGeneration:timeout`을 확인한다.
 - 생성 파일을 찾지 못하면 `~/.codex/generated_images/<thread_id>/`에 실제 파일이 있는지 확인한다.
 - Codex 로그인, 권한, 모델 사용 가능 여부는 앱이 아니라 로컬 Codex CLI 환경에 의존한다.
@@ -268,9 +281,8 @@ Codex 재작성에 실패하면 worker는 deterministic fallback으로 프롬프
 
 ## 향후 보강하면 좋은 항목
 
-- `CODEX_BIN` 자동 탐색과 앱 내 진단 화면 추가
+- 앱 내 진단 화면 추가
 - Codex CLI 설치/로그인/이미지 생성 가능 여부 사전 점검
-- worker health check 엔드포인트 추가
 - 실패 유형을 `codex_timeout`, `codex_process_failed`, `codex_non_json_output`, `codex_schema_validation_failed`, `codex_artifact_not_found`처럼 코드화
 - 텍스트 응답 작업에 JSON Schema 출력 계약 적용
 - 이미지 생성 성공 판정을 `saved_path` 이벤트, 생성 디렉터리 신규 파일, inline image fallback 순서로 더 명확히 구조화
