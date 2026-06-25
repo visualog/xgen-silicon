@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Handle, Position, useEdges } from "@xyflow/react";
 import { Eraser, ScanLine, WandSparkles } from "lucide-react";
 
@@ -68,6 +68,11 @@ export function MaskEditNode({ data }: { data: MaskEditNodeData }) {
   const isOutputConnected = edges.some((edge) => edge.source === "mask-edit-node" && edge.target === "output-node");
   const settings = data.settings ?? { enabled: false, region: "subject" as MaskRegion, instruction: "" };
   const regionRect = REGION_RECTS[settings.region];
+  const [sourceAspectRatio, setSourceAspectRatio] = useState<{ imageUrl: string; ratio: number } | null>(null);
+  const thumbnailAspectRatio = useMemo(() => {
+    if (!sourceAspectRatio || sourceAspectRatio.imageUrl !== data.sourceImageUrl || !Number.isFinite(sourceAspectRatio.ratio)) return "16 / 10";
+    return `${sourceAspectRatio.ratio}`;
+  }, [data.sourceImageUrl, sourceAspectRatio]);
 
   const updateSettings = (patch: Partial<MaskEditSettings>) => {
     data.setSettings?.({ ...settings, ...patch });
@@ -168,15 +173,26 @@ export function MaskEditNode({ data }: { data: MaskEditNodeData }) {
         <div
           style={{
             position: "relative",
-            aspectRatio: "16 / 10",
+            aspectRatio: thumbnailAspectRatio,
             border: "1px solid var(--border-node)",
             borderRadius: "var(--ui-space-10)",
             overflow: "hidden",
             background: "var(--bg-canvas)",
+            transition: "aspect-ratio 0.18s ease",
           }}
         >
           {data.sourceImageUrl ? (
-            <img src={data.sourceImageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.72 }} />
+            <img
+              src={data.sourceImageUrl}
+              alt=""
+              onLoad={(event) => {
+                const { naturalWidth, naturalHeight } = event.currentTarget;
+                if (naturalWidth > 0 && naturalHeight > 0) {
+                  setSourceAspectRatio({ imageUrl: data.sourceImageUrl ?? "", ratio: naturalWidth / naturalHeight });
+                }
+              }}
+              style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.72, background: "var(--bg-canvas)" }}
+            />
           ) : (
             <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: "var(--ui-type-xs-size)" }}>
               레이어 없음

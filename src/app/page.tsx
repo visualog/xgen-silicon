@@ -1121,7 +1121,11 @@ function formatMaskEditPrompt(settings: MaskEditSettings) {
     right: "right area",
   };
 
-  return `MASKED LAYER EDIT: Use the attached generated layer as the source image. Change only the ${regionLabel[settings.region]}: ${settings.instruction.trim()}. Preserve all unmasked areas, composition, identity, lighting continuity, and camera perspective unless the edit instruction explicitly overrides them.`;
+  const transparentBackgroundRule = isTransparentBackgroundMaskEdit(settings)
+    ? " Output the removed background as real alpha transparency in the PNG image. Do not render a checkerboard, grid, tiled transparency preview, gray squares, white backdrop, or any fake transparent-background pattern."
+    : "";
+
+  return `MASKED LAYER EDIT: Use the attached generated layer as the source image. Change only the ${regionLabel[settings.region]}: ${settings.instruction.trim()}.${transparentBackgroundRule} Preserve all unmasked areas, composition, identity, lighting continuity, and camera perspective unless the edit instruction explicitly overrides them.`;
 }
 
 function appendMaskEditPrompt(englishPrompt: string, settings: MaskEditSettings) {
@@ -1129,6 +1133,23 @@ function appendMaskEditPrompt(englishPrompt: string, settings: MaskEditSettings)
   if (!maskEditPrompt) return englishPrompt;
   if (englishPrompt.includes("MASKED LAYER EDIT")) return englishPrompt;
   return [englishPrompt.trim(), maskEditPrompt].filter(Boolean).join(", ");
+}
+
+function isTransparentBackgroundMaskEdit(settings: MaskEditSettings) {
+  if (!settings.enabled || settings.region !== "background") return false;
+  const instruction = settings.instruction.toLowerCase();
+  return (
+    /transparent|alpha|remove\s+(the\s+)?background|background\s+removal|cut\s*out|no\s+background/.test(instruction) ||
+    /투명|알파|배경\s*제거|배경을\s*제거|누끼|피사체만/.test(settings.instruction)
+  );
+}
+
+function isTransparentBackgroundPrompt(value: string) {
+  return (
+    /Environment:\s*transparent/i.test(value) ||
+    /true transparent alpha|transparent PNG|alpha channel|no visible backdrop/i.test(value) ||
+    /투명\s*배경|알파\s*채널/.test(value)
+  );
 }
 
 function appendAuthoritativeNodeSettings(englishPrompt: string, settings: string[]) {
@@ -1814,8 +1835,11 @@ function FlowContent() {
     [connectedState.imageMix, imageMixItems],
   );
   const connectedBackgroundReferenceItems = useMemo(
-    () => (connectedState.background ? backgroundReferences.filter((item) => item.enabled !== false && item.imageUrl.trim()) : []),
-    [backgroundReferences, connectedState.background],
+    () =>
+      connectedState.background && !isTransparentBackgroundPrompt(backgroundPrompt)
+        ? backgroundReferences.filter((item) => item.enabled !== false && item.imageUrl.trim())
+        : [],
+    [backgroundPrompt, backgroundReferences, connectedState.background],
   );
   const imageMixPrompt = useMemo(
     () => formatImageMixPrompt(connectedImageMixItems),
@@ -1830,6 +1854,8 @@ function FlowContent() {
             weight: "high" as ImageMixWeight,
             prompt: formatMaskEditPrompt(maskEdit),
             label: "Generated image layer",
+            maskRegion: maskEdit.region,
+            maskEditIntent: isTransparentBackgroundMaskEdit(maskEdit) ? "transparent-background" : "regional-edit",
           }
         : null,
     [imageUrl, maskEdit],
@@ -2897,10 +2923,12 @@ function FlowContent() {
   );
 
   const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]) => {
+    if (isGenerating) return;
     setNodes((prev) => applyNodeChanges(changes, prev));
-  }, []);
+  }, [isGenerating]);
 
   const onNodeDragStop = useCallback<OnNodeDrag<FlowNode>>(() => {
+    if (isGenerating) return;
     if (!activeResultId) return;
 
     const nodePositions = getNodePositions(nodesRef.current);
@@ -2909,12 +2937,15 @@ function FlowContent() {
         result.id === activeResultId ? { ...result, nodePositions } : result,
       ),
     );
-  }, [activeResultId]);
+  }, [activeResultId, isGenerating]);
 
   const onEdgesChange = useCallback((changes: EdgeChange<FlowEdge>[]) => {
+    if (isGenerating) return;
     setEdges((prev) => applyEdgeChanges(changes, prev));
-  }, []);
+  }, [isGenerating]);
   const onConnect = useCallback((params: Connection) => {
+      if (isGenerating) return;
+
       let targetHandle = params.targetHandle;
       if (params.target === "output-node") targetHandle = "general-in";
 
@@ -2941,7 +2972,7 @@ function FlowContent() {
         );
         return addEdge({ ...params, targetHandle, style }, filtered);
       });
-    }, []);
+    }, [isGenerating]);
 
   const finalNodes = useMemo(() => {
     return nodes.map((node) => {
@@ -3701,6 +3732,7 @@ function FlowContent() {
   return (
     <main className="editor-shell">
       <ReactFlow
+        className={isGenerating ? "editor-flow editor-flow--locked" : "editor-flow"}
         nodes={finalNodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -3710,6 +3742,12 @@ function FlowContent() {
         nodeTypes={nodeTypes}
         defaultEdgeOptions={{ type: "default", animated: false, style: FLOW_INPUT_EDGE_STYLE }}
         connectionLineStyle={FLOW_PENDING_EDGE_STYLE}
+        nodesDraggable={!isGenerating}
+        nodesConnectable={!isGenerating}
+        elementsSelectable={!isGenerating}
+        nodesFocusable={!isGenerating}
+        edgesFocusable={!isGenerating}
+        deleteKeyCode={isGenerating ? null : "Backspace"}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.5}

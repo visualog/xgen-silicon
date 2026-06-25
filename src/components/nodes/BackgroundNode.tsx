@@ -6,8 +6,8 @@ import { Check, Image as ImageIcon, Plus, RotateCcw, SlidersHorizontal, Trash2, 
 import { StyleAddModal } from "@/components/StyleAddModal";
 import type { StyleEntry } from "@/components/StyleAddModal";
 
-type BackgroundRecipeKey = "icon-studio" | "product-studio" | "brand-graphic" | "lifestyle-interior" | "desk-workspace" | "abstract-campaign" | "outdoor-natural" | "urban-architecture";
-type EnvironmentKey = "pure" | "studio" | "workspace" | "interior" | "outdoor" | "urban" | "abstract";
+type BackgroundRecipeKey = "transparent-alpha" | "icon-studio" | "product-studio" | "brand-graphic" | "lifestyle-interior" | "desk-workspace" | "abstract-campaign" | "outdoor-natural" | "urban-architecture";
+type EnvironmentKey = "transparent" | "pure" | "studio" | "workspace" | "interior" | "outdoor" | "urban" | "abstract";
 type SurfaceKey = "none" | "tabletop" | "floor" | "wall" | "paper" | "fabric" | "concrete" | "metal" | "glass";
 type DepthKey = "flat" | "shallow" | "medium" | "deep";
 type DetailKey = "none" | "low" | "medium" | "high";
@@ -93,6 +93,7 @@ const LEGACY_ABSTRACT_BACKGROUND: BackgroundModel = {
 };
 
 const BACKGROUND_RECIPE_LABEL: Record<BackgroundRecipeKey, string> = {
+  "transparent-alpha": "투명 배경",
   "icon-studio": "앱 아이콘",
   "product-studio": "제품 촬영",
   "brand-graphic": "브랜드 그래픽",
@@ -104,6 +105,7 @@ const BACKGROUND_RECIPE_LABEL: Record<BackgroundRecipeKey, string> = {
 };
 
 const BACKGROUND_RECIPE_DESCRIPTION: Record<BackgroundRecipeKey, string> = {
+  "transparent-alpha": "피사체만 남기고 배경은 실제 알파 채널로 비우는 PNG 출력",
   "icon-studio": "심볼, 앱 아이콘, 브랜드 마크가 중심인 깨끗한 무대",
   "product-studio": "제품이 떠 보이지 않도록 표면과 그림자를 갖춘 촬영 배경",
   "brand-graphic": "색감과 형태감은 있지만 피사체를 방해하지 않는 그래픽 배경",
@@ -115,6 +117,7 @@ const BACKGROUND_RECIPE_DESCRIPTION: Record<BackgroundRecipeKey, string> = {
 };
 
 const BACKGROUND_RECIPE_MODEL: Record<BackgroundRecipeKey, Omit<BackgroundModel, "recipe" | "extra">> = {
+  "transparent-alpha": { environment: "transparent", surface: "none", depth: "flat", detail: "none", treatment: "solid", cleanliness: "clean" },
   "icon-studio": { environment: "abstract", surface: "none", depth: "shallow", detail: "low", treatment: "gradient", cleanliness: "clean" },
   "product-studio": { environment: "studio", surface: "floor", depth: "shallow", detail: "low", treatment: "shadow", cleanliness: "clean" },
   "brand-graphic": { environment: "abstract", surface: "none", depth: "shallow", detail: "low", treatment: "gradient", cleanliness: "clean" },
@@ -126,6 +129,7 @@ const BACKGROUND_RECIPE_MODEL: Record<BackgroundRecipeKey, Omit<BackgroundModel,
 };
 
 const BACKGROUND_RECIPE_EXTRA: Record<BackgroundRecipeKey, string> = {
+  "transparent-alpha": "isolate the subject cleanly with no visible background pixels",
   "icon-studio": "keep the background quiet enough for a symbol or app icon hero render",
   "product-studio": "use soft product photography shadows and keep the subject dominant",
   "brand-graphic": "allow subtle brand shapes in the far background without readable text",
@@ -137,6 +141,7 @@ const BACKGROUND_RECIPE_EXTRA: Record<BackgroundRecipeKey, string> = {
 };
 
 const ENVIRONMENT_LABEL: Record<EnvironmentKey, string> = {
+  transparent: "투명",
   pure: "순백",
   studio: "스튜디오",
   workspace: "작업실",
@@ -189,6 +194,14 @@ const CLEANLINESS_LABEL: Record<CleanlinessKey, string> = {
 };
 
 const ENVIRONMENT_PRESETS: Record<EnvironmentKey, EnvironmentPreset> = {
+  transparent: {
+    defaults: { surface: "none", depth: "flat", detail: "none", treatment: "solid", cleanliness: "clean" },
+    surfaces: ["none"],
+    depths: ["flat"],
+    details: ["none"],
+    treatments: ["solid"],
+    cleanliness: ["clean"],
+  },
   pure: {
     defaults: { surface: "none", depth: "flat", detail: "none", treatment: "solid", cleanliness: "clean" },
     surfaces: ["none", "paper", "glass"],
@@ -248,6 +261,7 @@ const ENVIRONMENT_PRESETS: Record<EnvironmentKey, EnvironmentPreset> = {
 };
 
 const ENVIRONMENT_CHILD_PRESETS: Record<EnvironmentKey, ChildPresetKey[]> = {
+  transparent: ["surface", "treatment"],
   pure: ["surface", "treatment"],
   studio: ["surface", "depth", "treatment"],
   workspace: ["surface", "detail", "cleanliness"],
@@ -266,6 +280,7 @@ const CHILD_PRESET_LABEL: Record<ChildPresetKey, string> = {
 };
 
 const ENVIRONMENT_PROMPT: Record<EnvironmentKey, string> = {
+  transparent: "true transparent alpha background for PNG output, no visible backdrop",
   pure: "pure white background with no environmental details",
   studio: "minimal warm studio environment with a matte off-white backdrop",
   workspace: "quiet creative workspace background",
@@ -401,6 +416,11 @@ function parseBackgroundPrompt(value: string): BackgroundModel {
   }
 
   const lower = value.toLowerCase();
+  if (
+    lower.includes("transparent") ||
+    lower.includes("alpha") ||
+    value.includes("투명")
+  ) return { ...DEFAULT_BACKGROUND, recipe: "transparent-alpha", environment: "transparent", extra: "isolate the subject cleanly with no visible background pixels" };
   if (lower.includes("office") || lower.includes("workspace")) return LEGACY_WORKSPACE_BACKGROUND;
   if (lower.includes("outdoor")) return { ...DEFAULT_BACKGROUND, environment: "outdoor", depth: "medium", detail: "low", treatment: "blur" };
   if (lower.includes("studio") || lower.includes("minimal")) return LEGACY_STUDIO_BACKGROUND;
@@ -409,6 +429,9 @@ function parseBackgroundPrompt(value: string): BackgroundModel {
 }
 
 function formatBackgroundPrompt(model: BackgroundModel) {
+  const transparentRule = model.environment === "transparent"
+    ? "Output: true transparent PNG alpha channel. Keep only the subject/object visible. Do not render checkerboard, grid, tiled transparency preview, white background, gray background, studio backdrop, shadow floor, or any fake transparent-background pattern."
+    : "";
   return [
     `Recipe: ${model.recipe}, ${BACKGROUND_RECIPE_LABEL[model.recipe]} - ${BACKGROUND_RECIPE_DESCRIPTION[model.recipe]}.`,
     `Environment: ${model.environment}, ${ENVIRONMENT_PROMPT[model.environment]}.`,
@@ -417,6 +440,7 @@ function formatBackgroundPrompt(model: BackgroundModel) {
     `Detail density: ${model.detail}, ${DETAIL_PROMPT[model.detail]}.`,
     `Treatment: ${model.treatment}, ${TREATMENT_PROMPT[model.treatment]}.`,
     `Cleanliness: ${model.cleanliness}, ${CLEANLINESS_PROMPT[model.cleanliness]}.`,
+    transparentRule,
     "Safety: no readable text, logos, signage, clutter, or distracting busy patterns.",
     model.extra.trim() ? `Additional direction: ${model.extra.trim()}.` : "",
   ].filter(Boolean).join(" ");
@@ -440,6 +464,7 @@ export function BackgroundNode({ id, data }: { id: string; data: BackgroundNodeD
   const model = useMemo(() => parseBackgroundPrompt(data.backgroundPrompt), [data.backgroundPrompt]);
   const preset = ENVIRONMENT_PRESETS[model.environment];
   const childPresetKeys = ENVIRONMENT_CHILD_PRESETS[model.environment];
+  const isTransparentBackground = model.environment === "transparent";
 
   const connections = useNodeConnections({ handleType: "source", handleId: "background-out" });
   const isConnected = connections.length > 0;
@@ -609,7 +634,27 @@ export function BackgroundNode({ id, data }: { id: string; data: BackgroundNodeD
             onAdd={() => setShowReferenceModal(true)}
             onUpdate={updateReference}
             onDelete={deleteReference}
+            disabled={isTransparentBackground}
           />
+
+          {isTransparentBackground && (
+            <div
+              style={{
+                display: "grid",
+                gap: "var(--ui-space-4)",
+                borderRadius: "var(--ui-space-10)",
+                border: "1px solid color-mix(in srgb, var(--port-background) 42%, var(--border-node))",
+                background: "color-mix(in srgb, var(--port-background) 10%, var(--bg-canvas))",
+                padding: "var(--ui-space-10)",
+                color: "var(--text-secondary)",
+                fontSize: "var(--ui-type-xs-size)",
+                lineHeight: 1.45,
+              }}
+            >
+              <strong style={{ color: "var(--text-primary)", fontSize: "var(--ui-type-xs-2-size)" }}>투명 PNG 출력</strong>
+              <span>배경 참조는 사용하지 않고, 피사체만 남긴 실제 알파 채널 PNG로 생성합니다.</span>
+            </div>
+          )}
 
           <button
             type="button"
@@ -799,11 +844,13 @@ function ReferencePanel({
   onAdd,
   onUpdate,
   onDelete,
+  disabled = false,
 }: {
   references: BackgroundReferenceItem[];
   onAdd: () => void;
   onUpdate: (referenceId: string, patch: Partial<BackgroundReferenceItem>) => void;
   onDelete: (event: React.MouseEvent, referenceId: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="nodrag" style={{ display: "flex", flexDirection: "column", gap: "var(--ui-space-8)" }}>
@@ -812,7 +859,9 @@ function ReferencePanel({
         <button
           type="button"
           onClick={onAdd}
-          style={{ display: "inline-flex", alignItems: "center", gap: "var(--ui-space-4)", height: 28, padding: "0 var(--ui-space-8)", borderRadius: "var(--ui-radius-pill)", border: "1px solid var(--border-node)", backgroundColor: "var(--bg-canvas)", color: "var(--text-secondary)", fontSize: "var(--ui-type-xs-size)", fontWeight: 850, cursor: "pointer" }}
+          disabled={disabled}
+          title={disabled ? "투명 배경에서는 배경 참조를 사용하지 않습니다" : "배경 참조 추가"}
+          style={{ display: "inline-flex", alignItems: "center", gap: "var(--ui-space-4)", height: 28, padding: "0 var(--ui-space-8)", borderRadius: "var(--ui-radius-pill)", border: "1px solid var(--border-node)", backgroundColor: "var(--bg-canvas)", color: disabled ? "var(--text-muted)" : "var(--text-secondary)", fontSize: "var(--ui-type-xs-size)", fontWeight: 850, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
         >
           <Plus size={12} />
           추가
@@ -821,12 +870,13 @@ function ReferencePanel({
 
       {references.length === 0 ? (
         <div style={{ border: "1px dashed var(--border-node)", borderRadius: "var(--ui-space-10)", padding: "var(--ui-space-12)", color: "var(--text-muted)", fontSize: "var(--ui-type-xs-size)", lineHeight: 1.45 }}>
-          이미지 배경을 분석해 색감, 조명, 공간감, 표면감을 참조합니다.
+          {disabled ? "투명 배경에서는 참조 이미지를 사용하지 않습니다." : "이미지 배경을 분석해 색감, 조명, 공간감, 표면감을 참조합니다."}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--ui-space-8)" }}>
           {references.map((reference) => {
             const enabled = reference.enabled !== false;
+            const isActive = enabled && !disabled;
             return (
               <div
                 key={reference.id}
@@ -837,18 +887,20 @@ function ReferencePanel({
                   alignItems: "start",
                   padding: "var(--ui-space-8)",
                   borderRadius: "var(--ui-space-10)",
-                  border: `1px solid ${enabled ? "var(--port-background)" : "var(--border-node)"}`,
-                  backgroundColor: enabled ? "color-mix(in srgb, var(--port-background) 8%, transparent)" : "var(--bg-canvas)",
+                  border: `1px solid ${isActive ? "var(--port-background)" : "var(--border-node)"}`,
+                  backgroundColor: isActive ? "color-mix(in srgb, var(--port-background) 8%, transparent)" : "var(--bg-canvas)",
+                  opacity: disabled ? 0.62 : 1,
                 }}
               >
                 <button
                   type="button"
-                  onClick={() => onUpdate(reference.id, { enabled: !enabled })}
-                  title={enabled ? "배경 참조에서 제외" : "배경 참조에 포함"}
-                  style={{ width: "var(--size-icon-container)", height: "var(--size-icon-container)", borderRadius: "var(--ui-radius-md)", overflow: "hidden", flexShrink: 0, border: "none", padding: 0, backgroundColor: "var(--bg-node-header)", position: "relative", cursor: "pointer" }}
+                  onClick={() => !disabled && onUpdate(reference.id, { enabled: !enabled })}
+                  title={disabled ? "투명 배경에서는 배경 참조를 사용하지 않습니다" : enabled ? "배경 참조에서 제외" : "배경 참조에 포함"}
+                  disabled={disabled}
+                  style={{ width: "var(--size-icon-container)", height: "var(--size-icon-container)", borderRadius: "var(--ui-radius-md)", overflow: "hidden", flexShrink: 0, border: "none", padding: 0, backgroundColor: "var(--bg-node-header)", position: "relative", cursor: disabled ? "not-allowed" : "pointer" }}
                 >
-                  <img src={reference.imageUrl} alt={reference.label} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: enabled ? 1 : 0.38 }} />
-                  {enabled && (
+                  <img src={reference.imageUrl} alt={reference.label} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: isActive ? 1 : 0.38 }} />
+                  {isActive && (
                     <span style={{ position: "absolute", right: 4, bottom: 4, width: 16, height: 16, borderRadius: "50%", background: "var(--port-background)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Check size={10} color="var(--bg-node-base)" strokeWidth={4} />
                     </span>
@@ -859,8 +911,8 @@ function ReferencePanel({
                   <strong style={{ display: "block", color: "var(--text-primary)", fontSize: "var(--ui-type-xs-size)", fontWeight: 900, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
                     {reference.label || "배경 참조"}
                   </strong>
-                  <p style={{ margin: "var(--ui-space-4) 0 var(--ui-space-8)", color: enabled ? "var(--text-secondary)" : "var(--text-muted)", fontSize: "var(--ui-type-xs-size)", lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>
-                    {reference.prompt || "색감, 조명, 공간감, 표면감을 참조합니다."}
+                  <p style={{ margin: "var(--ui-space-4) 0 var(--ui-space-8)", color: isActive ? "var(--text-secondary)" : "var(--text-muted)", fontSize: "var(--ui-type-xs-size)", lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>
+                    {disabled ? "투명 배경 선택 중에는 생성 요청에서 제외됩니다." : reference.prompt || "색감, 조명, 공간감, 표면감을 참조합니다."}
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "var(--ui-space-4)" }}>
                     {BACKGROUND_REFERENCE_WEIGHT_OPTIONS.map((option) => {
@@ -869,8 +921,9 @@ function ReferencePanel({
                         <button
                           key={option.value}
                           type="button"
-                          onClick={() => onUpdate(reference.id, { weight: option.value })}
-                          style={{ height: 26, border: `1px solid ${active ? "var(--port-background)" : "var(--border-node)"}`, borderRadius: "var(--ui-space-8)", background: active ? "color-mix(in srgb, var(--port-background) 12%, transparent)" : "var(--bg-canvas)", color: active ? "var(--port-background)" : "var(--text-muted)", fontSize: "var(--ui-type-xs-size)", fontWeight: 800, cursor: "pointer" }}
+                          onClick={() => !disabled && onUpdate(reference.id, { weight: option.value })}
+                          disabled={disabled}
+                          style={{ height: 26, border: `1px solid ${active && !disabled ? "var(--port-background)" : "var(--border-node)"}`, borderRadius: "var(--ui-space-8)", background: active && !disabled ? "color-mix(in srgb, var(--port-background) 12%, transparent)" : "var(--bg-canvas)", color: active && !disabled ? "var(--port-background)" : "var(--text-muted)", fontSize: "var(--ui-type-xs-size)", fontWeight: 800, cursor: disabled ? "not-allowed" : "pointer" }}
                         >
                           {option.label}
                         </button>

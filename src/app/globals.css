@@ -1298,6 +1298,16 @@ button:not([data-slot]) {
     var(--bg-canvas);
 }
 
+.editor-flow--locked .react-flow__node,
+.editor-flow--locked .react-flow__edge,
+.editor-flow--locked .react-flow__handle {
+  pointer-events: none;
+}
+
+.editor-flow--locked .react-flow__node {
+  cursor: wait;
+}
+
 .editor-topbar {
   position: absolute;
   top: 20px;

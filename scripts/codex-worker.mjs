@@ -303,16 +303,19 @@ async function writeOptimizedImageInput(tmpFileBase, imageData, options = {}) {
   const targetPath = `${tmpFileBase}.${format}`;
 
   try {
-    await sharp(imageData.buffer, { failOn: "none" })
+    const pipeline = sharp(imageData.buffer, { failOn: "none" })
       .rotate()
       .resize({
         width: maxEdge,
         height: maxEdge,
         fit: "inside",
         withoutEnlargement: true,
-      })
-      [format]({ quality })
-      .toFile(targetPath);
+      });
+    if (format === "png") {
+      await pipeline.png({ compressionLevel: 9 }).toFile(targetPath);
+    } else {
+      await pipeline[format]({ quality }).toFile(targetPath);
+    }
     return targetPath;
   } catch (error) {
     logDebug("writeOptimizedImageInput:fallback", {
@@ -386,6 +389,24 @@ function shouldAttachStyleReference(item, index) {
 
 function isLayerEditReference(item) {
   return item?.role === "composition" && /generated image layer|masked layer edit/i.test(`${item.label || ""} ${item.prompt || ""}`);
+}
+
+function isTransparentBackgroundInstruction(value) {
+  const text = typeof value === "string" ? value : "";
+  return (
+    /transparent|alpha|remove\s+(the\s+)?background|background\s+removal|cut\s*out|no\s+background/i.test(text) ||
+    /투명|알파|배경\s*제거|배경을\s*제거|누끼|피사체만/.test(text)
+  );
+}
+
+function isTransparentBackgroundLayerEdit(item) {
+  if (!isLayerEditReference(item)) return false;
+  if (item?.maskEditIntent === "transparent-background") return true;
+  return item?.maskRegion === "background" && isTransparentBackgroundInstruction(item.prompt);
+}
+
+function transparentBackgroundEditGuidance() {
+  return "Transparent-background mask edit: remove the selected background to a true alpha-transparent PNG. The background pixels must be transparent, not white, gray, black, or patterned. Do not draw or include a checkerboard, grid, tiled preview, transparency pattern, or fake transparent backdrop.";
 }
 
 function shouldAttachImageMixReference(item) {
@@ -494,6 +515,176 @@ function writeInlineGeneratedImage(threadId, inlineImage) {
   const filePath = path.join(generatedDir, `${safeId}.${getImageExtensionFromBuffer(buffer)}`);
   fs.writeFileSync(filePath, buffer);
   return filePath;
+}
+
+function colorDistance(a, b) {
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+  return Math.sqrt((dr * dr) + (dg * dg) + (db * db));
+}
+
+function colorStats(r, g, b) {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  return {
+    saturation: max - min,
+    luminance: (0.2126 * r) + (0.7152 * g) + (0.0722 * b),
+  };
+}
+
+function quantizeChannel(value, step = 16) {
+  return Math.max(0, Math.min(255, Math.round(value / step) * step));
+}
+
+function findBorderBackgroundCandidates(data, width, height) {
+  const margin = Math.max(2, Math.round(Math.min(width, height) * 0.06));
+  const counts = new Map();
+  const addPixel = (x, y) => {
+    const offset = ((y * width) + x) * 4;
+    const alpha = data[offset + 3];
+    if (alpha < 16) return;
+    const r = data[offset];
+    const g = data[offset + 1];
+    const b = data[offset + 2];
+    const { saturation, luminance } = colorStats(r, g, b);
+    if (saturation > 62 || luminance < 92) return;
+    const key = `${quantizeChannel(r)},${quantizeChannel(g)},${quantizeChannel(b)}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  };
+
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 180));
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      if (x < margin || x >= width - margin || y < margin || y >= height - margin) {
+        addPixel(x, y);
+      }
+    }
+  }
+
+  const candidates = [...counts.entries()]
+    .map(([key, count]) => {
+      const [r, g, b] = key.split(",").map(Number);
+      return { r, g, b, count };
+    })
+    .sort((a, b) => b.count - a.count)
+    .reduce((selected, color) => {
+      if (selected.length >= 5) return selected;
+      if (selected.every((existing) => colorDistance(existing, color) > 18)) {
+        selected.push(color);
+      }
+      return selected;
+    }, []);
+
+  return candidates;
+}
+
+function createCheckerboardCandidatePredicate(candidates) {
+  if (!candidates.length) return () => false;
+  const luminances = candidates.map((color) => colorStats(color.r, color.g, color.b).luminance);
+  const minLuminance = Math.min(...luminances);
+  const maxLuminance = Math.max(...luminances);
+  return (r, g, b, alpha) => {
+    if (alpha < 16) return false;
+    const { saturation, luminance } = colorStats(r, g, b);
+    if (candidates.some((color) => colorDistance(color, { r, g, b }) <= 50)) return true;
+    return saturation <= 46 && luminance >= minLuminance - 32 && luminance <= maxLuminance + 32;
+  };
+}
+
+async function convertCheckerboardBackgroundToAlpha(filePath) {
+  try {
+    const { data, info } = await sharp(filePath)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const { width, height } = info;
+    if (!width || !height) return filePath;
+
+    const candidates = findBorderBackgroundCandidates(data, width, height);
+    if (!candidates.length) {
+      logDebug("transparentBackgroundPostprocess:skip", {
+        reason: "no border candidates",
+        filePath,
+      });
+      return filePath;
+    }
+
+    const isBackgroundCandidate = createCheckerboardCandidatePredicate(candidates);
+    const transparentMask = new Uint8Array(width * height);
+    const queue = new Int32Array(width * height);
+    let head = 0;
+    let tail = 0;
+    const enqueueIfCandidate = (x, y) => {
+      if (x < 0 || x >= width || y < 0 || y >= height) return;
+      const pixelIndex = (y * width) + x;
+      if (transparentMask[pixelIndex]) return;
+      const offset = pixelIndex * 4;
+      if (!isBackgroundCandidate(data[offset], data[offset + 1], data[offset + 2], data[offset + 3])) return;
+      transparentMask[pixelIndex] = 1;
+      queue[tail] = pixelIndex;
+      tail += 1;
+    };
+
+    for (let x = 0; x < width; x += 1) {
+      enqueueIfCandidate(x, 0);
+      enqueueIfCandidate(x, height - 1);
+    }
+    for (let y = 1; y < height - 1; y += 1) {
+      enqueueIfCandidate(0, y);
+      enqueueIfCandidate(width - 1, y);
+    }
+
+    while (head < tail) {
+      const pixelIndex = queue[head];
+      head += 1;
+      const x = pixelIndex % width;
+      const y = Math.floor(pixelIndex / width);
+      enqueueIfCandidate(x + 1, y);
+      enqueueIfCandidate(x - 1, y);
+      enqueueIfCandidate(x, y + 1);
+      enqueueIfCandidate(x, y - 1);
+    }
+
+    const transparentPixels = tail;
+    const minPixels = Math.max(64, Math.round(width * height * 0.02));
+    if (transparentPixels < minPixels) {
+      logDebug("transparentBackgroundPostprocess:skip", {
+        reason: "not enough connected background pixels",
+        filePath,
+        transparentPixels,
+        minPixels,
+      });
+      return filePath;
+    }
+
+    for (let pixelIndex = 0; pixelIndex < transparentMask.length; pixelIndex += 1) {
+      if (transparentMask[pixelIndex]) {
+        data[(pixelIndex * 4) + 3] = 0;
+      }
+    }
+
+    const outputPath = path.join(
+      path.dirname(filePath),
+      `${path.basename(filePath, path.extname(filePath))}-transparent.png`,
+    );
+    await sharp(data, { raw: { width, height, channels: 4 } })
+      .png({ compressionLevel: 9 })
+      .toFile(outputPath);
+    logDebug("transparentBackgroundPostprocess:complete", {
+      filePath,
+      outputPath,
+      transparentPixels,
+      candidates: candidates.map(({ r, g, b, count }) => ({ r, g, b, count })),
+    });
+    return outputPath;
+  } catch (error) {
+    logDebug("transparentBackgroundPostprocess:fallback", {
+      filePath,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return filePath;
+  }
 }
 
 function materializeInlineGeneratedImageFromEvents(threadId, events) {
@@ -1146,11 +1337,15 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
     : [];
   const attachedImageMixItems = imageMixItems.filter(shouldAttachImageMixReference);
   const skippedImageMixItems = imageMixItems.filter((item) => !shouldAttachImageMixReference(item));
+  const hasTransparentBackgroundLayerEdit = attachedImageMixItems.some(isTransparentBackgroundLayerEdit);
   const imageMixPrompt = imageMixItems.length
     ? `IMAGE MIX REFERENCES: ${imageMixItems.map((item, index) => {
         const role = imageMixRoleLabel(item.role);
         const weight = item.weight || "medium";
-        const promptText = item.prompt || item.label || "use visible traits from this reference";
+        const promptText = [
+          item.prompt || item.label || "use visible traits from this reference",
+          isTransparentBackgroundLayerEdit(item) ? transparentBackgroundEditGuidance() : "",
+        ].filter(Boolean).join(" ");
         return `reference ${index + 1}: ${role}, ${weight} influence, ${promptText}`;
       }).join(" | ")}. Use attached mix images as controlled references by role; combine their intended traits into one coherent new image, not a collage. For symbol or logo-mark references, preserve the visible silhouette, internal geometry, node relationships, color identity, and negative space while allowing material, depth, camera, and lighting to change.`
     : "";
@@ -1233,6 +1428,16 @@ async function generateImageWithCodex({ prompt, style, characterReference, objec
     ]);
   }
 
+  const hasTransparentBackgroundRequest =
+    isTransparentBackgroundInstruction(background) ||
+    isTransparentBackgroundInstruction(promptBody);
+  if (hasTransparentBackgroundRequest && !/TRANSPARENT BACKGROUND OUTPUT|true alpha transparency/i.test(promptBody)) {
+    promptBody = [
+      promptBody,
+      "TRANSPARENT BACKGROUND OUTPUT: create the image on a real PNG alpha-transparent background; keep only the subject/object visible; do not render checkerboard, grid, tiled preview, white background, gray background, shadow floor, or fake transparency pattern.",
+    ].filter(Boolean).join("\n");
+  }
+
   const fullPrompt = buildImagePrompt(promptBody, {
     preserveStyleReference: Boolean(style),
     useDefaultStyle: Boolean(style || styleReferenceItems.length || imageMixItems.length),
@@ -1277,7 +1482,10 @@ ${characterReferenceItems.length
 
 IMAGE MIX:
 ${attachedImageMixItems.length
-    ? attachedImageMixItems.map((item, index) => `- ${index + 1}: ${item.role || "style"}; ${item.weight || "medium"}; ${compactText(item.prompt || item.label || "visible traits", 220)}`).join("\n")
+    ? attachedImageMixItems.map((item, index) => {
+        const guidance = isTransparentBackgroundLayerEdit(item) ? ` ${transparentBackgroundEditGuidance()}` : "";
+        return `- ${index + 1}: ${item.role || "style"}; ${item.weight || "medium"}; ${compactText(`${item.prompt || item.label || "visible traits"}${guidance}`, 360)}`;
+      }).join("\n")
     : "- none"}
 ${formatSkippedReferenceGuidance("TEXT-ONLY MIX GUIDANCE", skippedImageMixItems)}
 
@@ -1287,6 +1495,7 @@ REQUIREMENTS:
 - Style refs affect palette, medium, texture, lighting, finish only; do not copy subject/layout.
 - Preserve character/object locks and role-weighted image mix traits.
 - If orientation or mask edit is requested, make it visibly obeyed while preserving unaffected areas.
+${hasTransparentBackgroundLayerEdit || hasTransparentBackgroundRequest ? "- Output true alpha transparency in the image file for the transparent background request. Keep only the subject/object visible. Never render checkerboard squares, grids, tiled patterns, gray transparency previews, white studio backdrops, shadow floors, or any visual placeholder for transparency." : ""}
 - Return the generated image only.
 `.trim();
 
@@ -1328,6 +1537,7 @@ REQUIREMENTS:
         {
           maxEdge: isLayerEdit ? 1024 : item.weight === "high" ? 768 : 640,
           quality: isLayerEdit ? 84 : item.weight === "high" ? 82 : 78,
+          format: isLayerEdit ? "png" : "webp",
         },
       );
       sheetTmpFiles.push(tmpFile);
@@ -1350,6 +1560,9 @@ REQUIREMENTS:
     });
     if (!filePath) {
       throw new Error("생성된 이미지 파일을 ~/.codex/generated_images 에서 찾지 못했습니다.");
+    }
+    if (hasTransparentBackgroundLayerEdit || hasTransparentBackgroundRequest) {
+      filePath = await convertCheckerboardBackgroundToAlpha(filePath);
     }
 
     return {

@@ -242,6 +242,8 @@ export function generateViaWorker(payload: {
     weight?: string;
     prompt?: string;
     label?: string;
+    maskRegion?: string;
+    maskEditIntent?: "transparent-background" | "regional-edit";
   }[];
 }) {
   return postToWorker<WorkerGenerateResponse>("/generate", payload, 300000);
